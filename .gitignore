@@ -1,0 +1,17 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+data/pdf/*
+data/processed/ocr/*
+data/processed/text/*
+data/processed/grobid/*
+data/processed/tables/*
+data/processed/thumbnails/*
+data/exports/*
+data/backups/*
+!data/**/.gitkeep

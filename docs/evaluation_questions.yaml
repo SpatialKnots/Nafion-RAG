@@ -1,0 +1,15 @@
+# Filled manually after the first real corpus is selected.
+- id: q01
+  query: "Li-Nafion in NMP: conductivity and temperature dependence"
+  expected_article_dois: []
+  expected_keywords:
+    - "NMP"
+    - "conductivity"
+  notes: "Must retrieve experimental papers, not only reviews."
+- id: q02
+  query: "H- vs Li-Nafion using TGA or TGA-MS"
+  expected_article_dois: []
+  expected_keywords:
+    - "TGA"
+    - "Li-Nafion"
+  notes: "Initial placeholder until the gold corpus is assembled."
