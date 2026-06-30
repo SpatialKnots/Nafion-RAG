@@ -72,3 +72,25 @@ ruff format --check .
 mypy app
 pytest -q
 ```
+
+## Diagnostics And Retrieval
+
+Check the local ingestion environment:
+
+```powershell
+python -m app.ingestion.cli doctor
+```
+
+Search indexed chunks through the API:
+
+```text
+GET /search?q=Nafion&collection=literature&top_k=10
+```
+
+Run retrieval evaluation:
+
+```powershell
+python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10
+```
+
+See `docs/operations.md` for the operational checklist.

@@ -6,6 +6,7 @@ import typer
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
+from app.diagnostics.doctor import run_doctor
 from app.ingestion.service import IngestionResult, ingest_pdf
 
 cli = typer.Typer(help="Nafion RAG ingestion commands.")
@@ -58,6 +59,12 @@ def folder(path: Path, collection: str = "literature") -> None:
     typer.echo({"summary": summary})
     if summary["failed"]:
         raise typer.Exit(code=1)
+
+
+@cli.command()
+def doctor() -> None:
+    settings = get_settings()
+    typer.echo(run_doctor(settings, SessionLocal))
 
 
 if __name__ == "__main__":
