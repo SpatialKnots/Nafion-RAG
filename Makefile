@@ -1,5 +1,8 @@
-up:
-	docker compose up --build
+run:
+	python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+worker:
+	python -m app.workers.worker
 
 migrate:
 	python -m alembic upgrade head

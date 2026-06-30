@@ -4,7 +4,8 @@ Local-first scientific literature retrieval system for Nafion/PFSA and lithium-i
 
 The first implementation phase covers repository infrastructure and PDF ingestion only:
 
-- Docker Compose for PostgreSQL + pgvector, GROBID, app, and worker.
+- Local Python application and worker processes.
+- Local PostgreSQL database managed outside this repository.
 - SQLAlchemy models and Alembic migration.
 - Local PDF import with immutable original copy and SHA-256 duplicate detection.
 - Text-layer quality check and OCR decision logic.
@@ -16,22 +17,34 @@ Not included in phase 1: embeddings, semantic search, RAG answers, and complex U
 
 ## Quick Start
 
+Prerequisites:
+
+- Python 3.11 or newer.
+- A local PostgreSQL server.
+- A PostgreSQL database matching `DATABASE_URL` in `.env`.
+
 Copy configuration:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Start services:
+Install the project into the local virtual environment:
 
 ```powershell
-docker compose up --build
+python -m pip install -e ".[dev]"
 ```
 
 Run migrations:
 
 ```powershell
 python -m alembic upgrade head
+```
+
+Start the API:
+
+```powershell
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 Ingest a PDF:

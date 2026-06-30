@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: str = "local"
-    database_url: str = "postgresql+psycopg://nafion:nafion@localhost:5432/nafion_rag"
+    database_url: str = "postgresql+psycopg://nafion:nafion@localhost:5432/nafion_rag?connect_timeout=5"
     data_root: Path = Path("data")
     default_collection: str = "literature"
     grobid_url: str = "http://localhost:8070"

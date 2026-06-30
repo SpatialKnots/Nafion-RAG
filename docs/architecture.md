@@ -4,10 +4,11 @@ Nafion RAG is local-first. Phase 1 only implements source-preserving PDF ingesti
 
 ## Services
 
-- `postgres`: PostgreSQL 16 with pgvector extension enabled for later phases.
-- `grobid`: local GROBID service for metadata/TEI extraction in later Phase 1 work.
-- `app`: FastAPI backend with `/health`.
-- `worker`: placeholder background process; database-backed queue processing is next.
+- `postgres`: local PostgreSQL server managed outside this repository.
+- `app`: local FastAPI backend with `/health`, started with `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`.
+- `worker`: local placeholder background process, started with `python -m app.workers.worker`; database-backed queue processing is next.
+
+The repository does not start or manage infrastructure services. External services must be installed and operated by the local system or another service manager.
 
 ## Phase 1 Data Flow
 

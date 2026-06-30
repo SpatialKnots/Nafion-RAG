@@ -4,6 +4,7 @@ Revision ID: 0001_initial_phase1
 Revises:
 Create Date: 2026-06-29
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -18,7 +19,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
 
     op.create_table(
