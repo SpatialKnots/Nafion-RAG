@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+_OCR_TOOL_DIRS = [
+    Path(r"C:\Program Files\Tesseract-OCR"),
+    Path(r"C:\Program Files\gs\gs10.07.1\bin"),
+]
 
 
 def _tail(text: str, max_chars: int = 2000) -> str:
@@ -26,6 +32,16 @@ def _resolve_command(command: str) -> str | None:
     return None
 
 
+def _ocr_env() -> dict[str, str]:
+    env = os.environ.copy()
+    existing_path = env.get("PATH", "")
+    existing_parts = [part for part in existing_path.split(os.pathsep) if part]
+    prepend_parts = [str(path) for path in _OCR_TOOL_DIRS if path.is_dir() and str(path) not in existing_parts]
+    if prepend_parts:
+        env["PATH"] = os.pathsep.join([*prepend_parts, existing_path])
+    return env
+
+
 def run_ocrmypdf(
     input_pdf: Path,
     output_pdf: Path,
@@ -44,6 +60,7 @@ def run_ocrmypdf(
             [resolved_command, "--skip-text", "--language", languages, str(input_pdf), str(output_pdf)],
             check=False,
             capture_output=True,
+            env=_ocr_env(),
             text=True,
             timeout=timeout_seconds,
         )

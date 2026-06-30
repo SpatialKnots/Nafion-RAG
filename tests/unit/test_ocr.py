@@ -50,3 +50,17 @@ def test_resolve_command_falls_back_to_python_scripts_dir(monkeypatch, tmp_path)
     monkeypatch.setattr(ocr.sys, "executable", str(scripts_dir / "python.exe"))
 
     assert ocr._resolve_command("ocrmypdf") == str(command_path)
+
+
+def test_ocr_env_prepends_existing_tool_dirs(monkeypatch, tmp_path) -> None:
+    tesseract_dir = tmp_path / "Tesseract-OCR"
+    ghostscript_dir = tmp_path / "gs" / "bin"
+    tesseract_dir.mkdir()
+    ghostscript_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(ocr, "_OCR_TOOL_DIRS", [tesseract_dir, ghostscript_dir])
+    monkeypatch.setenv("PATH", "original")
+
+    env = ocr._ocr_env()
+
+    assert env["PATH"].startswith(f"{tesseract_dir}{ocr.os.pathsep}{ghostscript_dir}{ocr.os.pathsep}")
