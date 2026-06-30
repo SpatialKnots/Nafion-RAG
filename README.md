@@ -8,7 +8,7 @@ The first implementation phase covers repository infrastructure and PDF ingestio
 - Local PostgreSQL database managed outside this repository.
 - SQLAlchemy models and Alembic migration.
 - Local PDF import with immutable original copy and SHA-256 duplicate detection.
-- Text-layer quality check and OCR decision logic.
+- Text-layer quality check and optional OCRmyPDF execution for PDFs without usable text.
 - Page-level text extraction with PyMuPDF.
 - Deterministic chunking with page ranges.
 - CLI for ingesting one PDF or a folder.
@@ -22,6 +22,7 @@ Prerequisites:
 - Python 3.11 or newer.
 - A local PostgreSQL server.
 - A PostgreSQL database matching `DATABASE_URL` in `.env`.
+- OCRmyPDF and Tesseract language packs if scanned PDFs must be OCR-processed.
 
 Copy configuration:
 

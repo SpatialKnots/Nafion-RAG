@@ -18,12 +18,13 @@ PDF path
   -> duplicate check in articles.checksum_sha256
   -> copy immutable original to data/pdf
   -> page text extraction with PyMuPDF
-  -> OCR decision flag
+  -> OCRmyPDF when OCR is enabled and the PDF has no usable text layer
+  -> page text extraction from the OCR PDF when OCR ran
   -> DOI weak extraction from first pages
   -> article/pages/chunks persisted
 ```
 
-Original PDFs are never modified. OCR output is not yet generated in code; the ingestion result records whether OCR is required so the next patch can add OCRmyPDF execution without changing the page/chunk contract.
+Original PDFs are never modified. OCR output is written to `data/processed/ocr/` when OCR is required and enabled. If OCRmyPDF is missing or the OCR output still lacks a usable text layer, ingestion fails with a diagnostic instead of silently indexing empty text.
 
 ## Not In Phase 1
 

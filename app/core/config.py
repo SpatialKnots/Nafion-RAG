@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     grobid_url: str = "http://localhost:8070"
     ocr_languages: str = "eng+rus"
     ocr_enabled: bool = True
+    ocr_command: str = "ocrmypdf"
+    ocr_timeout_seconds: int = Field(default=900, ge=1)
     chunk_target_chars: int = Field(default=4500, ge=1000)
     chunk_overlap_chars: int = Field(default=600, ge=0)
     hybrid_rrf_k: int = 60

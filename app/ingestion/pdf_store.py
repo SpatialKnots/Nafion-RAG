@@ -19,3 +19,8 @@ def copy_original_pdf(source_path: Path, data_root: Path, checksum_sha256: str) 
     if not target_path.exists():
         shutil.copy2(source_path, target_path)
     return target_path
+
+
+def ocr_pdf_path(source_path: Path, data_root: Path, checksum_sha256: str) -> Path:
+    target_dir = data_root / "processed" / "ocr"
+    return target_dir / stable_pdf_name(checksum_sha256, source_path)

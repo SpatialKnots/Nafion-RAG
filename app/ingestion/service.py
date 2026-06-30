@@ -10,10 +10,11 @@ from sqlalchemy.orm import Session
 from app.chunking.simple import PageText, chunk_pages
 from app.core.config import Settings
 from app.db.models import Article, Chunk, Collection, IngestionJob, Page
-from app.extraction.text_quality import should_run_ocr
+from app.extraction.ocr import run_ocrmypdf
+from app.extraction.text_quality import has_usable_text_layer, should_run_ocr
 from app.ingestion.checksum import sha256_file
 from app.ingestion.pdf_extract import extract_pages
-from app.ingestion.pdf_store import copy_original_pdf
+from app.ingestion.pdf_store import copy_original_pdf, ocr_pdf_path
 from app.metadata.doi import extract_first_doi
 
 
@@ -68,6 +69,21 @@ def ingest_pdf(session: Session, settings: Settings, input_path: Path, collectio
         extracted_pages = extract_pages(stored_pdf)
         page_texts = [page.text for page in extracted_pages]
         ocr_required = should_run_ocr(page_texts, settings.ocr_enabled)
+        ocr_used = False
+        stored_ocr_pdf: Path | None = None
+        if ocr_required:
+            stored_ocr_pdf = run_ocrmypdf(
+                stored_pdf,
+                ocr_pdf_path(source_path, settings.data_root, checksum),
+                languages=settings.ocr_languages,
+                command=settings.ocr_command,
+                timeout_seconds=settings.ocr_timeout_seconds,
+            )
+            extracted_pages = extract_pages(stored_ocr_pdf)
+            page_texts = [page.text for page in extracted_pages]
+            if not has_usable_text_layer(page_texts):
+                raise RuntimeError(f"OCR completed but output still lacks a usable text layer: {stored_ocr_pdf}")
+            ocr_used = True
         combined_first_pages = "\n".join(page_texts[:3])
         doi = extract_first_doi(combined_first_pages)
 
@@ -82,7 +98,7 @@ def ingest_pdf(session: Session, settings: Settings, input_path: Path, collectio
             language=None,
             publication_type=None,
             pdf_original_path=str(stored_pdf),
-            pdf_ocr_path=None,
+            pdf_ocr_path=str(stored_ocr_pdf) if stored_ocr_pdf is not None else None,
             source_url=None,
             access_source="manual",
             license=None,
@@ -103,7 +119,7 @@ def ingest_pdf(session: Session, settings: Settings, input_path: Path, collectio
                     text=extracted.text,
                     image_path=None,
                     has_text_layer=has_text,
-                    ocr_used=False,
+                    ocr_used=ocr_used,
                 )
             )
 
