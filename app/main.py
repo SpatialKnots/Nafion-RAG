@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_session
 from app.retrieval.search import exact_search, search_response_to_dict
+from app.ui import router as ui_router
 
 app = FastAPI(title="Nafion RAG", version="0.1.0")
+app.include_router(ui_router)
 SessionDep = Annotated[Session, Depends(get_session)]
 
 
