@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.retrieval.search import exact_search, make_snippet
+from app.retrieval.search import _query_terms, exact_search, make_snippet
 
 
 class FakeSession:
@@ -62,3 +62,30 @@ def test_make_snippet_is_derived_from_chunk_text() -> None:
 
     assert "Nafion" in snippet
     assert "conductivity" in snippet
+
+
+def test_make_snippet_falls_back_to_query_terms() -> None:
+    snippet = make_snippet(
+        "Li-Nafion membranes show conductivity after solvent casting.",
+        "Li-Nafion in NMP: conductivity and temperature dependence",
+        radius=40,
+    )
+
+    assert "Li-Nafion" in snippet
+    assert "conductivity" in snippet
+
+
+def test_query_terms_preserve_scientific_hyphenated_terms() -> None:
+    assert _query_terms("Li-Nafion in NMP: conductivity and temperature dependence") == [
+        "Li-Nafion",
+        "NMP",
+        "conductivity",
+        "temperature",
+        "dependence",
+    ]
+
+
+def test_make_snippet_normalizes_common_pdf_ligatures() -> None:
+    snippet = make_snippet("Li-Naﬁon conductivity", "Li-Nafion", radius=20)
+
+    assert "Li-Nafion" in snippet

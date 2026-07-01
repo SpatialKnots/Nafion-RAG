@@ -49,15 +49,19 @@ def run_ocrmypdf(
     languages: str,
     command: str,
     timeout_seconds: int,
+    force: bool = False,
 ) -> Path:
     resolved_command = _resolve_command(command)
     if resolved_command is None:
         raise RuntimeError(f"OCR command not found: {command}")
 
     output_pdf.parent.mkdir(parents=True, exist_ok=True)
+    if output_pdf.exists():
+        output_pdf.unlink()
+    ocr_mode = "--force-ocr" if force else "--skip-text"
     try:
         completed = subprocess.run(
-            [resolved_command, "--skip-text", "--language", languages, str(input_pdf), str(output_pdf)],
+            [resolved_command, ocr_mode, "--language", languages, str(input_pdf), str(output_pdf)],
             check=False,
             capture_output=True,
             env=_ocr_env(),

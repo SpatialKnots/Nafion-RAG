@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -65,6 +65,7 @@ class Page(Base):
     image_path: Mapped[str | None] = mapped_column(Text)
     has_text_layer: Mapped[bool] = mapped_column(Boolean, nullable=False)
     ocr_used: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    selected_text_layer: Mapped[str] = mapped_column(Text, nullable=False, default="original")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     article: Mapped[Article] = relationship(back_populates="pages")
@@ -92,12 +93,28 @@ class Chunk(Base):
     page_start: Mapped[int] = mapped_column(Integer, nullable=False)
     page_end: Mapped[int] = mapped_column(Integer, nullable=False)
     source_type: Mapped[str] = mapped_column(Text, nullable=False)
+    text_layer: Mapped[str] = mapped_column(Text, nullable=False, default="original")
     text: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[int | None] = mapped_column(Integer)
     char_count: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     article: Mapped[Article] = relationship(back_populates="chunks")
+
+
+class PageTextLayer(Base):
+    __tablename__ = "page_text_layers"
+    __table_args__ = (UniqueConstraint("article_id", "page_number", "layer_type", name="uq_page_text_layers_article_page_layer"),)
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    article_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("articles.id", ondelete="CASCADE"), nullable=False)
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    layer_type: Mapped[str] = mapped_column(Text, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    has_usable_text: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    quality_score: Mapped[float] = mapped_column(Numeric, nullable=False)
+    source_pdf_path: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ArticleTag(Base):
