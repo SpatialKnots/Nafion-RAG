@@ -21,6 +21,20 @@ Required PASS checks for normal ingestion:
 
 If `tesseract_languages` reports missing `rus`, Russian OCR is not ready even though the code is configured for `eng+rus`.
 
+The application also supports a project-local Tesseract language directory:
+
+```text
+data/tessdata/
+```
+
+When this directory exists, OCR commands run with `TESSDATA_PREFIX` pointed at it. Put `rus.traineddata` there to enable Russian OCR without modifying the system Tesseract installation. Re-run:
+
+```powershell
+python -m app.ingestion.cli doctor
+```
+
+The `tesseract_languages` check should report `PASS` and include `rus` in `installed`.
+
 ## Phase 2 Retrieval Baseline
 
 Run exact retrieval through the API after PDFs have been indexed:

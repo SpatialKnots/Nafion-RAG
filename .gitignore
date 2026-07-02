@@ -15,4 +15,5 @@ data/processed/tables/*
 data/processed/thumbnails/*
 data/exports/*
 data/backups/*
+data/tessdata/*
 !data/**/.gitkeep

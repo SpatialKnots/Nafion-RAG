@@ -37,6 +37,7 @@ def test_doctor_reports_missing_ocr_tools_without_crashing(monkeypatch, tmp_path
 
 def test_doctor_accepts_required_tesseract_languages(monkeypatch) -> None:
     monkeypatch.setattr(doctor, "_resolve_tool", lambda candidates: "tesseract")
+    monkeypatch.setattr(doctor, "_ocr_env", lambda: {})
 
     def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args=args, returncode=0, stdout="List of available languages\neng\nrus\n", stderr="")
@@ -46,3 +47,15 @@ def test_doctor_accepts_required_tesseract_languages(monkeypatch) -> None:
     result = doctor._check_tesseract_languages({"eng", "rus"})
 
     assert result["status"] == "PASS"
+
+
+def test_doctor_rejects_local_tessdata_without_hocr_config(monkeypatch, tmp_path) -> None:
+    tessdata_dir = tmp_path / "tessdata"
+    tessdata_dir.mkdir()
+    monkeypatch.setattr(doctor, "_resolve_tool", lambda candidates: "tesseract")
+    monkeypatch.setattr(doctor, "_ocr_env", lambda: {"TESSDATA_PREFIX": str(tessdata_dir)})
+
+    result = doctor._check_tesseract_languages({"eng", "rus"})
+
+    assert result["status"] == "FAIL"
+    assert result["message"] == "tesseract hocr config is missing from TESSDATA_PREFIX"

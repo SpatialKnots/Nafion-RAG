@@ -64,6 +64,12 @@ def test_make_snippet_is_derived_from_chunk_text() -> None:
     assert "conductivity" in snippet
 
 
+def test_make_snippet_supports_russian_query_text() -> None:
+    snippet = make_snippet("Мембраны Нафион показывают ионную проводимость после гидратации.", "ионная проводимость", radius=20)
+
+    assert "ионную проводимость" in snippet
+
+
 def test_make_snippet_falls_back_to_query_terms() -> None:
     snippet = make_snippet(
         "Li-Nafion membranes show conductivity after solvent casting.",

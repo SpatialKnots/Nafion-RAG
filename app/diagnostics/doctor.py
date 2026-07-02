@@ -96,12 +96,23 @@ def _check_tesseract_languages(required_languages: set[str]) -> StatusPayload:
     resolved = _resolve_tool(["tesseract"])
     if resolved is None:
         return _payload("FAIL", "tesseract command not found", required_languages=sorted(required_languages))
+    ocr_env = _ocr_env()
+    tessdata_prefix = ocr_env.get("TESSDATA_PREFIX")
+    if tessdata_prefix is not None and not (Path(tessdata_prefix) / "configs" / "hocr").is_file():
+        return _payload(
+            "FAIL",
+            "tesseract hocr config is missing from TESSDATA_PREFIX",
+            command=resolved,
+            tessdata_prefix=tessdata_prefix,
+            missing=str(Path(tessdata_prefix) / "configs" / "hocr"),
+            required_languages=sorted(required_languages),
+        )
     try:
         completed = subprocess.run(
             [resolved, "--list-langs"],
             check=False,
             capture_output=True,
-            env=_ocr_env(),
+            env=ocr_env,
             text=True,
             timeout=30,
         )
@@ -110,20 +121,34 @@ def _check_tesseract_languages(required_languages: set[str]) -> StatusPayload:
             "FAIL",
             "could not list tesseract languages",
             command=resolved,
+            tessdata_prefix=tessdata_prefix,
             error_type=type(exc).__name__,
             error=str(exc),
             required_languages=sorted(required_languages),
         )
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip() or f"exit code {completed.returncode}"
-        return _payload("FAIL", "tesseract language listing failed", command=resolved, error=detail)
+        return _payload("FAIL", "tesseract language listing failed", command=resolved, tessdata_prefix=tessdata_prefix, error=detail)
     installed = {
         line.strip() for line in completed.stdout.splitlines() if line.strip() and not line.lower().startswith("list of available")
     }
     missing = sorted(required_languages - installed)
     if missing:
-        return _payload("FAIL", "required tesseract languages are missing", command=resolved, installed=sorted(installed), missing=missing)
-    return _payload("PASS", "required tesseract languages are installed", command=resolved, installed=sorted(installed))
+        return _payload(
+            "FAIL",
+            "required tesseract languages are missing",
+            command=resolved,
+            tessdata_prefix=tessdata_prefix,
+            installed=sorted(installed),
+            missing=missing,
+        )
+    return _payload(
+        "PASS",
+        "required tesseract languages are installed",
+        command=resolved,
+        tessdata_prefix=tessdata_prefix,
+        installed=sorted(installed),
+    )
 
 
 def _check_ghostscript() -> StatusPayload:

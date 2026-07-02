@@ -82,3 +82,28 @@ def test_ocr_env_prepends_existing_tool_dirs(monkeypatch, tmp_path) -> None:
     env = ocr._ocr_env()
 
     assert env["PATH"].startswith(f"{tesseract_dir}{ocr.os.pathsep}{ghostscript_dir}{ocr.os.pathsep}")
+
+
+def test_ocr_env_uses_local_tessdata_when_available(monkeypatch, tmp_path) -> None:
+    tessdata_dir = tmp_path / "data" / "tessdata"
+    tessdata_dir.mkdir(parents=True)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("TESSDATA_PREFIX", raising=False)
+    monkeypatch.setattr(ocr, "_windows_short_path", lambda path: str(path))
+
+    env = ocr._ocr_env()
+
+    assert env["TESSDATA_PREFIX"] == str(tessdata_dir.resolve())
+
+
+def test_ocr_env_uses_short_tessdata_path(monkeypatch, tmp_path) -> None:
+    tessdata_dir = tmp_path / "data" / "tessdata"
+    tessdata_dir.mkdir(parents=True)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(ocr, "_windows_short_path", lambda path: "C:\\SHORT\\tessdata")
+
+    env = ocr._ocr_env()
+
+    assert env["TESSDATA_PREFIX"] == "C:\\SHORT\\tessdata"
