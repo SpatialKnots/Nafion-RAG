@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.retrieval.search import _query_terms, exact_search, make_snippet
+from app.retrieval.search import _query_terms, exact_search, make_snippet, normalize_retrieval_method, search_chunks
 
 
 class FakeSession:
@@ -47,6 +47,35 @@ def test_exact_search_returns_source_linked_chunks() -> None:
     assert result.source_type == "method"
     assert result.retrieval_method == "exact_ilike"
     assert "Li-Nafion" in result.snippet
+
+
+def test_search_chunks_dispatches_exact_method() -> None:
+    collection = SimpleNamespace(id=uuid.uuid4(), name="literature")
+    article = SimpleNamespace(id=uuid.uuid4(), title="Li-Nafion paper", doi="10.1000/example")
+    chunk = SimpleNamespace(
+        id=uuid.uuid4(),
+        article_id=article.id,
+        page_start=2,
+        page_end=3,
+        source_type="method",
+        text="Conductivity of Li-Nafion in NMP depends on temperature.",
+        chunk_index=0,
+    )
+    session = FakeSession(collection)
+    session.rows = [(chunk, article, 12)]
+
+    response = search_chunks(session, "Li-Nafion", "literature", 5, method="exact")  # type: ignore[arg-type]
+
+    assert response.results[0].retrieval_method == "exact_ilike"
+
+
+def test_search_chunks_rejects_unknown_method() -> None:
+    with pytest.raises(ValueError, match="Unsupported retrieval method"):
+        search_chunks(FakeSession(), "Nafion", method="semantic")  # type: ignore[arg-type]
+
+
+def test_normalize_retrieval_method_accepts_exact_case_insensitive() -> None:
+    assert normalize_retrieval_method(" Exact ") == "exact"
 
 
 def test_exact_search_rejects_empty_query() -> None:

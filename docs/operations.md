@@ -90,7 +90,13 @@ Then query:
 GET /search?q=Nafion&collection=literature&top_k=10
 ```
 
-The retrieval method is `exact_ilike`; failures mean the current exact indexed chunks did not contain the expected DOI or keywords in the returned snippets. Do not interpret this as semantic retrieval quality.
+The default retrieval method is the exact baseline. It can also be selected explicitly:
+
+```text
+GET /search?q=Nafion&collection=literature&top_k=10&method=exact
+```
+
+The concrete result method is `exact_ilike`; failures mean the current exact indexed chunks did not contain the expected DOI or keywords in the returned snippets. Do not interpret this as semantic retrieval quality.
 
 Run retrieval evaluation only after `docs/evaluation_questions.yaml` contains real expected DOI or keyword evidence:
 
@@ -99,6 +105,14 @@ python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10
 ```
 
 Evaluation reports are written to `data/exports/retrieval_eval_*.json`.
+
+The evaluation CLI also accepts an explicit method flag for Phase 3 comparisons:
+
+```powershell
+python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10 --method exact
+```
+
+Only `exact` is implemented at this gate. `semantic` and `hybrid` must not be reported as available until the source implements them and evaluation proves them.
 
 Evaluation questions can target articles by DOI, title, or checksum:
 

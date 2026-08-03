@@ -17,10 +17,10 @@ def main() -> None:
 
 
 @cli.command()
-def retrieval(questions_path: Path, collection: str = "literature", top_k: int = 10) -> None:
+def retrieval(questions_path: Path, collection: str = "literature", top_k: int = 10, method: str = "exact") -> None:
     settings = get_settings()
     with SessionLocal() as session:
-        report = run_retrieval_evaluation(session, settings, questions_path, collection=collection, top_k=top_k)
+        report = run_retrieval_evaluation(session, settings, questions_path, collection=collection, top_k=top_k, method=method)
     output_path = write_evaluation_report(report, settings.data_root)
     typer.echo({"output_path": str(output_path), "summary": report["summary"]})
 

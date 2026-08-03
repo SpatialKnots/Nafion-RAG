@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.db.models import Article
-from app.retrieval.search import SearchResponse, exact_search, search_response_to_dict
+from app.retrieval.search import SearchResponse, normalize_retrieval_method, search_chunks, search_response_to_dict
 
 
 @dataclass(frozen=True)
@@ -169,11 +169,13 @@ def run_retrieval_evaluation(
     *,
     collection: str,
     top_k: int,
+    method: str = "exact",
 ) -> dict[str, Any]:
+    normalized_method = normalize_retrieval_method(method)
     questions = load_questions(questions_path)
     evaluated = []
     for question in questions:
-        response = exact_search(session, question.query, collection, top_k)
+        response = search_chunks(session, question.query, collection, top_k, method=normalized_method)
         result_payload = cast(list[dict[str, object]], search_response_to_dict(response)["results"])
         evaluated.append(_evaluate_question(question, response, _article_checksums_for_results(session, result_payload)))
     failures = [item for item in evaluated if not item["passed"]]
@@ -181,7 +183,13 @@ def run_retrieval_evaluation(
     return {
         "created_at": datetime.now(UTC).isoformat(),
         "questions_path": str(questions_path),
-        "settings": {"collection": collection, "top_k": top_k, "retrieval_method": "exact_ilike", "default_top_k": settings.default_top_k},
+        "settings": {
+            "collection": collection,
+            "top_k": top_k,
+            "method": normalized_method,
+            "retrieval_method": "exact_ilike",
+            "default_top_k": settings.default_top_k,
+        },
         "summary": {
             "total": len(evaluated),
             "passed": len(evaluated) - len(failures),

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, cast
 
 from sqlalchemy import Select, case, func, literal, or_, select
 from sqlalchemy.orm import Session
@@ -13,6 +13,8 @@ from app.db.models import Article, Chunk, Collection
 
 STOPWORDS = {"and", "in", "or", "the", "using", "vs", "with"}
 LIGATURES = str.maketrans({"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl"})
+RetrievalMethod = Literal["exact"]
+SUPPORTED_RETRIEVAL_METHODS: tuple[RetrievalMethod, ...] = ("exact",)
 
 
 @dataclass(frozen=True)
@@ -129,6 +131,29 @@ def exact_search(
             )
         )
     return SearchResponse(query=normalized_query, results=results)
+
+
+def normalize_retrieval_method(method: str) -> RetrievalMethod:
+    normalized = method.strip().lower()
+    if normalized == "exact":
+        return "exact"
+    supported = ", ".join(SUPPORTED_RETRIEVAL_METHODS)
+    raise ValueError(f"Unsupported retrieval method: {method}. Supported methods: {supported}")
+
+
+def search_chunks(
+    session: Session,
+    query: str,
+    collection_name: str = "literature",
+    top_k: int = 10,
+    *,
+    method: str = "exact",
+    source_type: str | None = None,
+) -> SearchResponse:
+    normalized_method = normalize_retrieval_method(method)
+    if normalized_method == "exact":
+        return exact_search(session, query, collection_name, top_k, source_type=source_type)
+    raise AssertionError(f"unhandled retrieval method: {normalized_method}")
 
 
 def search_response_to_dict(response: SearchResponse) -> dict[str, object]:

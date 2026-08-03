@@ -93,7 +93,8 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
         encoding="utf-8",
     )
 
-    def fake_exact_search(session: object, query: str, collection_name: str, top_k: int) -> SearchResponse:
+    def fake_search_chunks(session: object, query: str, collection_name: str, top_k: int, *, method: str = "exact") -> SearchResponse:
+        assert method == "exact"
         return SearchResponse(
             query=query,
             results=[
@@ -112,7 +113,7 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
             ],
         )
 
-    monkeypatch.setattr("app.evaluation.retrieval.exact_search", fake_exact_search)
+    monkeypatch.setattr("app.evaluation.retrieval.search_chunks", fake_search_chunks)
     monkeypatch.setattr("app.evaluation.retrieval._article_checksums_for_results", lambda session, result_payload: {})
 
     report = run_retrieval_evaluation(
@@ -121,8 +122,11 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
         questions_path,
         collection="literature",
         top_k=5,
+        method="exact",
     )
 
+    assert report["settings"]["method"] == "exact"
+    assert report["settings"]["retrieval_method"] == "exact_ilike"
     assert report["summary"] == {
         "total": 1,
         "passed": 0,
@@ -143,6 +147,29 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
     assert question["result_count"] == 1
     assert question["top_result"]["doi"] == "10.1000/example"
     assert question["top_result"]["retrieval_method"] == "exact_ilike"
+
+
+def test_retrieval_evaluation_rejects_unknown_method(tmp_path) -> None:
+    questions_path = tmp_path / "questions.yaml"
+    questions_path.write_text(
+        "- id: q01\n"
+        "  query: Nafion\n"
+        "  expected_article_dois:\n"
+        "    - 10.1000/example\n"
+        "  expected_keywords:\n"
+        "    - Nafion\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Unsupported retrieval method"):
+        run_retrieval_evaluation(
+            object(),  # type: ignore[arg-type]
+            SimpleNamespace(default_top_k=10),  # type: ignore[arg-type]
+            questions_path,
+            collection="literature",
+            top_k=5,
+            method="semantic",
+        )
 
 
 def test_retrieval_evaluation_supports_title_and_checksum_targets(tmp_path) -> None:
