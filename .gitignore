@@ -13,6 +13,7 @@ data/processed/text/*
 data/processed/grobid/*
 data/processed/tables/*
 data/processed/thumbnails/*
+data/processed/vector_indexes/*
 data/exports/*
 data/backups/*
 data/tessdata/*

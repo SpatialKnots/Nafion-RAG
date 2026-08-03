@@ -122,6 +122,14 @@ docs/phase3_storage_decision.md
 
 For the current local environment, `pgvector` is not available, so the planned Phase 3 storage path is a rebuildable local vector index under `data/processed/vector_indexes/`. Generated index files are local artifacts and must remain rebuildable from database chunks and a manifest.
 
+Write a manifest-only local vector index planning artifact after choosing an embedding model and dimension:
+
+```powershell
+python -m app.retrieval.cli manifest --embedding-model MODEL_ID --embedding-dimension DIMENSION
+```
+
+This command records chunk ids, article checksums, page/source metadata, chunk text checksums, corpus manifest checksum, and model metadata. It does not create embeddings and does not enable semantic or hybrid retrieval.
+
 Evaluation questions can target articles by DOI, title, or checksum:
 
 ```yaml

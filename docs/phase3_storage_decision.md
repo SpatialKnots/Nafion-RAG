@@ -66,6 +66,15 @@ The manifest is required for stale-index detection. If a chunk text checksum,
 model identifier, embedding dimension, or corpus checksum changes, the index
 must be rebuilt before semantic or hybrid retrieval can use it.
 
+A manifest-only artifact can be generated with:
+
+```powershell
+python -m app.retrieval.cli manifest --embedding-model MODEL_ID --embedding-dimension DIMENSION
+```
+
+This command does not create embeddings and does not enable semantic or hybrid
+retrieval.
+
 ## Dependency Gate
 
 No embedding dependency is selected by this decision. Before implementation,
