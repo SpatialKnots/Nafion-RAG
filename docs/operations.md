@@ -130,6 +130,16 @@ python -m app.retrieval.cli manifest --embedding-model MODEL_ID --embedding-dime
 
 This command records chunk ids, article checksums, page/source metadata, chunk text checksums, corpus manifest checksum, and model metadata. It does not create embeddings and does not enable semantic or hybrid retrieval.
 
+Build the local vector artifacts after FastEmbed is installed and the model choice is accepted:
+
+```powershell
+python -m app.retrieval.cli build --embedding-model BAAI/bge-small-en-v1.5 --batch-size 64
+```
+
+The build command writes ignored local artifacts under `data/processed/vector_indexes/<model>/`: `embeddings.npy`, `chunk_ids.json`, and `manifest.json`. This still does not expose semantic or hybrid search; it only prepares a rebuildable local index for later retrieval implementation.
+
+The first Phase 3 runtime is FastEmbed with `BAAI/bge-small-en-v1.5` as the initial local model. The model has 384 dimensions. First use may download model files from HuggingFace. On Windows, HuggingFace may warn that symlink-based cache optimization is unavailable; this affects cache efficiency, not the validity of the built index.
+
 Evaluation questions can target articles by DOI, title, or checksum:
 
 ```yaml

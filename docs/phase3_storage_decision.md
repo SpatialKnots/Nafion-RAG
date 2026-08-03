@@ -77,20 +77,29 @@ retrieval.
 
 ## Dependency Gate
 
-No embedding dependency is selected by this decision. Before implementation,
-choose and install one local embedding runtime explicitly.
+FastEmbed is selected as the first local embedding runtime for the local vector
+index path.
 
-Candidate next choices:
+Implemented dependency constraints:
 
-- `fastembed` for a lighter local embedding workflow;
-- `sentence-transformers` if model quality and multilingual coverage justify
-  the larger dependency set;
-- ONNX-based runtime if reproducibility and packaged model control outweigh
-  implementation complexity.
+- `fastembed>=0.8,<0.9`;
+- `numpy>=1.26,<2.3`.
 
-Any dependency addition must update `pyproject.toml`, record model identifiers
-in operations documentation, and pass tests before semantic retrieval is
-reported as implemented.
+`numpy<2.3` is pinned because the project type-checks as Python 3.11, and newer
+NumPy stubs may use syntax that requires Python 3.12.
+
+The first verified model build used:
+
+```text
+BAAI/bge-small-en-v1.5
+dimension: 384
+chunk_count: 379
+```
+
+FastEmbed may download model files from HuggingFace on first use. On Windows,
+the HuggingFace cache may warn that symlinks are unavailable unless Developer
+Mode or administrator privileges are enabled. This is a local cache efficiency
+warning, not an indexing failure.
 
 ## Rollback
 
@@ -104,6 +113,6 @@ Rollback for this storage path is file-based:
 ## Verdict
 
 Gate 2 storage backend is local rebuildable vector indexes, not `pgvector`, for
-the current environment. The next implementation step is dependency selection
-and a manifest-first index builder that can detect stale chunk/model state
-before any semantic search endpoint is exposed.
+the current environment. FastEmbed is the first embedding runtime, and the
+project can now build local vector artifacts. Semantic and hybrid search remain
+unimplemented until a retrieval method reads and evaluates these artifacts.
