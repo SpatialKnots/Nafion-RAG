@@ -114,6 +114,14 @@ python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10
 
 Only `exact` is implemented at this gate. `semantic` and `hybrid` must not be reported as available until the source implements them and evaluation proves them.
 
+Phase 3 storage planning is recorded in:
+
+```text
+docs/phase3_storage_decision.md
+```
+
+For the current local environment, `pgvector` is not available, so the planned Phase 3 storage path is a rebuildable local vector index under `data/processed/vector_indexes/`. Generated index files are local artifacts and must remain rebuildable from database chunks and a manifest.
+
 Evaluation questions can target articles by DOI, title, or checksum:
 
 ```yaml

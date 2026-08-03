@@ -154,11 +154,12 @@ Candidate vector storage dependencies:
 - pure Python/Numpy brute-force: acceptable only for a small corpus prototype,
   not a scalable default.
 
-Recommended storage decision:
+Current storage decision:
 
-- prefer `pgvector` if the local PostgreSQL instance can install extensions;
-- otherwise prototype semantic retrieval with a rebuildable local index under
-  `data/processed/`, keeping the source of truth in `chunks`.
+- `pgvector` is not available in the current PostgreSQL installation;
+- prototype semantic retrieval with a rebuildable local index under
+  `data/processed/vector_indexes/`, keeping the source of truth in `chunks`;
+- see `docs/phase3_storage_decision.md` for the evidence and rollback path.
 
 No model weights, generated vector indexes, or exported reports should be
 committed unless explicitly designed as small tracked fixtures.
@@ -375,7 +376,7 @@ The following decisions should be made before code implementation:
 
 - embedding model and whether multilingual Russian/English support is required
   in the first Phase 3 build;
-- vector storage backend: `pgvector` or rebuildable local index;
+- embedding dependency/runtime for the rebuildable local index;
 - whether to add PostgreSQL full-text search before embeddings;
 - whether hybrid ranking should use reciprocal rank fusion or a weighted score;
 - acceptance threshold for top-1 improvement versus any top-k regression;
