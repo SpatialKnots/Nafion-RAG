@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-03T07:04:49.963723+00:00",
+  "collection": "literature",
+  "summary": {
+    "articles": 16,
+    "articles_with_doi": 12,
+    "articles_without_doi": 4,
+    "pages": 321,
+    "chunks": 379,
+    "text_layers": 642
+  },
+  "articles": [
+    {
+      "checksum_sha256": "222fa4a5e7922df851ba99606c92d5a3c83e9fe28606d5d461516ecb7db657f9",
+      "title": "Cho и др. - 2015 - The Effect of Solvent Casting Condition on the Electrochemical Properties of NafionPolyvinylidene F",
+      "doi": "10.1080/00986445.2013.855205",
+      "pdf_original_basename": "222fa4a5e7922df8_Cho_и_др._-_2015_-_The_Effect_of_Solvent_Casting_Condition_on_the_Electrochemica.pdf",
+      "pdf_ocr_basename": "222fa4a5e7922df8_Cho_и_др._-_2015_-_The_Effect_of_Solvent_Casting_Condition_on_the_Electrochemica.pdf",
+      "status": "indexed",
+      "page_count": 8,
+      "chunk_count": 12,
+      "text_layer_count": 16
+    },
+    {
+      "checksum_sha256": "9a716f6b4522437df79fa3688090573f6f3aba3cc3700886ede00760968ba2bf",
+      "title": "Dai и др. - 2017 - Effect of casting solvent and annealing temperature on recast Nafion membranes for vanadium redox fl",
+      "doi": "10.1016/j.memsci.2016.09.014",
+      "pdf_original_basename": "9a716f6b4522437d_Dai_и_др._-_2017_-_Effect_of_casting_solvent_and_annealing_temperature_on_recast.pdf",
+      "pdf_ocr_basename": "9a716f6b4522437d_Dai_и_др._-_2017_-_Effect_of_casting_solvent_and_annealing_temperature_on_recast.pdf",
+      "status": "indexed",
+      "page_count": 12,
+      "chunk_count": 18,
+      "text_layer_count": 24
+    },
+    {
+      "checksum_sha256": "7519b88c1b0a0bf36855c1f881a19965191b72521823bdbafd9736c0c9a32e9f",
+      "title": "Istomina 2021",
+      "doi": "10.3390/polym13071150",
+      "pdf_original_basename": "7519b88c1b0a0bf3_Istomina_2021.pdf",
+      "pdf_ocr_basename": "7519b88c1b0a0bf3_Istomina_2021.pdf",
+      "status": "indexed",
+      "page_count": 14,
+      "chunk_count": 16,
+      "text_layer_count": 28
+    },
+    {
+      "checksum_sha256": "dbc50f87b0f35c926a5c7cb497dbc6bf55bf5836073e8199d658a2eed84340e1",
+      "title": "Kim и др. - 2015 - Origin of Toughness in Dispersion-Cast Nafion Membranes",
+      "doi": "10.1021/ma502538k",
+      "pdf_original_basename": "dbc50f87b0f35c92_Kim_и_др._-_2015_-_Origin_of_Toughness_in_Dispersion-Cast_Nafion_Membranes.pdf",
+      "pdf_ocr_basename": "dbc50f87b0f35c92_Kim_и_др._-_2015_-_Origin_of_Toughness_in_Dispersion-Cast_Nafion_Membranes.pdf",
+      "status": "indexed",
+      "page_count": 12,
+      "chunk_count": 24,
+      "text_layer_count": 24
+    },
+    {
+      "checksum_sha256": "cb0dbafe419f7b5b4ba6284c9a70fc6ca3272fdcf6a441b85f331235ef05826d",
+      "title": "Laporta и др. - 2000 - Recast Nafion‐117 thin film from water solution",
+      "doi": "10.1002/1439-2054(20001001)282:1",
+      "pdf_original_basename": "cb0dbafe419f7b5b_Laporta_и_др._-_2000_-_Recast_Nafion‐117_thin_film_from_water_solution.pdf",
+      "pdf_ocr_basename": "cb0dbafe419f7b5b_Laporta_и_др._-_2000_-_Recast_Nafion‐117_thin_film_from_water_solution.pdf",
+      "status": "indexed",
+      "page_count": 8,
+      "chunk_count": 11,
+      "text_layer_count": 16
+    },
+    {
+      "checksum_sha256": "3fbac155ded2bbbd38b6094ed69ce2439f5b261a95dff4d2ad3028bb378c9102",
+      "title": "Ma и др. - 2009 - Morphology and properties of Nafion membranes prepared by solution casting",
+      "doi": "10.1016/j.polymer.2009.01.060",
+      "pdf_original_basename": "3fbac155ded2bbbd_Ma_и_др._-_2009_-_Morphology_and_properties_of_Nafion_membranes_prepared_by_solu.pdf",
+      "pdf_ocr_basename": "3fbac155ded2bbbd_Ma_и_др._-_2009_-_Morphology_and_properties_of_Nafion_membranes_prepared_by_solu.pdf",
+      "status": "indexed",
+      "page_count": 14,
+      "chunk_count": 22,
+      "text_layer_count": 28
+    },
+    {
+      "checksum_sha256": "d01917c8214d2d5895e1cd80739a62f7ee22fcb096a3dd1719cb75931d02a8fe",
+      "title": "Mohammadi и Rabiee - 2011 - Solution casting, characterization, and performance evaluation of perfluorosulfonic sodium type memb",
+      "doi": "10.1002/app.33526",
+      "pdf_original_basename": "d01917c8214d2d58_Mohammadi_и_Rabiee_-_2011_-_Solution_casting,_characterization,_and_performance_.pdf",
+      "pdf_ocr_basename": "d01917c8214d2d58_Mohammadi_и_Rabiee_-_2011_-_Solution_casting,_characterization,_and_performance_.pdf",
+      "status": "indexed",
+      "page_count": 8,
+      "chunk_count": 9,
+      "text_layer_count": 16
+    },
+    {
+      "checksum_sha256": "a537b029ae93c418c0d37df1cae1ce5862ca4bbeaa1abc689a3958760444c30f",
+      "title": "Moore и Martin - 1988 - Chemical and morphological properties of solution-cast perfluorosulfonate ionomers",
+      "doi": null,
+      "pdf_original_basename": "a537b029ae93c418_Moore_и_Martin_-_1988_-_Chemical_and_morphological_properties_of_solution-cast_p.pdf",
+      "pdf_ocr_basename": "a537b029ae93c418_Moore_и_Martin_-_1988_-_Chemical_and_morphological_properties_of_solution-cast_p.pdf",
+      "status": "indexed",
+      "page_count": 6,
+      "chunk_count": 12,
+      "text_layer_count": 12
+    },
+    {
+      "checksum_sha256": "d6744494353ffc88860f3146e17d847bb75111e105c85cae19decd277c84eb8a",
+      "title": "Sanginov 2021",
+      "doi": "10.1016/j.electacta.2021.137914",
+      "pdf_original_basename": "d6744494353ffc88_Sanginov_2021.pdf",
+      "pdf_ocr_basename": "d6744494353ffc88_Sanginov_2021.pdf",
+      "status": "indexed",
+      "page_count": 14,
+      "chunk_count": 24,
+      "text_layer_count": 28
+    },
+    {
+      "checksum_sha256": "72facadf39cdb1ddf220320ea2ccbb7cc3c5bcdb7fa2e4c8907b0e44841dbd27",
+      "title": "Sanginov 2021 - sup",
+      "doi": null,
+      "pdf_original_basename": "72facadf39cdb1dd_Sanginov_2021_-_sup.pdf",
+      "pdf_ocr_basename": "72facadf39cdb1dd_Sanginov_2021_-_sup.pdf",
+      "status": "indexed",
+      "page_count": 24,
+      "chunk_count": 23,
+      "text_layer_count": 48
+    },
+    {
+      "checksum_sha256": "1296f3c15df5ca7a6a9c48fcbfc25769a91a8a4038f69c0589d85103971d451e",
+      "title": "Welch и др. - 2012 - Nafion in Dilute Solvent Systems Dispersion or Solution",
+      "doi": "10.1021/mz3005204",
+      "pdf_original_basename": "1296f3c15df5ca7a_Welch_и_др._-_2012_-_Nafion_in_Dilute_Solvent_Systems_Dispersion_or_Solution.pdf",
+      "pdf_ocr_basename": "1296f3c15df5ca7a_Welch_и_др._-_2012_-_Nafion_in_Dilute_Solvent_Systems_Dispersion_or_Solution.pdf",
+      "status": "indexed",
+      "page_count": 5,
+      "chunk_count": 9,
+      "text_layer_count": 10
+    },
+    {
+      "checksum_sha256": "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266",
+      "title": "Диссертация Чернюк С.Д.",
+      "doi": null,
+      "pdf_original_basename": "9fc86c2246321045_Диссертация_Чернюк_С.Д..pdf",
+      "pdf_ocr_basename": "9fc86c2246321045_Диссертация_Чернюк_С.Д..pdf",
+      "status": "indexed",
+      "page_count": 159,
+      "chunk_count": 151,
+      "text_layer_count": 318
+    },
+    {
+      "checksum_sha256": "4bf40c35a28d407c7172059dbd05cccf19c3224b500fa4bedf09c7d968b59cde",
+      "title": "Каюмов 2021",
+      "doi": "10.31857/s0424857021060049",
+      "pdf_original_basename": "4bf40c35a28d407c_Каюмов_2021.pdf",
+      "pdf_ocr_basename": "4bf40c35a28d407c_Каюмов_2021.pdf",
+      "status": "indexed",
+      "page_count": 10,
+      "chunk_count": 14,
+      "text_layer_count": 20
+    },
+    {
+      "checksum_sha256": "7b422210e1a7baa2182f6bf928046b3d6d7a64c9750dbf48c4745adb4c5dde45",
+      "title": "Резницких 2021",
+      "doi": "10.31857/s0044453721060224",
+      "pdf_original_basename": "7b422210e1a7baa2_Резницких_2021.pdf",
+      "pdf_ocr_basename": "7b422210e1a7baa2_Резницких_2021.pdf",
+      "status": "indexed",
+      "page_count": 8,
+      "chunk_count": 9,
+      "text_layer_count": 16
+    },
+    {
+      "checksum_sha256": "47d7e8489618ad8150f99e585c12ed3dee6fdad30236c538809d20d18a47a845",
+      "title": "Чернюк 2023",
+      "doi": "10.31857/s2308112023700463",
+      "pdf_original_basename": "47d7e8489618ad81_Чернюк_2023.pdf",
+      "pdf_ocr_basename": "47d7e8489618ad81_Чернюк_2023.pdf",
+      "status": "indexed",
+      "page_count": 10,
+      "chunk_count": 14,
+      "text_layer_count": 20
+    },
+    {
+      "checksum_sha256": "de0c55db3994c9a6c2a2e3f0939d3b28b907fe3ac0c6ca867050be02bc53f182",
+      "title": "Чернюк 2024",
+      "doi": null,
+      "pdf_original_basename": "de0c55db3994c9a6_Чернюк_2024.pdf",
+      "pdf_ocr_basename": "de0c55db3994c9a6_Чернюк_2024.pdf",
+      "status": "indexed",
+      "page_count": 9,
+      "chunk_count": 11,
+      "text_layer_count": 18
+    }
+  ]
+}

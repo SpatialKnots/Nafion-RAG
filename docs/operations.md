@@ -100,6 +100,54 @@ python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10
 
 Evaluation reports are written to `data/exports/retrieval_eval_*.json`.
 
+Evaluation questions can target articles by DOI, title, or checksum:
+
+```yaml
+expected_article_dois:
+  - "10.1016/j.polymer.2009.01.060"
+expected_article_titles:
+  - "Диссертация Чернюк С.Д."
+expected_article_checksums:
+  - "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+```
+
+Use title/checksum targets for DOI-less material. At least one article target is required, and missing DOI/title/checksum targets are reported separately.
+
+The evaluation summary preserves top-k PASS/FAIL and also reports ranking metrics:
+
+- `passed`: questions where expected article targets and expected keywords were found in the returned top-k snippets.
+- `top_1_passed`: questions where the first result matched an expected article and expected keywords were found.
+- `recall_at_k`: fraction of questions with an expected article anywhere in top-k.
+- `mean_rank`: mean rank of the first expected article among questions where an expected article was found.
+
+Each question also records `rank_of_expected` and per-question `recall_at_k`.
+
+The current exact baseline question set contains 24 questions, including DOI-backed, DOI-less title/checksum, Russian, table-oriented, and intentionally broad ambiguity queries.
+
+Write a corpus/retrieval inventory report after ingestion or evaluation changes:
+
+```powershell
+python -m app.ingestion.cli corpus-report
+```
+
+Corpus reports are written to `data/exports/corpus_report_*.json`. They include article and DOI coverage, page/chunk/text-layer totals, chunk source/text-layer distributions, missing original/OCR file counts, missing-DOI titles, and the latest retrieval evaluation summary when present.
+
+Write the tracked corpus manifest after intentional corpus changes:
+
+```powershell
+python -m app.ingestion.cli corpus-manifest
+```
+
+The manifest is written to `docs/corpus_manifest.json`. It records per-article checksum, title, DOI, original/OCR PDF basenames, status, page count, chunk count, and text-layer count. It does not include PDF files or full local filesystem paths.
+
+Check the current local corpus against the tracked manifest:
+
+```powershell
+python -m app.ingestion.cli corpus-manifest --check docs/corpus_manifest.json
+```
+
+The check emits JSON diagnostics and exits non-zero when an article is missing, extra, or changed relative to the manifest.
+
 Inspect the latest retrieval evaluation report in the UI:
 
 ```text

@@ -3,16 +3,17 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from decimal import Decimal
+from json import JSONDecodeError
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 import typer
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.models import Article, ArticleTag, Chunk, Note, Page, PageTextLayer, Section, StructuredFact
+from app.db.models import Article, ArticleTag, Chunk, Collection, Note, Page, PageTextLayer, Section, StructuredFact
 from app.db.session import SessionLocal
 from app.diagnostics.doctor import run_doctor
 from app.ingestion.service import IngestionResult, ingest_pdf, reselect_article_text
@@ -188,6 +189,217 @@ def _delete_articles(session: Session, articles: list[Article]) -> dict[str, int
     return counts
 
 
+def _latest_retrieval_eval(data_root: Path) -> dict[str, object] | None:
+    export_dir = data_root / "exports"
+    if not export_dir.exists():
+        return None
+    reports = sorted(export_dir.glob("retrieval_eval_*.json"), key=lambda path: path.name, reverse=True)
+    if not reports:
+        return None
+    latest = reports[0]
+    try:
+        payload = json.loads(latest.read_text(encoding="utf-8"))
+    except JSONDecodeError as exc:
+        return {"path": str(latest), "status": "unreadable", "error_type": type(exc).__name__, "error": str(exc)}
+    summary = payload.get("summary")
+    settings = payload.get("settings")
+    return {
+        "path": str(latest),
+        "status": "loaded",
+        "created_at": payload.get("created_at"),
+        "summary": summary if isinstance(summary, dict) else None,
+        "settings": settings if isinstance(settings, dict) else None,
+    }
+
+
+def _count_by_value(session: Session, column: Any, collection: Collection | None = None) -> dict[str, int]:
+    statement = select(column, func.count()).group_by(column).order_by(column)
+    if collection is not None:
+        statement = statement.join(Article, Chunk.article_id == Article.id).where(Article.collection_id == collection.id)
+    return {str(value): count for value, count in session.execute(statement).all()}
+
+
+def _build_corpus_report(session: Session, data_root: Path, collection_name: str) -> dict[str, object]:
+    collection = session.scalar(select(Collection).where(Collection.name == collection_name))
+    if collection is None:
+        raise typer.BadParameter(f"Unknown collection: {collection_name}")
+
+    articles = list(session.scalars(select(Article).where(Article.collection_id == collection.id).order_by(Article.title)))
+    article_ids = [article.id for article in articles]
+    pages = session.scalar(select(func.count(Page.id)).where(Page.article_id.in_(article_ids))) if article_ids else 0
+    chunks = session.scalar(select(func.count(Chunk.id)).where(Chunk.article_id.in_(article_ids))) if article_ids else 0
+    text_layers = (
+        session.scalar(select(func.count(PageTextLayer.id)).where(PageTextLayer.article_id.in_(article_ids))) if article_ids else 0
+    )
+    source_types = _count_by_value(session, Chunk.source_type, collection)
+    text_layer_types = _count_by_value(session, Chunk.text_layer, collection)
+
+    article_payloads: list[dict[str, object]] = []
+    missing_doi_titles: list[str | None] = []
+    missing_original_count = 0
+    missing_ocr_count = 0
+    for article in articles:
+        original_exists = Path(article.pdf_original_path).exists()
+        ocr_exists = bool(article.pdf_ocr_path) and Path(article.pdf_ocr_path or "").exists()
+        if not article.doi:
+            missing_doi_titles.append(article.title)
+        if not original_exists:
+            missing_original_count += 1
+        if article.pdf_ocr_path and not ocr_exists:
+            missing_ocr_count += 1
+        article_payloads.append(
+            {
+                "article_id": str(article.id),
+                "title": article.title,
+                "doi": article.doi,
+                "pdf_original_path": article.pdf_original_path,
+                "pdf_ocr_path": article.pdf_ocr_path,
+                "original_exists": original_exists,
+                "ocr_exists": ocr_exists,
+                "status": article.status,
+            }
+        )
+
+    return {
+        "created_at": datetime.now(UTC).isoformat(),
+        "collection": collection_name,
+        "data_root": str(data_root),
+        "summary": {
+            "articles": len(articles),
+            "articles_with_doi": sum(1 for article in articles if article.doi),
+            "articles_without_doi": len(missing_doi_titles),
+            "pages": int(pages or 0),
+            "chunks": int(chunks or 0),
+            "text_layers": int(text_layers or 0),
+            "missing_original_files": missing_original_count,
+            "missing_ocr_files": missing_ocr_count,
+        },
+        "distributions": {"chunk_source_type": source_types, "chunk_text_layer": text_layer_types},
+        "missing_doi_titles": missing_doi_titles,
+        "latest_retrieval_eval": _latest_retrieval_eval(data_root),
+        "articles": article_payloads,
+    }
+
+
+def _write_corpus_report(report: dict[str, object], data_root: Path) -> Path:
+    export_dir = data_root / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    output_path = export_dir / f"corpus_report_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.json"
+    output_path.write_text(json.dumps(_json_ready(report), ensure_ascii=False, indent=2), encoding="utf-8")
+    return output_path
+
+
+def _article_counts(session: Session, article_ids: list[UUID], model: Any) -> dict[UUID, int]:
+    if not article_ids:
+        return {}
+    rows = session.execute(
+        select(model.article_id, func.count(model.id)).where(model.article_id.in_(article_ids)).group_by(model.article_id)
+    )
+    return {article_id: int(count) for article_id, count in rows.all()}
+
+
+def _build_corpus_manifest(session: Session, collection_name: str) -> dict[str, object]:
+    collection = session.scalar(select(Collection).where(Collection.name == collection_name))
+    if collection is None:
+        raise typer.BadParameter(f"Unknown collection: {collection_name}")
+
+    articles = list(
+        session.scalars(select(Article).where(Article.collection_id == collection.id).order_by(Article.title, Article.checksum_sha256))
+    )
+    article_ids = [article.id for article in articles]
+    page_counts = _article_counts(session, article_ids, Page)
+    chunk_counts = _article_counts(session, article_ids, Chunk)
+    text_layer_counts = _article_counts(session, article_ids, PageTextLayer)
+
+    article_payloads: list[dict[str, object]] = [
+        {
+            "checksum_sha256": article.checksum_sha256,
+            "title": article.title,
+            "doi": article.doi,
+            "pdf_original_basename": Path(article.pdf_original_path).name,
+            "pdf_ocr_basename": Path(article.pdf_ocr_path).name if article.pdf_ocr_path else None,
+            "status": article.status,
+            "page_count": page_counts.get(article.id, 0),
+            "chunk_count": chunk_counts.get(article.id, 0),
+            "text_layer_count": text_layer_counts.get(article.id, 0),
+        }
+        for article in articles
+    ]
+    page_total = sum(page_counts.get(article.id, 0) for article in articles)
+    chunk_total = sum(chunk_counts.get(article.id, 0) for article in articles)
+    text_layer_total = sum(text_layer_counts.get(article.id, 0) for article in articles)
+
+    return {
+        "schema_version": 1,
+        "created_at": datetime.now(UTC).isoformat(),
+        "collection": collection_name,
+        "summary": {
+            "articles": len(article_payloads),
+            "articles_with_doi": sum(1 for article in article_payloads if article["doi"]),
+            "articles_without_doi": sum(1 for article in article_payloads if not article["doi"]),
+            "pages": page_total,
+            "chunks": chunk_total,
+            "text_layers": text_layer_total,
+        },
+        "articles": article_payloads,
+    }
+
+
+def _write_corpus_manifest(manifest: dict[str, object], output_path: Path) -> Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(_json_ready(manifest), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return output_path
+
+
+def _manifest_comparable(manifest: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in manifest.items() if key != "created_at"}
+
+
+def _manifest_articles_by_checksum(manifest: dict[str, object]) -> dict[str, dict[str, object]]:
+    articles = manifest.get("articles")
+    if not isinstance(articles, list):
+        return {}
+    result: dict[str, dict[str, object]] = {}
+    for article in articles:
+        if isinstance(article, dict) and isinstance(article.get("checksum_sha256"), str):
+            result[article["checksum_sha256"]] = article
+    return result
+
+
+def _compare_corpus_manifest(current: dict[str, object], expected: dict[str, object]) -> dict[str, object]:
+    current_articles = _manifest_articles_by_checksum(current)
+    expected_articles = _manifest_articles_by_checksum(expected)
+    current_checksums = set(current_articles)
+    expected_checksums = set(expected_articles)
+    shared_checksums = sorted(current_checksums & expected_checksums)
+
+    changed_articles = [
+        {
+            "checksum_sha256": checksum,
+            "expected": expected_articles[checksum],
+            "current": current_articles[checksum],
+        }
+        for checksum in shared_checksums
+        if current_articles[checksum] != expected_articles[checksum]
+    ]
+    diagnostics = {
+        "status": "match",
+        "summary_changed": current.get("summary") != expected.get("summary"),
+        "missing_articles": [expected_articles[checksum] for checksum in sorted(expected_checksums - current_checksums)],
+        "extra_articles": [current_articles[checksum] for checksum in sorted(current_checksums - expected_checksums)],
+        "changed_articles": changed_articles,
+    }
+    if (
+        diagnostics["summary_changed"]
+        or diagnostics["missing_articles"]
+        or diagnostics["extra_articles"]
+        or diagnostics["changed_articles"]
+        or _manifest_comparable(current) != _manifest_comparable(expected)
+    ):
+        diagnostics["status"] = "mismatch"
+    return diagnostics
+
+
 @cli.command("prune-missing-corpus")
 def prune_missing_corpus(apply: bool = False) -> None:
     settings = get_settings()
@@ -218,6 +430,46 @@ def prune_missing_corpus(apply: bool = False) -> None:
         summary["backup_path"] = str(backup_path)
         summary["deleted"] = counts
         _echo_payload(summary)
+
+
+@cli.command("corpus-report")
+def corpus_report(collection: str = "literature") -> None:
+    settings = get_settings()
+    with SessionLocal() as session:
+        report = _build_corpus_report(session, settings.data_root, collection)
+    output_path = _write_corpus_report(report, settings.data_root)
+    _echo_payload({"output_path": str(output_path), "summary": report["summary"], "latest_retrieval_eval": report["latest_retrieval_eval"]})
+
+
+@cli.command("corpus-manifest")
+def corpus_manifest(
+    output: Path = Path("docs/corpus_manifest.json"),
+    check: Annotated[Path | None, typer.Option(help="Compare current corpus against an existing manifest.")] = None,
+    collection: str = "literature",
+) -> None:
+    with SessionLocal() as session:
+        manifest = _build_corpus_manifest(session, collection)
+
+    if check is None:
+        output_path = _write_corpus_manifest(manifest, output)
+        _echo_payload({"status": "written", "output_path": str(output_path), "summary": manifest["summary"]})
+        return
+
+    if not check.exists():
+        _echo_payload({"status": "missing_manifest", "path": str(check)})
+        raise typer.Exit(code=1)
+    try:
+        expected = json.loads(check.read_text(encoding="utf-8"))
+    except JSONDecodeError as exc:
+        _echo_payload({"status": "invalid_manifest", "path": str(check), "error_type": type(exc).__name__, "error": str(exc)})
+        raise typer.Exit(code=1) from exc
+    if not isinstance(expected, dict):
+        _echo_payload({"status": "invalid_manifest", "path": str(check), "error": "manifest root must be a JSON object"})
+        raise typer.Exit(code=1)
+    diagnostics = _compare_corpus_manifest(manifest, expected)
+    _echo_payload(diagnostics)
+    if diagnostics["status"] != "match":
+        raise typer.Exit(code=1)
 
 
 @cli.command("reselect-text")

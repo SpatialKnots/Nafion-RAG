@@ -129,3 +129,171 @@ def test_prune_missing_corpus_apply_backs_up_and_deletes(monkeypatch, tmp_path) 
     assert payload["deleted"] == {"articles": 1, "chunks": 1}
     assert deleted["called"] is True
     assert session.committed is True
+
+
+def test_corpus_report_outputs_json_summary(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    session = FakeSession()
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: session)
+    monkeypatch.setattr(ingestion_cli, "get_settings", lambda: SimpleNamespace(data_root=tmp_path))
+
+    def fake_build_report(active_session: object, data_root: Path, collection: str) -> dict[str, object]:
+        assert active_session is session
+        assert data_root == tmp_path
+        assert collection == "literature"
+        return {"collection": collection, "summary": {"articles": 2, "articles_with_doi": 1}, "latest_retrieval_eval": None}
+
+    monkeypatch.setattr(ingestion_cli, "_build_corpus_report", fake_build_report)
+
+    result = runner.invoke(ingestion_cli.cli, ["corpus-report"])
+
+    assert result.exit_code == 0
+    payload = _json_lines(result.output)[0]
+    assert payload["output_path"].endswith(".json")
+    assert Path(str(payload["output_path"])).exists()
+    assert payload["summary"] == {"articles": 2, "articles_with_doi": 1}
+
+
+def test_latest_retrieval_eval_loads_newest_summary(tmp_path) -> None:
+    export_dir = tmp_path / "exports"
+    export_dir.mkdir()
+    older = export_dir / "retrieval_eval_20260803T000000Z.json"
+    newer = export_dir / "retrieval_eval_20260803T010000Z.json"
+    older.write_text(json.dumps({"summary": {"total": 1}, "settings": {"top_k": 5}}), encoding="utf-8")
+    newer.write_text(
+        json.dumps({"created_at": "2026-08-03T01:00:00Z", "summary": {"total": 15}, "settings": {"top_k": 10}}),
+        encoding="utf-8",
+    )
+
+    report = ingestion_cli._latest_retrieval_eval(tmp_path)
+
+    assert report == {
+        "path": str(newer),
+        "status": "loaded",
+        "created_at": "2026-08-03T01:00:00Z",
+        "summary": {"total": 15},
+        "settings": {"top_k": 10},
+    }
+
+
+def test_corpus_manifest_writes_tracked_snapshot(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    session = FakeSession()
+    manifest = {
+        "schema_version": 1,
+        "created_at": "2026-08-03T00:00:00+00:00",
+        "collection": "literature",
+        "summary": {"articles": 1, "pages": 2, "chunks": 3, "text_layers": 4},
+        "articles": [
+            {
+                "checksum_sha256": "abc",
+                "title": "Paper",
+                "doi": None,
+                "pdf_original_basename": "paper.pdf",
+                "pdf_ocr_basename": None,
+                "status": "indexed",
+                "page_count": 2,
+                "chunk_count": 3,
+                "text_layer_count": 4,
+            }
+        ],
+    }
+    output_path = tmp_path / "corpus_manifest.json"
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: session)
+    monkeypatch.setattr(ingestion_cli, "_build_corpus_manifest", lambda active_session, collection: manifest)
+
+    result = runner.invoke(ingestion_cli.cli, ["corpus-manifest", "--output", str(output_path)])
+
+    assert result.exit_code == 0
+    payload = _json_lines(result.output)[0]
+    assert payload["status"] == "written"
+    assert payload["output_path"] == str(output_path)
+    assert json.loads(output_path.read_text(encoding="utf-8")) == manifest
+
+
+def test_corpus_manifest_check_passes_on_match(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    session = FakeSession()
+    manifest = {
+        "schema_version": 1,
+        "created_at": "new timestamp",
+        "collection": "literature",
+        "summary": {"articles": 1},
+        "articles": [{"checksum_sha256": "abc", "title": "Paper", "chunk_count": 3}],
+    }
+    expected_path = tmp_path / "corpus_manifest.json"
+    expected = dict(manifest)
+    expected["created_at"] = "old timestamp"
+    expected_path.write_text(json.dumps(expected), encoding="utf-8")
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: session)
+    monkeypatch.setattr(ingestion_cli, "_build_corpus_manifest", lambda active_session, collection: manifest)
+
+    result = runner.invoke(ingestion_cli.cli, ["corpus-manifest", "--check", str(expected_path)])
+
+    assert result.exit_code == 0
+    payload = _json_lines(result.output)[0]
+    assert payload["status"] == "match"
+    assert payload["missing_articles"] == []
+    assert payload["extra_articles"] == []
+    assert payload["changed_articles"] == []
+
+
+def test_corpus_manifest_check_reports_differences(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    session = FakeSession()
+    current = {
+        "schema_version": 1,
+        "created_at": "new timestamp",
+        "collection": "literature",
+        "summary": {"articles": 1, "chunks": 4},
+        "articles": [{"checksum_sha256": "abc", "title": "Paper", "chunk_count": 4}],
+    }
+    expected_path = tmp_path / "corpus_manifest.json"
+    expected_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "created_at": "old timestamp",
+                "collection": "literature",
+                "summary": {"articles": 1, "chunks": 3},
+                "articles": [{"checksum_sha256": "abc", "title": "Paper", "chunk_count": 3}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: session)
+    monkeypatch.setattr(ingestion_cli, "_build_corpus_manifest", lambda active_session, collection: current)
+
+    result = runner.invoke(ingestion_cli.cli, ["corpus-manifest", "--check", str(expected_path)])
+
+    assert result.exit_code == 1
+    payload = _json_lines(result.output)[0]
+    assert payload["status"] == "mismatch"
+    assert payload["summary_changed"] is True
+    assert payload["changed_articles"][0]["checksum_sha256"] == "abc"
+
+
+def test_corpus_manifest_check_reports_missing_manifest(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: FakeSession())
+    monkeypatch.setattr(ingestion_cli, "_build_corpus_manifest", lambda active_session, collection: {"summary": {}, "articles": []})
+
+    result = runner.invoke(ingestion_cli.cli, ["corpus-manifest", "--check", str(tmp_path / "missing.json")])
+
+    assert result.exit_code == 1
+    assert _json_lines(result.output)[0]["status"] == "missing_manifest"
+
+
+def test_corpus_manifest_check_reports_invalid_json(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    invalid_path = tmp_path / "corpus_manifest.json"
+    invalid_path.write_text("{", encoding="utf-8")
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: FakeSession())
+    monkeypatch.setattr(ingestion_cli, "_build_corpus_manifest", lambda active_session, collection: {"summary": {}, "articles": []})
+
+    result = runner.invoke(ingestion_cli.cli, ["corpus-manifest", "--check", str(invalid_path)])
+
+    assert result.exit_code == 1
+    payload = _json_lines(result.output)[0]
+    assert payload["status"] == "invalid_manifest"
+    assert payload["error_type"] == "JSONDecodeError"

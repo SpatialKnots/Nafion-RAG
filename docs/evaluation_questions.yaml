@@ -31,3 +31,171 @@
     - "ethylene carbonate"
     - "sulfolane"
   notes: "Exact baseline check for Sanginov et al. 2021 Li-Nafion EC/SL conductivity paper."
+- id: q05_kim_dispersion_cast_toughness_2015
+  query: "Origin Toughness Dispersion-Cast Nafion Yu Seung Kim"
+  expected_article_dois:
+    - "10.1021/ma502538k"
+  expected_keywords:
+    - "Origin"
+    - "Toughness"
+  notes: "Exact baseline check for Kim et al. 2015 dispersion-cast Nafion toughness paper."
+- id: q06_welch_dilute_solvent_sans_2012
+  query: "Welch SANS NMR glycerol ethylene glycol"
+  expected_article_dois:
+    - "10.1021/mz3005204"
+  expected_keywords:
+    - "SANS"
+    - "glycerol"
+  notes: "Top-k exact baseline check for Welch et al. 2012 dilute-solvent Nafion dispersion/solution paper."
+- id: q07_mohammadi_pfss_chlor_alkali_2011
+  query: "Mohammadi Rabiee perfluorosulfonic sodium Chlor-Alkali"
+  expected_article_dois:
+    - "10.1002/app.33526"
+  expected_keywords:
+    - "Perfluorosulfonic Sodium"
+    - "Chlor-Alkali"
+  notes: "Exact baseline check for Mohammadi and Rabiee 2011 PFSS membrane Chlor-Alkali application paper."
+- id: q08_cho_pvdf_dmfc_2015
+  query: "KI-YUN CHO JUNG-KI PARK HO-YOUNG JUNG Polyvinylidene Fluoride"
+  expected_article_dois:
+    - "10.1080/00986445.2013.855205"
+  expected_keywords:
+    - "Polyvinylidene Fluoride"
+    - "Direct Methanol Fuel Cell"
+  notes: "Exact baseline check for Cho et al. Nafion/PVDF copolymer blend direct methanol fuel cell paper."
+- id: q09_istomina_mixing_temperature_2021
+  query: "Istomina Yaroslavtseva Reznitskikh mixing temperature physicochemical"
+  expected_article_dois:
+    - "10.3390/polym13071150"
+  expected_keywords:
+    - "mixing temperature"
+    - "physicochemical"
+  notes: "Top-k exact baseline check for Istomina et al. 2021 Li-Nafion EC/SL mixing-temperature paper."
+- id: q10_reznitskikh_ec_sl_phase_diagram_2021
+  query: "ФАЗОВАЯ ДИАГРАММА СИСТЕМЫ ЭТИЛЕНКАРБОНАТ СУЛЬФОЛАН"
+  expected_article_dois:
+    - "10.31857/s0044453721060224"
+  expected_keywords:
+    - "ФАЗОВАЯ ДИАГРАММА"
+    - "ЭТИЛЕНКАРБОНАТ"
+  notes: "Russian exact baseline check for Reznitskikh et al. 2021 ethylene carbonate-sulfolane phase diagram paper."
+- id: q11_kayumov_li_nafion_conductivity_2021
+  query: "ЭЛЕКТРОПРОВОДНОСТИ ЛИТИЙ-ПРОВОДЯЩИХ МЕМБРАН НАФИОН СУЛЬФОЛАН ЭТИЛЕНКАРБОНАТ ДИГЛИМ"
+  expected_article_dois:
+    - "10.31857/s0424857021060049"
+  expected_keywords:
+    - "ЭЛЕКТРОПРОВОДНОСТИ"
+    - "СУЛЬФОЛАН"
+  notes: "Russian exact baseline check for Kayumov et al. 2021 Li-conducting Nafion membrane conductivity paper."
+- id: q12_chernyuk_nafion_water_thermodynamics_2023
+  query: "ТЕРМОДИНАМИКА ВЗАИМОДЕЙСТВИЯ ПОЛИПЕРФТОРСУЛЬФОНОВОЙ КИСЛОТЫ NAFION С ВОДОЙ"
+  expected_article_dois:
+    - "10.31857/s2308112023700463"
+  expected_keywords:
+    - "ТЕРМОДИНАМИКА"
+    - "ВОДОЙ"
+  notes: "Russian exact baseline check for Chernyuk et al. 2023 Nafion-water thermodynamics paper."
+- id: q13_dai_vrfb_vanadium_permeability_2017
+  query: "DMF DMSO NMP EtOH vanadium permeability recast membranes"
+  expected_article_dois:
+    - "10.1016/j.memsci.2016.09.014"
+  expected_keywords:
+    - "vanadium"
+    - "DMF"
+  notes: "Exact baseline check for Dai et al. 2017 recast Nafion membrane solvent/permeability discussion."
+- id: q14_ma_solvent_aggregation_2009
+  query: "DMAc DMF NMF ionic aggregation sphere radius Nafion"
+  expected_article_dois:
+    - "10.1016/j.polymer.2009.01.060"
+  expected_keywords:
+    - "DMAc"
+    - "DMF"
+  notes: "Exact baseline check for Ma et al. 2009 casting-solvent aggregation-radius discussion."
+- id: q15_sanginov_quantum_swelling_2021
+  query: "binary plasticiser Quantum chemical calculations Swelling Ionic conductivity"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  expected_keywords:
+    - "Quantum chemical"
+    - "Swelling"
+  notes: "Exact baseline check for Sanginov et al. 2021 Li-Nafion plasticiser and conductivity abstract terms."
+- id: q16_moore_martin_solution_cast_pfsi_1988
+  query: "Chemical Morphological Properties Solution-Cast Perfluorosulfonate Ionomers Moore Martin"
+  expected_article_titles:
+    - "Moore и Martin - 1988 - Chemical and morphological properties of solution-cast perfluorosulfonate ionomers"
+  expected_article_checksums:
+    - "a537b029ae93c418c0d37df1cae1ce5862ca4bbeaa1abc689a3958760444c30f"
+  expected_keywords:
+    - "Solution-Cast"
+    - "Perfluorosulfonate"
+  notes: "DOI-less exact baseline check for Moore and Martin 1988 solution-cast PFSI paper."
+- id: q17_sanginov_sup_quantum_calculations
+  query: "Accuracy quantum-chemical calculations M05-2X TZVP SMD ethylene carbonate sulfolane"
+  expected_article_titles:
+    - "Sanginov 2021 - sup"
+  expected_article_checksums:
+    - "72facadf39cdb1ddf220320ea2ccbb7cc3c5bcdb7fa2e4c8907b0e44841dbd27"
+  expected_keywords:
+    - "quantum-chemical"
+    - "ethylene carbonate"
+  notes: "DOI-less exact baseline check for Sanginov 2021 supplementary quantum-chemical calculation material."
+- id: q18_chernyuk_dissertation_thermodynamics
+  query: "ЧЕРНЮК СЕМЁН ДМИТРИЕВИЧ Влияние ионов лития термодинамические релаксационные свойства мембран Nafion"
+  expected_article_titles:
+    - "Диссертация Чернюк С.Д."
+  expected_article_checksums:
+    - "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+  expected_keywords:
+    - "ЧЕРНЮК"
+    - "Nafion"
+  notes: "DOI-less Russian exact baseline check for Chernyuk dissertation title-page material."
+- id: q19_chernyuk_2024_enthalpy_solutions
+  query: "ЭНТАЛЬПИЯ ВЗАИМОДЕЙСТВИЯ ЛИТИРОВАННОЙ МЕМБРАНЫ NAFION ВОДНЫМИ РАСТВОРАМИ СПИРТОВ"
+  expected_article_titles:
+    - "Чернюк 2024"
+  expected_article_checksums:
+    - "de0c55db3994c9a6c2a2e3f0939d3b28b907fe3ac0c6ca867050be02bc53f182"
+  expected_keywords:
+    - "ЭНТАЛЬПИЯ"
+    - "СПИРТОВ"
+  notes: "DOI-less Russian exact baseline check for Chernyuk 2024 lithiated Nafion enthalpy paper."
+- id: q20_ma_table_solvent_aggregation_2009
+  query: "Nafion casting solvent method table DMF DMSO NMP EtOH DMAc"
+  expected_article_dois:
+    - "10.1016/j.polymer.2009.01.060"
+  expected_keywords:
+    - "ionic aggregation"
+    - "DMAc"
+  notes: "Table-oriented exact baseline check for Ma et al. 2009 solvent-dependent aggregation discussion."
+- id: q21_sanginov_broad_li_nafion_conductivity_2021
+  query: "Li-Nafion diglyme sulfolane ethylene carbonate conductivity table"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  expected_keywords:
+    - "Li-Nafion"
+    - "sulfolane"
+  notes: "Intentionally broad exact baseline check; expected Sanginov 2021 appears in top-k but not necessarily top-1."
+- id: q22_cho_broad_dmfc_pvdf_2015
+  query: "Direct Methanol Fuel Cell Nafion Polyvinylidene Fluoride solvent casting condition"
+  expected_article_dois:
+    - "10.1080/00986445.2013.855205"
+  expected_keywords:
+    - "Direct Methanol Fuel Cell"
+    - "Polyvinylidene"
+  notes: "Intentionally broad exact baseline check for Cho et al. 2015 Nafion/PVDF DMFC paper."
+- id: q23_welch_broad_sans_morphology_2012
+  query: "dilute solvent systems Nafion dispersion solution morphology SANS"
+  expected_article_dois:
+    - "10.1021/mz3005204"
+  expected_keywords:
+    - "SANS"
+    - "morphology"
+  notes: "Intentionally broad exact baseline check for Welch et al. 2012 dilute-solvent SANS morphology paper."
+- id: q24_kayumov_diglyme_conductivity_2021
+  query: "диглим сульфолан этиленкарбонат литий-проводящих мембран Нафион электропроводности"
+  expected_article_dois:
+    - "10.31857/s0424857021060049"
+  expected_keywords:
+    - "диглим"
+    - "ЭЛЕКТРОПРОВОДНОСТИ"
+  notes: "Russian exact baseline check for Kayumov et al. 2021 Li-Nafion EC/SL/diglyme conductivity paper."
