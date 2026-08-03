@@ -3,9 +3,11 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass
+from typing import cast
 
 from sqlalchemy import Select, case, func, literal, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.db.models import Article, Chunk, Collection
 
@@ -21,6 +23,7 @@ class SearchResult:
     doi: str | None
     page_start: int
     page_end: int
+    source_type: str
     snippet: str
     score: float
     retrieval_method: str
@@ -61,7 +64,7 @@ def make_snippet(text: str, query: str, radius: int = 140) -> str:
     return f"{prefix}{normalized[start:end].strip()}{suffix}"
 
 
-def _search_statement(query: str, collection: Collection, top_k: int) -> Select[tuple[Chunk, Article, int]]:
+def _search_statement(query: str, collection: Collection, top_k: int, source_type: str | None = None) -> Select[tuple[Chunk, Article, int]]:
     lowered_text = func.lower(Chunk.text)
     phrase_pattern = f"%{_escape_like(query)}%"
     terms = _query_terms(query)
@@ -69,7 +72,7 @@ def _search_statement(query: str, collection: Collection, top_k: int) -> Select[
     filters = [Chunk.text.ilike(phrase_pattern, escape="\\")]
     filters.extend(Chunk.text.ilike(pattern, escape="\\") for pattern in patterns)
 
-    score_expr = case((Chunk.text.ilike(phrase_pattern, escape="\\"), literal(1000)), else_=literal(0))
+    score_expr = cast(ColumnElement[int], case((Chunk.text.ilike(phrase_pattern, escape="\\"), literal(1000)), else_=literal(0)))
     for term in terms:
         lowered_term = term.lower()
         score_expr += func.length(lowered_text) - func.length(func.replace(lowered_text, lowered_term, ""))
@@ -77,7 +80,7 @@ def _search_statement(query: str, collection: Collection, top_k: int) -> Select[
     if not terms:
         score_expr += func.length(lowered_text) - func.length(func.replace(lowered_text, query.lower(), ""))
 
-    return (
+    statement = (
         select(Chunk, Article, score_expr.label("score"))
         .join(Article, Chunk.article_id == Article.id)
         .where(Article.collection_id == collection.id)
@@ -85,10 +88,20 @@ def _search_statement(query: str, collection: Collection, top_k: int) -> Select[
         .order_by(score_expr.desc(), Chunk.chunk_index.asc())
         .limit(top_k)
     )
+    if source_type is not None:
+        statement = statement.where(Chunk.source_type == source_type)
+    return statement
 
 
-def exact_search(session: Session, query: str, collection_name: str = "literature", top_k: int = 10) -> SearchResponse:
+def exact_search(
+    session: Session,
+    query: str,
+    collection_name: str = "literature",
+    top_k: int = 10,
+    source_type: str | None = None,
+) -> SearchResponse:
     normalized_query = query.strip()
+    normalized_source_type = source_type.strip() if source_type else None
     if not normalized_query:
         raise ValueError("query must not be empty")
     if top_k <= 0:
@@ -98,7 +111,7 @@ def exact_search(session: Session, query: str, collection_name: str = "literatur
     if collection is None:
         raise ValueError(f"Unknown collection: {collection_name}")
 
-    rows = session.execute(_search_statement(normalized_query, collection, top_k)).all()
+    rows = session.execute(_search_statement(normalized_query, collection, top_k, normalized_source_type)).all()
     results: list[SearchResult] = []
     for chunk, article, score in rows:
         results.append(
@@ -109,6 +122,7 @@ def exact_search(session: Session, query: str, collection_name: str = "literatur
                 doi=article.doi,
                 page_start=chunk.page_start,
                 page_end=chunk.page_end,
+                source_type=chunk.source_type,
                 snippet=make_snippet(chunk.text, normalized_query),
                 score=float(score or 0),
                 retrieval_method="exact_ilike",
@@ -128,6 +142,7 @@ def search_response_to_dict(response: SearchResponse) -> dict[str, object]:
                 "doi": result.doi,
                 "page_start": result.page_start,
                 "page_end": result.page_end,
+                "source_type": result.source_type,
                 "snippet": result.snippet,
                 "score": result.score,
                 "retrieval_method": result.retrieval_method,

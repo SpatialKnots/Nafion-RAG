@@ -8,10 +8,11 @@ from typing import Any
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.db.models import Article
 from app.extraction.ocr import _OCR_TOOL_DIRS, _ocr_env, _resolve_command
 
 StatusPayload = dict[str, Any]
@@ -158,12 +159,44 @@ def _check_ghostscript() -> StatusPayload:
     return _payload("PASS", "ghostscript command resolved", resolved=resolved)
 
 
+def _check_corpus_files(session_factory: Callable[[], Session]) -> StatusPayload:
+    try:
+        with session_factory() as session:
+            articles = list(session.scalars(select(Article).order_by(Article.title)))
+    except Exception as exc:
+        return _payload("FAIL", "could not inspect indexed corpus files", error_type=type(exc).__name__, error=str(exc))
+
+    missing_original: list[dict[str, str]] = []
+    missing_ocr: list[dict[str, str]] = []
+    for article in articles:
+        original_path = Path(article.pdf_original_path)
+        if not original_path.exists():
+            missing_original.append({"article_id": str(article.id), "path": article.pdf_original_path})
+        if article.pdf_ocr_path:
+            ocr_path = Path(article.pdf_ocr_path)
+            if not ocr_path.exists():
+                missing_ocr.append({"article_id": str(article.id), "path": article.pdf_ocr_path})
+
+    if missing_original or missing_ocr:
+        return _payload(
+            "WARN",
+            "indexed corpus has missing stored PDF files",
+            article_count=len(articles),
+            missing_original_count=len(missing_original),
+            missing_ocr_count=len(missing_ocr),
+            missing_original_examples=missing_original[:5],
+            missing_ocr_examples=missing_ocr[:5],
+        )
+    return _payload("PASS", "indexed corpus files are present", article_count=len(articles))
+
+
 def run_doctor(settings: Settings, session_factory: Callable[[], Session]) -> dict[str, StatusPayload]:
     required_languages = {part for part in settings.ocr_languages.split("+") if part}
     return {
         "database": _check_database(session_factory),
         "migrations": _check_migrations(session_factory),
         "data_root": _check_data_root(settings),
+        "corpus_files": _check_corpus_files(session_factory),
         "ocr_command": _check_ocr_command(settings),
         "tesseract_languages": _check_tesseract_languages(required_languages),
         "ghostscript": _check_ghostscript(),

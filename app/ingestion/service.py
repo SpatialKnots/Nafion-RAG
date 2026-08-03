@@ -7,7 +7,7 @@ from pathlib import Path
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.chunking.simple import PageText, chunk_pages
+from app.chunking.simple import PageText, TextChunk, chunk_pages
 from app.classification.rules import classify_article
 from app.core.config import Settings
 from app.db.models import Article, Chunk, Collection, IngestionJob, Page
@@ -16,7 +16,14 @@ from app.extraction.text_quality import has_usable_text_layer, should_run_ocr
 from app.ingestion.checksum import sha256_file
 from app.ingestion.pdf_extract import ExtractedPage, extract_pages
 from app.ingestion.pdf_store import copy_original_pdf, ocr_pdf_path
-from app.ingestion.text_layers import OCR_LAYER, ORIGINAL_LAYER, SelectedPageText, build_layer_inputs, replace_text_layers, select_best_pages
+from app.ingestion.text_layers import (
+    OCR_LAYER,
+    ORIGINAL_LAYER,
+    SelectedPageText,
+    build_layer_inputs,
+    replace_text_layers,
+    select_best_pages,
+)
 from app.metadata.doi import extract_first_doi
 
 
@@ -41,11 +48,9 @@ def _selected_pages_to_page_texts(pages: list[SelectedPageText]) -> list[PageTex
     return [PageText(page_number=page.page_number, text=page.text) for page in pages]
 
 
-def _chunk_text_layer(chunk: object, selected_pages: list[SelectedPageText]) -> str:
+def _chunk_text_layer(chunk: TextChunk, selected_pages: list[SelectedPageText]) -> str:
     layers = {
-        page.selected_text_layer
-        for page in selected_pages
-        if page.page_number >= chunk.page_start and page.page_number <= chunk.page_end
+        page.selected_text_layer for page in selected_pages if page.page_number >= chunk.page_start and page.page_number <= chunk.page_end
     }
     if len(layers) == 1:
         return next(iter(layers))

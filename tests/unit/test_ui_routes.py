@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import json
 import uuid
 from collections.abc import Iterable
 from decimal import Decimal
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 
-from app.ui import _truncate, article_detail, article_text_layers, dashboard, search_page
-
+from app.ui import _truncate, article_detail, article_text_layers, dashboard, retrieval_report_page, search_page
 
 ARTICLE_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
@@ -61,7 +62,9 @@ class FakeSession:
             text="Nafion conductivity in NMP was measured.",
         )
         self.layers = [
-            SimpleNamespace(page_number=1, layer_type="ocr", has_usable_text=True, quality_score=Decimal("0.70"), source_pdf_path="ocr.pdf"),
+            SimpleNamespace(
+                page_number=1, layer_type="ocr", has_usable_text=True, quality_score=Decimal("0.70"), source_pdf_path="ocr.pdf"
+            ),
             SimpleNamespace(
                 page_number=1,
                 layer_type="original",
@@ -117,33 +120,38 @@ def test_truncate_shortens_long_text() -> None:
 
 
 def test_dashboard_returns_html(monkeypatch) -> None:
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace(data_root=Path("missing-data-root")))
     response = dashboard(_override_session())
 
     assert response.status_code == 200
     assert "Corpus Dashboard" in response.body.decode()
     assert "Articles" in response.body.decode()
+    assert "Retrieval Evaluation" in response.body.decode()
 
 
 def test_search_page_returns_results(monkeypatch) -> None:
-    def fake_exact_search(session: object, query: str, collection_name: str, top_k: int) -> object:
+    def fake_exact_search(session: object, query: str, collection_name: str, top_k: int, source_type: str | None = None) -> object:
+        assert source_type == "method"
         result = SimpleNamespace(
             article_id=str(ARTICLE_ID),
             title="Li-Nafion evidence paper",
             doi="10.1000/example",
             page_start=1,
             page_end=1,
+            source_type="method",
             score=5.0,
             snippet="Nafion conductivity in NMP.",
         )
         return SimpleNamespace(results=[result])
 
     monkeypatch.setattr("app.ui.exact_search", fake_exact_search)
-    response = search_page(_override_session(), q="Nafion")
+    response = search_page(_override_session(), q="Nafion", source_type="method")
 
     assert response.status_code == 200
     body = response.body.decode()
     assert "Li-Nafion evidence paper" in body
     assert "Nafion conductivity in NMP" in body
+    assert "method" in body
 
 
 def test_article_pages_return_html() -> None:
@@ -172,3 +180,52 @@ def test_unknown_article_returns_404() -> None:
         article_detail(MissingSession(), uuid.uuid4())
 
     assert exc.value.status_code == 404
+
+
+def test_retrieval_report_page_renders_latest_report(monkeypatch, tmp_path) -> None:
+    export_dir = tmp_path / "exports"
+    export_dir.mkdir()
+    report_path = export_dir / "retrieval_eval_20260702T000000Z.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "created_at": "2026-07-02T00:00:00+00:00",
+                "settings": {"retrieval_method": "exact_ilike"},
+                "summary": {"total": 1, "passed": 0, "failed": 1, "empty_result_queries": 0},
+                "questions": [
+                    {
+                        "id": "q01",
+                        "query": "Li-Nafion conductivity",
+                        "passed": False,
+                        "missing_article_dois": [],
+                        "missing_keywords": ["NMP"],
+                        "result_count": 1,
+                        "results": [
+                            {
+                                "title": "Li-Nafion paper",
+                                "doi": "10.1000/example",
+                                "page_start": 2,
+                                "page_end": 3,
+                                "source_type": "method",
+                                "score": 12.0,
+                                "retrieval_method": "exact_ilike",
+                                "snippet": "Li-Nafion conductivity evidence.",
+                            }
+                        ],
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace(data_root=tmp_path))
+
+    response = retrieval_report_page()
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "Retrieval Evaluation Report" in body
+    assert "exact_ilike" in body
+    assert "Li-Nafion conductivity evidence" in body
+    assert "NMP" in body

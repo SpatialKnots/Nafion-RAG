@@ -66,6 +66,7 @@ def _evaluate_question(question: EvaluationQuestion, response: SearchResponse) -
     missing_dois = [doi for doi in question.expected_article_dois if doi not in result_dois]
     missing_keywords = [keyword for keyword in question.expected_keywords if keyword.lower() not in result_text]
     passed = not missing_dois and not missing_keywords and bool(result_payload)
+    top_result = result_payload[0] if result_payload else None
     return {
         "id": question.id,
         "query": question.query,
@@ -75,6 +76,7 @@ def _evaluate_question(question: EvaluationQuestion, response: SearchResponse) -
         "missing_article_dois": missing_dois,
         "missing_keywords": missing_keywords,
         "result_count": len(result_payload),
+        "top_result": top_result,
         "results": result_payload,
     }
 

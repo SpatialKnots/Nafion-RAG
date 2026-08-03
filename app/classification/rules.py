@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -141,7 +141,16 @@ def classify_source_type(text: str) -> str:
         return "table"
     if re.search(r"^\s*(?:Fig\.|Figure)\s*\d+", text, flags=re.IGNORECASE | re.MULTILINE):
         return "figure_caption"
-    if re.search(r"\b(?:experimental|materials?\s+and\s+methods|was\s+measured|were\s+measured)\b", text, flags=re.IGNORECASE):
+    if re.search(r"\b(?:DFT|quantum\s+chemical|calculation|GAUSS|квантово-хим|расчет[а-я]*)\b", text, flags=re.IGNORECASE):
+        return "main_text"
+    method_pattern = (
+        r"\b(?:experimental|materials?\s+and\s+methods|was\s+measured|were\s+measured|"
+        r"was\s+prepared|were\s+prepared|casting|cast\s+film|solvent\s+cast|"
+        r"экспериментальн[а-я]*|методик[а-я]*|получени[а-я]*|готовил[а-я]*|"
+        r"отлив[а-я]*|раствор[а-я]*\s+готовил[а-я]*|сушил[а-я]*|выдерживал[а-я]*|"
+        r"мембран[а-я]*\s+получал[а-я]*|пленк[а-я]*\s+получал[а-я]*)\b"
+    )
+    if re.search(method_pattern, text, flags=re.IGNORECASE):
         return "method"
     return "main_text"
 
@@ -160,13 +169,23 @@ def detect_sections(pages: list[Page]) -> list[SectionCandidate]:
                     break
 
     if not starts and pages:
-        return [SectionCandidate(name="Full text", normalized_name="full_text", page_start=pages[0].page_number, page_end=pages[-1].page_number, source_type="main_text")]
+        return [
+            SectionCandidate(
+                name="Full text",
+                normalized_name="full_text",
+                page_start=pages[0].page_number,
+                page_end=pages[-1].page_number,
+                source_type="main_text",
+            )
+        ]
 
     sections: list[SectionCandidate] = []
     for index, (normalized, name, page_start, source_type) in enumerate(starts):
         next_start = starts[index + 1][2] if index + 1 < len(starts) else pages[-1].page_number
         page_end = max(page_start, next_start - 1 if next_start > page_start else next_start)
-        sections.append(SectionCandidate(name=name, normalized_name=normalized, page_start=page_start, page_end=page_end, source_type=source_type))
+        sections.append(
+            SectionCandidate(name=name, normalized_name=normalized, page_start=page_start, page_end=page_end, source_type=source_type)
+        )
     return sections
 
 
@@ -181,7 +200,12 @@ def _best_section_for_chunk(chunk: Chunk, sections: list[Section]) -> Section | 
     ]
     if not candidates:
         return None
-    return max(candidates, key=lambda section: min(chunk.page_end, section.page_end or chunk.page_end) - max(chunk.page_start, section.page_start or chunk.page_start))
+    return max(
+        candidates,
+        key=lambda section: (
+            min(chunk.page_end, section.page_end or chunk.page_end) - max(chunk.page_start, section.page_start or chunk.page_start)
+        ),
+    )
 
 
 def classify_article(session: Session, article: Article) -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -18,6 +19,9 @@ class FakeSession:
     def execute(self, statement: object) -> object:
         return SimpleNamespace(scalar_one_or_none=lambda: "0001_initial_phase1")
 
+    def scalars(self, statement: object) -> list[object]:
+        return []
+
 
 def test_doctor_reports_missing_ocr_tools_without_crashing(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(Path.cwd())
@@ -33,6 +37,36 @@ def test_doctor_reports_missing_ocr_tools_without_crashing(monkeypatch, tmp_path
     assert report["ocr_command"]["status"] == "FAIL"
     assert report["tesseract_languages"]["status"] == "FAIL"
     assert report["ghostscript"]["status"] == "FAIL"
+
+
+def test_doctor_reports_present_corpus_files(tmp_path) -> None:
+    original_pdf = tmp_path / "original.pdf"
+    original_pdf.write_bytes(b"%PDF-1.7\n")
+    article = SimpleNamespace(id=uuid.uuid4(), title="present", pdf_original_path=str(original_pdf), pdf_ocr_path=None)
+
+    class CorpusSession(FakeSession):
+        def scalars(self, statement: object) -> list[object]:
+            return [article]
+
+    result = doctor._check_corpus_files(lambda: CorpusSession())  # type: ignore[arg-type]
+
+    assert result["status"] == "PASS"
+    assert result["article_count"] == 1
+
+
+def test_doctor_warns_about_missing_corpus_files(tmp_path) -> None:
+    ocr_pdf = tmp_path / "ocr.pdf"
+    article = SimpleNamespace(id=uuid.uuid4(), title="missing", pdf_original_path=str(tmp_path / "missing.pdf"), pdf_ocr_path=str(ocr_pdf))
+
+    class CorpusSession(FakeSession):
+        def scalars(self, statement: object) -> list[object]:
+            return [article]
+
+    result = doctor._check_corpus_files(lambda: CorpusSession())  # type: ignore[arg-type]
+
+    assert result["status"] == "WARN"
+    assert result["missing_original_count"] == 1
+    assert result["missing_ocr_count"] == 1
 
 
 def test_doctor_accepts_required_tesseract_languages(monkeypatch) -> None:

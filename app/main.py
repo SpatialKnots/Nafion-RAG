@@ -25,8 +25,9 @@ def search(
     q: str = Query(..., min_length=1),
     collection: str = "literature",
     top_k: int = Query(default=10, ge=1),
+    source_type: str | None = None,
 ) -> dict[str, object]:
     try:
-        return search_response_to_dict(exact_search(session, q, collection, top_k))
+        return search_response_to_dict(exact_search(session, q, collection, top_k, source_type=source_type))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -149,7 +149,13 @@ def select_best_pages(session: Session, article: Article) -> list[SelectedPageTe
 
 
 def article_text_layer_summary(session: Session, article: Article) -> list[dict[str, object]]:
-    rows = list(session.scalars(select(PageTextLayer).where(PageTextLayer.article_id == article.id).order_by(PageTextLayer.page_number, PageTextLayer.layer_type)))
+    rows = list(
+        session.scalars(
+            select(PageTextLayer)
+            .where(PageTextLayer.article_id == article.id)
+            .order_by(PageTextLayer.page_number, PageTextLayer.layer_type)
+        )
+    )
     selected = {page.page_number: page.selected_text_layer for page in select_best_pages(session, article)}
     return [
         {

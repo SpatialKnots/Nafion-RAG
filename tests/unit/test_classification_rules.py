@@ -6,10 +6,7 @@ from app.classification.rules import classify_source_type, detect_sections, extr
 
 
 def test_extract_tags_detects_scientific_entities() -> None:
-    text = (
-        "Li-Nafion membrane was saturated with NMP. "
-        "Ionic conductivity was measured by EIS. TGA-MS was also performed."
-    )
+    text = "Li-Nafion membrane was saturated with NMP. Ionic conductivity was measured by EIS. TGA-MS was also performed."
 
     tags = {(tag.tag_type, tag.tag_value) for tag in extract_tags(text)}
 
@@ -27,6 +24,18 @@ def test_classify_source_type_detects_table_figure_and_method() -> None:
     assert classify_source_type("Fig. 3. Temperature dependence of conductivity.") == "figure_caption"
     assert classify_source_type("The membranes were prepared and conductivity was measured.") == "method"
     assert classify_source_type("Nafion is a perfluorosulfonated ionomer.") == "main_text"
+
+
+def test_classify_source_type_detects_russian_film_casting_methods() -> None:
+    text = "Раствор Nafion готовили в НМП, затем проводили отлив пленок и сушили образцы."
+
+    assert classify_source_type(text) == "method"
+
+
+def test_classify_source_type_does_not_treat_computational_methods_as_experimental() -> None:
+    text = "МЕТОДИКА РАСЧЕТОВ: квантово-химические расчеты проводили в программном продукте GAUSS."
+
+    assert classify_source_type(text) == "main_text"
 
 
 def test_detect_sections_from_page_headings() -> None:

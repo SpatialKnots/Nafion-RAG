@@ -17,8 +17,12 @@ def _counter_payload(counter: Counter[str]) -> dict[str, int]:
 
 
 def _article_payload(session: Session, article: Article) -> dict[str, Any]:
-    tags = list(session.scalars(select(ArticleTag).where(ArticleTag.article_id == article.id).order_by(ArticleTag.tag_type, ArticleTag.tag_value)))
-    sections = list(session.scalars(select(Section).where(Section.article_id == article.id).order_by(Section.page_start, Section.normalized_name)))
+    tags = list(
+        session.scalars(select(ArticleTag).where(ArticleTag.article_id == article.id).order_by(ArticleTag.tag_type, ArticleTag.tag_value))
+    )
+    sections = list(
+        session.scalars(select(Section).where(Section.article_id == article.id).order_by(Section.page_start, Section.normalized_name))
+    )
     chunks = list(session.scalars(select(Chunk).where(Chunk.article_id == article.id).order_by(Chunk.chunk_index)))
     pages = list(session.scalars(select(Page).where(Page.article_id == article.id).order_by(Page.page_number)))
 

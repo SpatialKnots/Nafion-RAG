@@ -28,6 +28,7 @@ def test_exact_search_returns_source_linked_chunks() -> None:
         article_id=article.id,
         page_start=2,
         page_end=3,
+        source_type="method",
         text="Conductivity of Li-Nafion in NMP depends on temperature.",
         chunk_index=0,
     )
@@ -43,6 +44,7 @@ def test_exact_search_returns_source_linked_chunks() -> None:
     assert result.chunk_id == str(chunk.id)
     assert result.page_start == 2
     assert result.page_end == 3
+    assert result.source_type == "method"
     assert result.retrieval_method == "exact_ilike"
     assert "Li-Nafion" in result.snippet
 
