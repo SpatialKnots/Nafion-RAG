@@ -14,6 +14,7 @@ from app.retrieval.vector_index import (
     build_vector_index_generation_manifest,
     build_vector_index_manifest,
     chunk_text_checksum,
+    clear_vector_index_cache,
     corpus_fingerprint_sha256,
     load_current_vector_index_generation,
     load_local_vector_index,
@@ -303,6 +304,100 @@ def test_load_current_vector_index_generation_requires_ready_v3_state(tmp_path) 
     assert loaded.manifest["schema_version"] == 3
     assert loaded.manifest["generation_id"] == "generation-1"
     assert loaded.chunk_ids == [str(chunks[0].id), str(chunks[1].id)]
+
+
+def test_current_vector_index_generation_cache_reuses_ready_generation(tmp_path) -> None:
+    from app.db.models import VectorIndexState
+
+    clear_vector_index_cache()
+    collection, article, chunks = _vector_fixture()
+    generation = build_local_vector_index_generation(
+        FakeSession(collection, [(chunks[0], article), (chunks[1], article)]),  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+        target_revision=2,
+        embedding_dimension=2,
+        generation_id="generation-1",
+        build_id="build-1",
+        embedder=lambda texts, batch_size: [[1.0, 0.0], [0.0, 1.0]],
+    )
+    state = VectorIndexState(
+        collection_id=collection.id,
+        embedding_model="test/model",
+        status="ready",
+        desired_revision=2,
+        active_revision=2,
+        active_generation_id=generation.generation_id,
+        active_manifest_sha256=generation.manifest_sha256,
+        attempt_count=1,
+    )
+    session = FakeLifecycleSession(collection, [(chunks[0], article), (chunks[1], article)], state)
+
+    first = load_current_vector_index_generation(
+        session,  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+        cache_enabled=True,
+    )
+    second = load_current_vector_index_generation(
+        session,  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+        cache_enabled=True,
+    )
+
+    assert second is first
+
+
+def test_current_vector_index_generation_cache_does_not_serve_stale_state(tmp_path) -> None:
+    from app.db.models import VectorIndexState
+
+    clear_vector_index_cache()
+    collection, article, chunks = _vector_fixture()
+    generation = build_local_vector_index_generation(
+        FakeSession(collection, [(chunks[0], article), (chunks[1], article)]),  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+        target_revision=2,
+        embedding_dimension=2,
+        generation_id="generation-1",
+        build_id="build-1",
+        embedder=lambda texts, batch_size: [[1.0, 0.0], [0.0, 1.0]],
+    )
+    state = VectorIndexState(
+        collection_id=collection.id,
+        embedding_model="test/model",
+        status="ready",
+        desired_revision=2,
+        active_revision=2,
+        active_generation_id=generation.generation_id,
+        active_manifest_sha256=generation.manifest_sha256,
+        attempt_count=1,
+    )
+    session = FakeLifecycleSession(collection, [(chunks[0], article), (chunks[1], article)], state)
+
+    load_current_vector_index_generation(
+        session,  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+        cache_enabled=True,
+    )
+    state.status = "stale"
+    state.desired_revision = 3
+
+    with pytest.raises(ValueError, match="state is stale"):
+        load_current_vector_index_generation(
+            session,  # type: ignore[arg-type]
+            data_root=tmp_path,
+            collection="literature",
+            embedding_model="test/model",
+            cache_enabled=True,
+        )
 
 
 def test_vector_index_generation_root_includes_collection_and_model(tmp_path) -> None:

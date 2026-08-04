@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.evaluation.benchmark import run_search_benchmark, write_benchmark_report
 from app.evaluation.retrieval import (
     EvaluationQuestion,
     _evaluate_question,
@@ -166,6 +167,71 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
     assert question["result_count"] == 1
     assert question["top_result"]["doi"] == "10.1000/example"
     assert question["top_result"]["retrieval_method"] == "exact_ilike"
+
+
+def test_search_benchmark_serializes_latency_report(monkeypatch, tmp_path) -> None:
+    questions_path = tmp_path / "questions.yaml"
+    questions_path.write_text(
+        "- id: q01\n"
+        "  query: Li-Nafion conductivity\n"
+        "  expected_article_dois:\n"
+        "    - 10.1000/example\n"
+        "  expected_keywords:\n"
+        "    - conductivity\n",
+        encoding="utf-8",
+    )
+    collection = SimpleNamespace(id=uuid.uuid4(), name="literature")
+    state = SimpleNamespace(
+        status="ready",
+        desired_revision=1,
+        active_revision=1,
+        active_generation_id="generation-1",
+        active_manifest_sha256="abc",
+    )
+    session = SequenceScalarSession([collection, 1, 2, state])
+
+    def fake_search_chunks(*args: object, **kwargs: object) -> SearchResponse:
+        return SearchResponse(
+            query="Li-Nafion conductivity",
+            results=[
+                SearchResult(
+                    article_id=str(uuid.uuid4()),
+                    chunk_id=str(uuid.uuid4()),
+                    title="Li-Nafion paper",
+                    doi="10.1000/example",
+                    page_start=1,
+                    page_end=1,
+                    source_type="body",
+                    snippet="conductivity evidence",
+                    score=1.0,
+                    retrieval_method="exact_ilike",
+                )
+            ],
+        )
+
+    monkeypatch.setattr("app.evaluation.benchmark.search_chunks", fake_search_chunks)
+
+    report = run_search_benchmark(
+        session,  # type: ignore[arg-type]
+        SimpleNamespace(
+            embedding_model="test/model",
+            vector_index_cache_enabled=True,
+            vector_index_use_mmap=False,
+        ),  # type: ignore[arg-type]
+        questions_path,
+        collection="literature",
+        methods=["exact"],
+        warmup=0,
+        runs=2,
+        top_k=5,
+    )
+    output_path = write_benchmark_report(report, tmp_path)
+
+    assert output_path.name.startswith("backend_benchmark_")
+    assert report["corpus"]["article_count"] == 1
+    assert report["corpus"]["chunk_count"] == 2
+    assert report["methods"]["exact"]["total_measured_searches"] == 2
+    assert report["methods"]["exact"]["latency_ms"]["p50"] is not None
 
 
 def test_retrieval_evaluation_rejects_unknown_method(tmp_path) -> None:
@@ -477,6 +543,16 @@ def test_compare_retrieval_methods_rejects_wrong_hybrid_report() -> None:
 
     with pytest.raises(ValueError, match="hybrid report"):
         compare_retrieval_methods(exact, semantic, semantic)
+
+
+class SequenceScalarSession:
+    def __init__(self, scalar_values: list[object]) -> None:
+        self.scalar_values = scalar_values
+
+    def scalar(self, statement: object) -> object:
+        if not self.scalar_values:
+            raise AssertionError(f"unexpected scalar query: {statement}")
+        return self.scalar_values.pop(0)
 
 
 def _method_report(method: str, concrete: str, *, passed: int, top_1: int, mean_rank: float, rank: int) -> dict:

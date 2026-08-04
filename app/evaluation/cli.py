@@ -7,6 +7,7 @@ import typer
 from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.evaluation.answers import run_answer_evaluation, write_answer_evaluation_report
+from app.evaluation.benchmark import run_search_benchmark, write_benchmark_report
 from app.evaluation.retrieval import (
     compare_retrieval_methods,
     compare_retrieval_reports,
@@ -105,6 +106,41 @@ def compare_methods(exact_report: Path, semantic_report: Path, hybrid_report: Pa
     )
     output_path = write_comparison_report(report, settings.data_root)
     typer.echo({"output_path": str(output_path), "deltas": report["deltas"]})
+
+
+@cli.command()
+def benchmark(
+    questions_path: Path = Path("docs/evaluation_questions.yaml"),
+    collection: str = "literature",
+    methods: str = "exact,semantic,hybrid",
+    warmup: int = 3,
+    runs: int = 10,
+    top_k: int = 10,
+    output: Path | None = None,
+    include_rebuild: bool = False,
+    include_ingestion_smoke: bool = False,
+) -> None:
+    settings = get_settings()
+    method_list = [item.strip() for item in methods.split(",") if item.strip()]
+    with SessionLocal() as session:
+        report = run_search_benchmark(
+            session,
+            settings,
+            questions_path,
+            collection=collection,
+            methods=method_list,
+            warmup=warmup,
+            runs=runs,
+            top_k=top_k,
+        )
+    report["optional_scenarios"] = {
+        "include_rebuild": include_rebuild,
+        "include_ingestion_smoke": include_ingestion_smoke,
+        "rebuild": "not_run",
+        "ingestion_smoke": "not_run",
+    }
+    output_path = write_benchmark_report(report, settings.data_root, output)
+    typer.echo({"output_path": str(output_path), "methods": list(report["methods"].keys())})
 
 
 if __name__ == "__main__":

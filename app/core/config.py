@@ -24,7 +24,10 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     hybrid_rrf_k: int = Field(default=60, ge=1)
     hybrid_candidate_multiplier: int = Field(default=5, ge=1)
+    hybrid_max_candidate_k: int = Field(default=500, ge=1)
     default_top_k: int = 10
+    search_max_top_k: int = Field(default=100, ge=1)
+    result_page_size_max: int = Field(default=100, ge=1)
     rag_provider: str = "extractive"
     rag_retrieval_method: str = "hybrid"
     rag_top_k: int = Field(default=5, ge=1)
@@ -51,6 +54,9 @@ class Settings(BaseSettings):
     vector_rebuild_max_attempts: int = Field(default=3, ge=1)
     vector_rebuild_batch_size: int = Field(default=64, ge=1)
     vector_index_keep_generations: int = Field(default=2, ge=1)
+    vector_index_cache_enabled: bool = True
+    vector_index_cache_max_items: int = Field(default=2, ge=1)
+    vector_index_use_mmap: bool = False
     vector_staging_retention_hours: int = Field(default=24, ge=1)
     context_max_neighbor_chunks: int = Field(default=3, ge=0, le=10)
     context_max_chars: int = Field(default=30000, ge=1)

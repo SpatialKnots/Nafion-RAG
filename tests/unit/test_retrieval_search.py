@@ -142,6 +142,26 @@ def test_search_chunks_rejects_unknown_method() -> None:
         search_chunks(FakeSession(), "Nafion", method="weighted")  # type: ignore[arg-type]
 
 
+def test_search_chunks_rejects_top_k_above_configured_limit() -> None:
+    with pytest.raises(ValueError, match="top_k must be <= 2"):
+        search_chunks(
+            FakeSession(),  # type: ignore[arg-type]
+            "Nafion",
+            top_k=3,
+            settings=SimpleNamespace(search_max_top_k=2),
+        )
+
+
+def test_hybrid_search_rejects_candidate_k_above_configured_limit() -> None:
+    with pytest.raises(ValueError, match="hybrid candidate_k must be <= 4"):
+        hybrid_search(
+            FakeSession(),  # type: ignore[arg-type]
+            "query",
+            top_k=2,
+            settings=SimpleNamespace(hybrid_rrf_k=60, hybrid_candidate_multiplier=3, hybrid_max_candidate_k=4),  # type: ignore[arg-type]
+        )
+
+
 def test_normalize_retrieval_method_accepts_exact_case_insensitive() -> None:
     assert normalize_retrieval_method(" Exact ") == "exact"
 
@@ -165,9 +185,20 @@ def test_hybrid_search_fuses_component_ranks_and_preserves_diagnostics(monkeypat
         assert filters.source_type == "method"
         return SearchResponse(query=query, results=[result_a, result_b_exact])
 
-    def fake_semantic(session, query, collection_name, top_k, source_type=None, filters=None, *, settings=None):
+    def fake_semantic(
+        session,
+        query,
+        collection_name,
+        top_k,
+        source_type=None,
+        filters=None,
+        *,
+        settings=None,
+        enforce_top_k_limit=True,
+    ):
         assert top_k == 10
         assert filters.source_type == "method"
+        assert enforce_top_k_limit is False
         return SearchResponse(
             query=query,
             results=[result_b_semantic, result_c],

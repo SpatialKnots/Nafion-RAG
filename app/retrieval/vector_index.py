@@ -6,13 +6,14 @@ import os
 import re
 import shutil
 import uuid
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 import numpy as np
@@ -29,6 +30,7 @@ VECTOR_MANIFEST_FILENAME = "manifest.json"
 VECTOR_CURRENT_POINTER_FILENAME = "current.json"
 VECTOR_INDEX_SCHEMA_VERSION = 2
 VECTOR_INDEX_GENERATION_SCHEMA_VERSION = 3
+VectorIndexCacheKey = tuple[str, str, str, str]
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,9 @@ class LoadedVectorIndex:
     rows_by_chunk_id: dict[str, tuple[Chunk, Article]]
     manifest: dict[str, Any]
     manifest_sha256: str
+
+
+_VECTOR_INDEX_CACHE: OrderedDict[VectorIndexCacheKey, LoadedVectorIndex] = OrderedDict()
 
 
 @dataclass(frozen=True)
@@ -517,6 +522,7 @@ def _load_and_validate_vector_index_files(
     embedding_model: str,
     schema_version: int,
     safe_errors: bool = False,
+    use_mmap: bool = False,
 ) -> LoadedVectorIndex:
     def invalid(message: str) -> ValueError:
         if safe_errors:
@@ -592,7 +598,8 @@ def _load_and_validate_vector_index_files(
         raise invalid("chunk_ids.json contains an invalid UUID") from exc
 
     try:
-        embeddings = np.load(index_dir / VECTOR_EMBEDDINGS_FILENAME, allow_pickle=False)
+        mmap_mode: Literal["r"] | None = "r" if use_mmap else None
+        embeddings = np.load(index_dir / VECTOR_EMBEDDINGS_FILENAME, allow_pickle=False, mmap_mode=mmap_mode)
     except (OSError, ValueError) as exc:
         raise invalid("cannot load embeddings.npy") from exc
     if embeddings.ndim != 2 or embeddings.shape != (chunk_count, dimension):
@@ -655,6 +662,9 @@ def load_current_vector_index_generation(
     data_root: Path,
     collection: str,
     embedding_model: str,
+    cache_enabled: bool = False,
+    cache_max_items: int = 2,
+    use_mmap: bool = False,
 ) -> LoadedVectorIndex:
     db_collection = session.scalar(select(Collection).where(Collection.name == collection))
     if db_collection is None:
@@ -673,6 +683,17 @@ def load_current_vector_index_generation(
         raise _generation_error("ready state is incomplete", embedding_model, collection)
     if state.active_revision != state.desired_revision:
         raise _generation_error("active revision is stale", embedding_model, collection)
+
+    cache_key: VectorIndexCacheKey = (
+        str(db_collection.id),
+        embedding_model,
+        state.active_generation_id,
+        state.active_manifest_sha256,
+    )
+    if cache_enabled and cache_key in _VECTOR_INDEX_CACHE:
+        cached = _VECTOR_INDEX_CACHE.pop(cache_key)
+        _VECTOR_INDEX_CACHE[cache_key] = cached
+        return cached
 
     root = vector_index_generation_root(data_root, collection, embedding_model)
     current_path = root / VECTOR_CURRENT_POINTER_FILENAME
@@ -700,7 +721,7 @@ def load_current_vector_index_generation(
     if manifest.get("target_revision") != state.active_revision:
         raise _generation_error("manifest target revision does not match database state", embedding_model, collection)
 
-    return _load_and_validate_vector_index_files(
+    loaded = _load_and_validate_vector_index_files(
         session,
         db_collection=db_collection,
         index_dir=generation_dir,
@@ -710,7 +731,18 @@ def load_current_vector_index_generation(
         embedding_model=embedding_model,
         schema_version=VECTOR_INDEX_GENERATION_SCHEMA_VERSION,
         safe_errors=True,
+        use_mmap=use_mmap,
     )
+    if cache_enabled:
+        bounded_cache_size = max(1, cache_max_items)
+        _VECTOR_INDEX_CACHE[cache_key] = loaded
+        while len(_VECTOR_INDEX_CACHE) > bounded_cache_size:
+            _VECTOR_INDEX_CACHE.popitem(last=False)
+    return loaded
+
+
+def clear_vector_index_cache() -> None:
+    _VECTOR_INDEX_CACHE.clear()
 
 
 def load_local_vector_index(

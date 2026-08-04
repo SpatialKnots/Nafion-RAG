@@ -52,6 +52,16 @@ def test_search_endpoint_rejects_unknown_method() -> None:
     assert "Unsupported retrieval method" in str(exc_info.value.detail)
 
 
+def test_search_endpoint_rejects_top_k_above_configured_limit(monkeypatch) -> None:
+    monkeypatch.setattr(main, "get_settings", lambda: object_with(search_max_top_k=2))
+
+    with pytest.raises(HTTPException) as exc_info:
+        main.search(object(), q="Nafion", top_k=3)
+
+    assert exc_info.value.status_code == 400
+    assert "top_k must be <= 2" in str(exc_info.value.detail)
+
+
 def test_search_endpoint_dispatches_semantic_method(monkeypatch) -> None:
     def fake_search_chunks(
         session: object,
@@ -304,3 +314,7 @@ def test_answer_endpoint_maps_generation_errors(monkeypatch, error: Exception, s
         main.answer(object(), main.AnswerRequest(question="question"))
 
     assert exc_info.value.status_code == status_code
+
+
+def object_with(**values: object) -> object:
+    return type("ObjectWith", (), values)()

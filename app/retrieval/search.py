@@ -362,6 +362,7 @@ def semantic_search(
     settings: Settings | None = None,
     loaded_index: LoadedVectorIndex | None = None,
     query_embedder: QueryEmbeddingProvider | None = None,
+    enforce_top_k_limit: bool = True,
 ) -> SearchResponse:
     normalized_query = query.strip()
     normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
@@ -372,12 +373,17 @@ def semantic_search(
         raise ValueError("top_k must be positive")
 
     active_settings = settings or get_settings()
+    if enforce_top_k_limit:
+        _validate_top_k(top_k, active_settings)
     embedding_model = active_settings.embedding_model
     index = loaded_index or load_current_vector_index_generation(
         session,
         data_root=active_settings.data_root,
         collection=collection_name,
         embedding_model=embedding_model,
+        cache_enabled=getattr(active_settings, "vector_index_cache_enabled", False),
+        cache_max_items=getattr(active_settings, "vector_index_cache_max_items", 2),
+        use_mmap=getattr(active_settings, "vector_index_use_mmap", False),
     )
     manifest_model = index.manifest.get("embedding_model")
     if manifest_model != embedding_model:
@@ -450,7 +456,11 @@ def hybrid_search(
     normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
     normalized_group_by = normalize_group_by(group_by)
     active_settings = settings or get_settings()
+    _validate_top_k(top_k, active_settings)
     candidate_k = top_k * active_settings.hybrid_candidate_multiplier
+    max_candidate_k = getattr(active_settings, "hybrid_max_candidate_k", 500)
+    if candidate_k > max_candidate_k:
+        raise ValueError(f"hybrid candidate_k must be <= {max_candidate_k}; got {candidate_k}")
     exact_response = exact_search(session, query, collection_name, candidate_k, filters=normalized_filters)
     semantic_response = semantic_search(
         session,
@@ -459,6 +469,7 @@ def hybrid_search(
         candidate_k,
         filters=normalized_filters,
         settings=active_settings,
+        enforce_top_k_limit=False,
     )
 
     component_results: dict[str, dict[str, tuple[int, SearchResult]]] = {}
@@ -557,6 +568,7 @@ def search_chunks(
 ) -> SearchResponse:
     normalized_method = normalize_retrieval_method(method)
     normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
+    _validate_top_k(top_k, settings or get_settings())
     if normalized_method == "exact":
         return exact_search(
             session,
@@ -590,6 +602,14 @@ def search_chunks(
             settings=settings,
         )
     raise AssertionError(f"unhandled retrieval method: {normalized_method}")
+
+
+def _validate_top_k(top_k: int, settings: Settings) -> None:
+    if top_k <= 0:
+        raise ValueError("top_k must be positive")
+    max_top_k = getattr(settings, "search_max_top_k", 100)
+    if top_k > max_top_k:
+        raise ValueError(f"top_k must be <= {max_top_k}; got {top_k}")
 
 
 def search_response_to_dict(response: SearchResponse) -> dict[str, object]:
