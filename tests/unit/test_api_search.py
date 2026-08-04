@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from fastapi.responses import FileResponse
 
 from app import main
+from app.documents.service import PageEvidence, ResolvedPdf
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
 from app.generation.service import AnswerResponse
 from app.retrieval.search import SearchResponse
@@ -82,6 +84,74 @@ def test_search_endpoint_dispatches_hybrid_method(monkeypatch) -> None:
     payload = main.search(object(), q="proton transport", method="hybrid")
 
     assert payload["metadata"] == {"retrieval_method": "hybrid_rrf"}
+
+
+def test_pdf_endpoint_returns_inline_file_response(monkeypatch, tmp_path) -> None:
+    article = object()
+    pdf_path = tmp_path / "source.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n")
+
+    monkeypatch.setattr(main, "_get_article_or_404", lambda session, article_id: article)
+    monkeypatch.setattr(
+        main,
+        "resolve_article_pdf",
+        lambda article_arg, settings, layer: ResolvedPdf(
+            path=pdf_path,
+            layer=layer,
+            media_type="application/pdf",
+            download_name="source_original.pdf",
+        ),
+        raising=False,
+    )
+
+    response = main.article_pdf(object(), main.UUID("11111111-1111-1111-1111-111111111111"))
+
+    assert isinstance(response, FileResponse)
+    assert response.media_type == "application/pdf"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert "inline" in response.headers["content-disposition"]
+
+
+def test_pdf_endpoint_maps_missing_pdf_to_404(monkeypatch) -> None:
+    monkeypatch.setattr(main, "_get_article_or_404", lambda session, article_id: object())
+
+    def fail(*args: object, **kwargs: object) -> object:
+        raise main.PdfNotFoundError("PDF file is unavailable")
+
+    monkeypatch.setattr(main, "resolve_article_pdf", fail)
+
+    with pytest.raises(HTTPException) as exc_info:
+        main.article_pdf(object(), main.UUID("11111111-1111-1111-1111-111111111111"))
+
+    assert exc_info.value.status_code == 404
+
+
+def test_page_endpoint_returns_stored_page_evidence(monkeypatch) -> None:
+    monkeypatch.setattr(main, "_get_article_or_404", lambda session, article_id: object())
+    monkeypatch.setattr(
+        main,
+        "get_article_page",
+        lambda *args, **kwargs: PageEvidence(
+            article_id="11111111-1111-1111-1111-111111111111",
+            title="Article title",
+            page_number=7,
+            requested_layer="selected",
+            resolved_layer="ocr",
+            has_usable_text=True,
+            text="Exact stored page text",
+            pdf_url="/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original",
+            pdf_page_url="/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original#page=7",
+            layer_pdf_url="/articles/11111111-1111-1111-1111-111111111111/pdf?layer=ocr",
+        ),
+        raising=False,
+    )
+
+    payload = main.article_page_text(object(), main.UUID("11111111-1111-1111-1111-111111111111"), 7)
+
+    assert payload["text"] == "Exact stored page text"
+    assert payload["resolved_layer"] == "ocr"
+    assert payload["pdf_page_url"] == "/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original#page=7"
+    assert payload["layer_pdf_url"] == "/articles/11111111-1111-1111-1111-111111111111/pdf?layer=ocr"
 
 
 def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:

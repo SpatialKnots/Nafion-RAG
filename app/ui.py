@@ -13,8 +13,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.models import Article, ArticleTag, Chunk, Page, PageTextLayer, Section
+from app.db.models import Article, ArticleTag, Chunk, Collection, IngestionJob, Page, PageTextLayer, Section
 from app.db.session import get_session
+from app.documents.service import build_pdf_url
+from app.ingestion.queue import job_to_response
 from app.retrieval.search import search_chunks
 
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -47,6 +49,22 @@ def _command_hint(command: str) -> str:
     return f"<p class='path'>{_html(command)}</p>"
 
 
+def _page_range(start: int | None, end: int | None) -> str:
+    if start is None:
+        return ""
+    if end is None or end == start:
+        return str(start)
+    return f"{start}-{end}"
+
+
+def _pdf_link(article_id: UUID | str, page_number: int | None = None, label: str = "Open PDF") -> str:
+    return f"<a href='{_html(build_pdf_url(article_id, 'original', page_number))}' target='_blank' rel='noopener'>{_html(label)}</a>"
+
+
+def _ocr_pdf_link(article_id: UUID | str, label: str = "Open OCR PDF") -> str:
+    return f"<a href='{_html(build_pdf_url(article_id, 'ocr'))}' target='_blank' rel='noopener'>{_html(label)}</a>"
+
+
 def _layout(title: str, body: str) -> HTMLResponse:
     css = """
     :root { color-scheme: light; --line:#d7dde5; --muted:#5c6675; --bg:#f6f8fb; --ink:#1d2430; --accent:#2454a6; }
@@ -68,6 +86,7 @@ def _layout(title: str, body: str) -> HTMLResponse:
     tr:hover td { background:#fafcff; }
     .num { text-align:right; font-variant-numeric: tabular-nums; }
     .tag { display:inline-block; border:1px solid var(--line); border-radius:4px; padding:2px 5px; margin:1px; background:#f9fbfd; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .ok { color:#126b36; font-weight:600; }
     .warn { color:#9b5a00; font-weight:600; }
     input, select, button { font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:4px; background:#fff; }
@@ -79,6 +98,7 @@ def _layout(title: str, body: str) -> HTMLResponse:
         '<a href="/">Dashboard</a>'
         '<a href="/ui/search">Search</a>'
         '<a href="/ui/articles">Articles</a>'
+        '<a href="/ui/ingestion">Ingestion</a>'
         '<a href="/ui/reports/retrieval">Retrieval report</a>'
         '<a href="/ui/reports/classification">Classification report</a>'
     )
@@ -191,17 +211,18 @@ def search_page(
                 "<tr>"
                 f"<td><a href='/ui/articles/{_html(result.article_id)}'>{_html(result.title)}</a>"
                 f"<div class='muted'>{_html(result.doi)}</div></td>"
-                f"<td class='num'>{result.page_start}-{result.page_end}</td>"
-                f"<td>{_html(result.source_type)}</td>"
+                f"<td class='num'>{_html(_page_range(result.page_start, result.page_end))}</td>"
+                f"<td>{_html(result.source_type)}<div class='muted'>{_html(result.text_layer)}</div></td>"
                 f"<td>{_html(result.retrieval_method)}</td>"
                 f"<td class='num'>{result.score:.4g}</td>"
                 f"<td>{_html(result.snippet)}</td>"
+                f"<td class='actions'>{_pdf_link(result.article_id, result.page_start)}</td>"
                 "</tr>"
                 for result in response.results
             )
         else:
-            rows = "<tr><td colspan='6'>No results</td></tr>"
-    empty_rows = "<tr><td colspan='6'>Enter a query.</td></tr>"
+            rows = "<tr><td colspan='7'>No results</td></tr>"
+    empty_rows = "<tr><td colspan='7'>Enter a query.</td></tr>"
     source_options = "".join(
         f"<option value='{_html(value)}' {'selected' if source_type == value else ''}>{_html(label)}</option>"
         for value, label in [
@@ -225,10 +246,78 @@ def search_page(
       <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
       <button type="submit">Search</button>
     </form>
-    <table><tr><th>Article</th><th class="num">Pages</th><th>Type</th><th>Method</th><th class="num">Score</th><th>Snippet</th></tr>
+    <table><tr><th>Article</th><th class="num">Pages</th><th>Type / layer</th><th>Method</th>
+    <th class="num">Score</th><th>Snippet</th><th>PDF</th></tr>
     {rows or empty_rows}</table>
     """
     return _layout("Search", body)
+
+
+@router.get("/ui/ingestion", response_class=HTMLResponse)
+def ingestion_page(session: SessionDep, show: str = "uploads") -> HTMLResponse:
+    settings = get_settings()
+    collections = list(session.scalars(select(Collection).order_by(Collection.name)))
+    collection_options = "".join(
+        f"<option value='{_html(collection.name)}'>{_html(collection.name)}</option>" for collection in collections
+    )
+    statement = select(IngestionJob).order_by(IngestionJob.created_at.desc()).limit(50)
+    if show == "uploads":
+        statement = statement.where(IngestionJob.original_filename.is_not(None))
+    elif show == "failed":
+        statement = statement.where(IngestionJob.status == "failed")
+    elif show != "all":
+        show = "uploads"
+        statement = statement.where(IngestionJob.original_filename.is_not(None))
+    jobs = list(session.scalars(statement))
+    rows = []
+    for job in jobs:
+        payload = job_to_response(job)
+        article_id = payload.get("article_id")
+        links = ""
+        if isinstance(article_id, str):
+            links = (
+                f"<a href='/ui/articles/{_html(article_id)}'>Article</a> "
+                f"<a href='{_html(build_pdf_url(article_id, 'original'))}' target='_blank' rel='noopener'>PDF</a>"
+            )
+        error = ""
+        if payload.get("error_type") or payload.get("error_message"):
+            error_prefix = f"{_html(payload.get('error_type'))}: " if payload.get("error_type") else ""
+            error = (
+                f"<div class='warn'>{error_prefix}{_html(_truncate(str(payload.get('error_message') or ''), 160))}</div>"
+            )
+        filename = job.original_filename or "(legacy CLI job)"
+        rows.append(
+            "<tr>"
+            f"<td>{_html(filename)}</td>"
+            f"<td>{_html(job.status)}</td>"
+            f"<td class='num'>{job.attempt_count}</td>"
+            f"<td>{_html(job.created_at)}</td>"
+            f"<td>{links}{error}</td>"
+            "</tr>"
+        )
+    table_rows = "".join(rows) or "<tr><td colspan='5'>No jobs for this filter</td></tr>"
+    filters = " ".join(
+        [
+            f"<strong>{_html(label)}</strong>" if show == value else f"<a href='/ui/ingestion?show={value}'>{_html(label)}</a>"
+            for value, label in (("uploads", "Upload jobs"), ("failed", "Failed"), ("all", "All legacy jobs"))
+        ]
+    )
+    body = f"""
+    <h1>Ingestion</h1>
+    <section class="panel">
+      <form method="post" action="/ingestion/uploads" enctype="multipart/form-data">
+        <label>Collection<br><select name="collection">{collection_options}</select></label>
+        <label>PDF files<br><input name="files" type="file" accept="application/pdf,.pdf" multiple></label>
+        <button type="submit">Upload</button>
+      </form>
+      <p class="muted">Limits: up to {settings.upload_max_files_per_request} files per request,
+      {settings.upload_max_file_size_mb} MB per file. Indexed means PostgreSQL is updated; rebuild semantic/vector index manually.</p>
+    </section>
+    <h2>Recent Jobs</h2>
+    <p class="actions">{filters}</p>
+    <table><tr><th>Filename</th><th>Status</th><th class="num">Attempts</th><th>Created</th><th>Result</th></tr>{table_rows}</table>
+    """
+    return _layout("Ingestion", body)
 
 
 def _article_tag_summary(tags: list[ArticleTag]) -> str:
@@ -304,7 +393,7 @@ def article_detail(session: SessionDep, article_id: UUID) -> HTMLResponse:
     )
     chunk_rows = "".join(
         f"<tr><td class='num'>{chunk.chunk_index}</td>"
-        f"<td class='num'>{chunk.page_start}-{chunk.page_end}</td>"
+        f"<td class='num'>{_pdf_link(article.id, chunk.page_start, _page_range(chunk.page_start, chunk.page_end))}</td>"
         f"<td>{_html(chunk.source_type)}</td><td>{_html(chunk.text_layer)}</td>"
         f"<td>{_html(_truncate(chunk.text))}</td></tr>"
         for chunk in chunks
@@ -316,6 +405,10 @@ def article_detail(session: SessionDep, article_id: UUID) -> HTMLResponse:
         f"<p><strong>DOI:</strong> {_html(article.doi)} &nbsp; "
         f"<strong>Status:</strong> {_html(article.status)} &nbsp; "
         f"<strong>Selected layers:</strong> {selected_layer_text}</p>"
+    )
+    pdf_actions = (
+        f"<p class='actions'>{_pdf_link(article.id, label='Open original PDF')}"
+        f"{' ' + _ocr_pdf_link(article.id) if article.pdf_ocr_path else ''}</p>"
     )
     sections_table = (
         "<h2>Sections</h2><table><tr><th>Normalized</th><th>Name</th>"
@@ -329,6 +422,7 @@ def article_detail(session: SessionDep, article_id: UUID) -> HTMLResponse:
     <h1>{_html(article.title)}</h1>
     <section class="panel">
       {metadata_row}
+      {pdf_actions}
       <p><strong>Original PDF:</strong> <span class="path">{_html(article.pdf_original_path)}</span></p>
       <p><strong>OCR PDF:</strong> <span class="path">{_html(article.pdf_ocr_path)}</span></p>
       <p><a href="/ui/articles/{article.id}/text-layers">Inspect page text layers</a></p>

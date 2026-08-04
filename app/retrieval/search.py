@@ -13,6 +13,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.config import Settings, get_settings
 from app.db.models import Article, Chunk, Collection
+from app.documents.service import build_pdf_url
 from app.retrieval.vector_index import LoadedVectorIndex, embed_query_with_fastembed, load_local_vector_index
 
 STOPWORDS = {"and", "in", "or", "the", "using", "vs", "with"}
@@ -39,6 +40,7 @@ class SearchResult:
     snippet: str
     score: float
     retrieval_method: str
+    text_layer: str = "original"
     method_scores: dict[str, float] = field(default_factory=dict)
     method_ranks: dict[str, int] = field(default_factory=dict)
 
@@ -138,6 +140,7 @@ def exact_search(
                 page_start=chunk.page_start,
                 page_end=chunk.page_end,
                 source_type=chunk.source_type,
+                text_layer=chunk.text_layer,
                 snippet=make_snippet(chunk.text, normalized_query),
                 score=float(score or 0),
                 retrieval_method="exact_ilike",
@@ -208,6 +211,7 @@ def semantic_search(
                 page_start=chunk.page_start,
                 page_end=chunk.page_end,
                 source_type=chunk.source_type,
+                text_layer=chunk.text_layer,
                 snippet=make_snippet(chunk.text, normalized_query),
                 score=score,
                 retrieval_method="semantic_cosine",
@@ -271,6 +275,7 @@ def hybrid_search(
                 page_start=evidence.page_start,
                 page_end=evidence.page_end,
                 source_type=evidence.source_type,
+                text_layer=evidence.text_layer,
                 snippet=evidence.snippet,
                 score=fused_score,
                 retrieval_method="hybrid_rrf",
@@ -359,6 +364,9 @@ def search_response_to_dict(response: SearchResponse) -> dict[str, object]:
             "page_start": result.page_start,
             "page_end": result.page_end,
             "source_type": result.source_type,
+            "text_layer": result.text_layer,
+            "pdf_url": build_pdf_url(result.article_id, "original"),
+            "pdf_page_url": build_pdf_url(result.article_id, "original", result.page_start),
             "snippet": result.snippet,
             "score": result.score,
             "retrieval_method": result.retrieval_method,

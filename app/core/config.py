@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +33,21 @@ class Settings(BaseSettings):
     rag_model: str = ""
     rag_timeout_seconds: int = Field(default=120, ge=1)
     enable_external_metadata_lookup: bool = False
+    upload_max_file_size_mb: int = Field(default=100, ge=1)
+    upload_max_files_per_request: int = Field(default=10, ge=1)
+    upload_read_chunk_bytes: int = Field(default=1024 * 1024, ge=1024)
+    ingestion_poll_seconds: int = Field(default=2, ge=1)
+    ingestion_lease_seconds: int = Field(default=1200, ge=1)
+    ingestion_heartbeat_seconds: int = Field(default=30, ge=1)
+    ingestion_max_attempts: int = Field(default=3, ge=1)
+    ingestion_failed_retention_days: int = Field(default=7, ge=1)
+    ingestion_worker_id: str = ""
+
+    @model_validator(mode="after")
+    def validate_ingestion_timing(self) -> Settings:
+        if self.ingestion_heartbeat_seconds >= self.ingestion_lease_seconds:
+            raise ValueError("INGESTION_HEARTBEAT_SECONDS must be less than INGESTION_LEASE_SECONDS")
+        return self
 
 
 @lru_cache

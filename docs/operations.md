@@ -80,7 +80,51 @@ Open:
 ```text
 http://127.0.0.1:8000/
 http://127.0.0.1:8000/ui/articles
+http://127.0.0.1:8000/ui/ingestion
 ```
+
+Open source PDFs and stored page text through backend routes:
+
+```text
+GET /articles/{article_id}/pdf?layer=original
+GET /articles/{article_id}/pdf?layer=ocr
+GET /articles/{article_id}/pages/{page_number}?layer=selected
+```
+
+The `original` PDF route is the primary audit link. OCR PDF access is available only when `Article.pdf_ocr_path` is registered and resolves inside `data/processed/ocr`. Search results include `pdf_page_url` values such as `/articles/{article_id}/pdf?layer=original#page=7`; the page jump depends on the browser PDF viewer honoring `#page=N`, so keep the visible page number from the result as the audit reference.
+
+Document access diagnostics:
+
+- Unknown articles or unavailable PDF/page/layer evidence return `404`.
+- Unknown enum values for `layer` return FastAPI validation errors.
+- Stored paths outside the allowed root return `500` without exposing the local path.
+- Missing files return `404`; restore the PDF/OCR artifact or re-ingest the article after verifying the original checksum.
+
+## Upload Ingestion Queue
+
+Run the API and one worker in separate terminals:
+
+```powershell
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+python -m app.workers.worker
+```
+
+Upload through the UI at `/ui/ingestion` or through:
+
+```text
+POST /ingestion/uploads
+GET /ingestion/jobs
+GET /ingestion/jobs/{job_id}
+```
+
+Uploads are streamed to `data/uploads/incoming` and moved to `data/uploads/queued` only after validation. Accepted files become `queued` jobs. The worker claims jobs with a database lock, updates `attempt_count`, `worker_id`, and heartbeat, and then runs the existing ingestion pipeline.
+
+Operational notes:
+
+- `indexed` means PostgreSQL evidence is ready; semantic/hybrid vector artifacts are not rebuilt automatically in Priority 2.
+- Duplicate uploads return a terminal `duplicate` job with the existing `article_id`.
+- Failed jobs keep their queued staged file for diagnostics; cleanups must stay inside `data/uploads` and must not touch `data/pdf`.
+- If a worker dies, stale `processing` jobs are requeued after `INGESTION_LEASE_SECONDS` until `INGESTION_MAX_ATTEMPTS` is exhausted.
 
 Run exact retrieval through the API after PDFs have been indexed:
 

@@ -15,6 +15,7 @@ from app.retrieval.search import (
     make_snippet,
     normalize_retrieval_method,
     search_chunks,
+    search_response_to_dict,
     semantic_search,
 )
 from app.retrieval.vector_index import LoadedVectorIndex
@@ -41,6 +42,7 @@ def test_exact_search_returns_source_linked_chunks() -> None:
         page_start=2,
         page_end=3,
         source_type="method",
+        text_layer="original",
         text="Conductivity of Li-Nafion in NMP depends on temperature.",
         chunk_index=0,
     )
@@ -57,6 +59,7 @@ def test_exact_search_returns_source_linked_chunks() -> None:
     assert result.page_start == 2
     assert result.page_end == 3
     assert result.source_type == "method"
+    assert result.text_layer == "original"
     assert result.retrieval_method == "exact_ilike"
     assert "Li-Nafion" in result.snippet
 
@@ -70,6 +73,7 @@ def test_search_chunks_dispatches_exact_method() -> None:
         page_start=2,
         page_end=3,
         source_type="method",
+        text_layer="original",
         text="Conductivity of Li-Nafion in NMP depends on temperature.",
         chunk_index=0,
     )
@@ -79,6 +83,18 @@ def test_search_chunks_dispatches_exact_method() -> None:
     response = search_chunks(session, "Li-Nafion", "literature", 5, method="exact")  # type: ignore[arg-type]
 
     assert response.results[0].retrieval_method == "exact_ilike"
+
+
+def test_search_response_serializes_text_layer_and_pdf_urls() -> None:
+    result = _search_result(uuid.UUID(int=7), score=1.5, method="exact_ilike")
+    response = SearchResponse(query="query", results=[result])
+
+    payload = search_response_to_dict(response)
+    serialized = payload["results"][0]
+
+    assert serialized["text_layer"] == "original"
+    assert serialized["pdf_url"] == f"/articles/{result.article_id}/pdf?layer=original"
+    assert serialized["pdf_page_url"] == f"/articles/{result.article_id}/pdf?layer=original#page=1"
 
 
 def test_search_chunks_rejects_unknown_method() -> None:
@@ -318,6 +334,7 @@ def _semantic_index() -> tuple[LoadedVectorIndex, list[object]]:
             page_start=2,
             page_end=3,
             source_type="body",
+            text_layer="original",
             text="Proton transport increases after hydration.",
             chunk_index=0,
         ),
@@ -327,6 +344,7 @@ def _semantic_index() -> tuple[LoadedVectorIndex, list[object]]:
             page_start=4,
             page_end=4,
             source_type="method",
+            text_layer="ocr",
             text="Conductivity was measured by impedance spectroscopy.",
             chunk_index=1,
         ),
@@ -358,6 +376,7 @@ def _search_result(chunk_id: uuid.UUID, *, score: float, method: str) -> SearchR
         page_start=1,
         page_end=2,
         source_type="method",
+        text_layer="original",
         snippet="hybrid evidence",
         score=score,
         retrieval_method=method,

@@ -16,5 +16,6 @@ data/processed/thumbnails/*
 data/processed/vector_indexes/*
 data/exports/*
 data/backups/*
+data/uploads/*
 data/tessdata/*
 !data/**/.gitkeep

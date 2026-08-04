@@ -190,12 +190,41 @@ def _check_corpus_files(session_factory: Callable[[], Session]) -> StatusPayload
     return _payload("PASS", "indexed corpus files are present", article_count=len(articles))
 
 
+def _check_upload_storage(settings: Settings) -> StatusPayload:
+    upload_root = settings.data_root / "uploads"
+    incoming = upload_root / "incoming"
+    queued = upload_root / "queued"
+    try:
+        incoming.mkdir(parents=True, exist_ok=True)
+        queued.mkdir(parents=True, exist_ok=True)
+        probe = incoming / ".write_probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+    except Exception as exc:
+        return _payload("FAIL", "upload storage is not writable", path=str(upload_root), error_type=type(exc).__name__, error=str(exc))
+    return _payload("PASS", "upload storage is writable", incoming=str(incoming), queued=str(queued))
+
+
+def _check_ingestion_settings(settings: Settings) -> StatusPayload:
+    return _payload(
+        "PASS",
+        "ingestion queue settings are valid",
+        upload_max_file_size_mb=settings.upload_max_file_size_mb,
+        upload_max_files_per_request=settings.upload_max_files_per_request,
+        ingestion_lease_seconds=settings.ingestion_lease_seconds,
+        ingestion_heartbeat_seconds=settings.ingestion_heartbeat_seconds,
+        ingestion_max_attempts=settings.ingestion_max_attempts,
+    )
+
+
 def run_doctor(settings: Settings, session_factory: Callable[[], Session]) -> dict[str, StatusPayload]:
     required_languages = {part for part in settings.ocr_languages.split("+") if part}
     return {
         "database": _check_database(session_factory),
         "migrations": _check_migrations(session_factory),
         "data_root": _check_data_root(settings),
+        "upload_storage": _check_upload_storage(settings),
+        "ingestion_settings": _check_ingestion_settings(settings),
         "corpus_files": _check_corpus_files(session_factory),
         "ocr_command": _check_ocr_command(settings),
         "tesseract_languages": _check_tesseract_languages(required_languages),

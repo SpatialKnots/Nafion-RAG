@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from app.ui import _truncate, article_detail, article_text_layers, dashboard, retrieval_report_page, search_page
+from app.ui import _truncate, article_detail, article_text_layers, dashboard, ingestion_page, retrieval_report_page, search_page
 
 ARTICLE_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
@@ -73,6 +73,42 @@ class FakeSession:
                 source_pdf_path="original.pdf",
             ),
         ]
+        self.upload_job = SimpleNamespace(
+            id=uuid.UUID("33333333-3333-3333-3333-333333333333"),
+            article_id=ARTICLE_ID,
+            collection_id=uuid.UUID("44444444-4444-4444-4444-444444444444"),
+            original_filename="upload.pdf",
+            checksum_sha256="a" * 64,
+            file_size_bytes=123,
+            force_ocr=False,
+            attempt_count=1,
+            worker_id="worker",
+            error_type=None,
+            error_message=None,
+            status="indexed",
+            created_at="2026-08-04T00:00:00+00:00",
+            updated_at=None,
+            started_at=None,
+            finished_at=None,
+        )
+        self.legacy_job = SimpleNamespace(
+            id=uuid.UUID("55555555-5555-5555-5555-555555555555"),
+            article_id=None,
+            collection_id=uuid.UUID("44444444-4444-4444-4444-444444444444"),
+            original_filename=None,
+            checksum_sha256=None,
+            file_size_bytes=None,
+            force_ocr=False,
+            attempt_count=0,
+            worker_id=None,
+            error_type=None,
+            error_message="legacy path data\\processed\\ocr\\bad.pdf",
+            status="failed",
+            created_at="2026-07-01T00:00:00+00:00",
+            updated_at=None,
+            started_at=None,
+            finished_at=None,
+        )
 
     def scalar(self, statement: object) -> object:
         text = str(statement)
@@ -94,6 +130,12 @@ class FakeSession:
             return FakeScalarResult([self.chunk])
         if "FROM page_text_layers" in text:
             return FakeScalarResult(self.layers)
+        if "FROM collections" in text:
+            return FakeScalarResult([SimpleNamespace(name="literature")])
+        if "FROM ingestion_jobs" in text and "original_filename IS NOT NULL" in text:
+            return FakeScalarResult([self.upload_job])
+        if "FROM ingestion_jobs" in text:
+            return FakeScalarResult([self.upload_job, self.legacy_job])
         if "FROM pages" in text:
             return FakeScalarResult([self.page])
         return FakeScalarResult([])
@@ -150,6 +192,7 @@ def test_search_page_returns_results(monkeypatch) -> None:
             page_start=1,
             page_end=1,
             source_type="method",
+            text_layer="ocr",
             retrieval_method="hybrid_rrf",
             score=5.0,
             snippet="Nafion conductivity in NMP.",
@@ -165,6 +208,8 @@ def test_search_page_returns_results(monkeypatch) -> None:
     assert "Li-Nafion evidence paper" in body
     assert "Nafion conductivity in NMP" in body
     assert "method" in body
+    assert "ocr" in body
+    assert "/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original#page=1" in body
     assert "hybrid_rrf" in body
     assert "value='hybrid' selected" in body
 
@@ -177,11 +222,29 @@ def test_article_pages_return_html() -> None:
     assert article_response.status_code == 200
     article_body = article_response.body.decode()
     assert "Inspect page text layers" in article_body
+    assert "Open original PDF" in article_body
+    assert "Open OCR PDF" in article_body
+    assert "/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original#page=1" in article_body
     assert "conductivity" in article_body
     assert layers_response.status_code == 200
     layer_body = layers_response.body.decode()
     assert "original" in layer_body
     assert "ocr" in layer_body
+
+
+def test_ingestion_page_defaults_to_upload_jobs_only(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.ui.get_settings",
+        lambda: SimpleNamespace(upload_max_files_per_request=10, upload_max_file_size_mb=100),
+    )
+    response = ingestion_page(_override_session())
+
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "upload.pdf" in body
+    assert "(legacy CLI job)" not in body
+    assert "data\\processed" not in body
 
 
 def test_unknown_article_returns_404() -> None:
