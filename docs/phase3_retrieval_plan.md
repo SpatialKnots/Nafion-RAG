@@ -338,6 +338,11 @@ the default method to exact and keep the failed report as diagnostic evidence.
 
 ## Implementation Gates
 
+Status as of 2026-08-04: Gates 1-4 are complete. The evaluated hybrid candidate
+preserved 24/24 PASS and improved aggregate top-1 and mean rank. Gate 5 retains
+`exact` as the default pending explicit approval to change it. See
+`docs/phase3_semantic_evaluation.md` and `docs/phase3_hybrid_evaluation.md`.
+
 Gate 1: Method plumbing only
 
 - no embedding dependency yet;

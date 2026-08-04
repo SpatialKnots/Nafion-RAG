@@ -61,6 +61,8 @@ The manifest must record:
 - chunk text checksums;
 - index build command;
 - creation timestamp.
+- SHA-256 checksums for the embedding and chunk-id artifacts;
+- cosine normalization state and similarity method.
 
 The manifest is required for stale-index detection. If a chunk text checksum,
 model identifier, embedding dimension, or corpus checksum changes, the index
@@ -114,5 +116,7 @@ Rollback for this storage path is file-based:
 
 Gate 2 storage backend is local rebuildable vector indexes, not `pgvector`, for
 the current environment. FastEmbed is the first embedding runtime, and the
-project can now build local vector artifacts. Semantic and hybrid search remain
-unimplemented until a retrieval method reads and evaluates these artifacts.
+project can build and strictly validate manifest v2 local vector artifacts.
+Semantic cosine retrieval is implemented behind an explicit method selection.
+Hybrid RRF retrieval is also implemented behind an explicit method selection.
+Exact retrieval remains the default pending a separate default-method decision.

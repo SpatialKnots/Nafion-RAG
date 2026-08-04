@@ -9,6 +9,8 @@ import pytest
 from app.evaluation.retrieval import (
     EvaluationQuestion,
     _evaluate_question,
+    compare_retrieval_methods,
+    compare_retrieval_reports,
     load_questions,
     run_retrieval_evaluation,
     write_evaluation_report,
@@ -69,10 +71,7 @@ def test_load_questions_accepts_title_and_checksum_targets(tmp_path) -> None:
 def test_load_questions_requires_at_least_one_article_target(tmp_path) -> None:
     path = tmp_path / "questions.yaml"
     path.write_text(
-        "- id: q01\n"
-        "  query: Nafion\n"
-        "  expected_keywords:\n"
-        "    - Nafion\n",
+        "- id: q01\n  query: Nafion\n  expected_keywords:\n    - Nafion\n",
         encoding="utf-8",
     )
 
@@ -93,8 +92,17 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
         encoding="utf-8",
     )
 
-    def fake_search_chunks(session: object, query: str, collection_name: str, top_k: int, *, method: str = "exact") -> SearchResponse:
+    def fake_search_chunks(
+        session: object,
+        query: str,
+        collection_name: str,
+        top_k: int,
+        *,
+        method: str = "exact",
+        settings: object | None = None,
+    ) -> SearchResponse:
         assert method == "exact"
+        assert settings is not None
         return SearchResponse(
             query=query,
             results=[
@@ -127,6 +135,7 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
 
     assert report["settings"]["method"] == "exact"
     assert report["settings"]["retrieval_method"] == "exact_ilike"
+    assert report["settings"]["retrieval_metadata"] == {}
     assert report["summary"] == {
         "total": 1,
         "passed": 0,
@@ -152,12 +161,7 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
 def test_retrieval_evaluation_rejects_unknown_method(tmp_path) -> None:
     questions_path = tmp_path / "questions.yaml"
     questions_path.write_text(
-        "- id: q01\n"
-        "  query: Nafion\n"
-        "  expected_article_dois:\n"
-        "    - 10.1000/example\n"
-        "  expected_keywords:\n"
-        "    - Nafion\n",
+        "- id: q01\n  query: Nafion\n  expected_article_dois:\n    - 10.1000/example\n  expected_keywords:\n    - Nafion\n",
         encoding="utf-8",
     )
 
@@ -168,8 +172,98 @@ def test_retrieval_evaluation_rejects_unknown_method(tmp_path) -> None:
             questions_path,
             collection="literature",
             top_k=5,
-            method="semantic",
+            method="weighted",
         )
+
+
+def test_retrieval_evaluation_records_semantic_metadata(monkeypatch, tmp_path) -> None:
+    questions_path = tmp_path / "questions.yaml"
+    questions_path.write_text(
+        "- id: q01\n  query: proton transport\n  expected_article_dois:\n    - 10.1000/example\n  expected_keywords:\n    - proton\n",
+        encoding="utf-8",
+    )
+
+    def fake_search_chunks(*args: object, **kwargs: object) -> SearchResponse:
+        assert kwargs["method"] == "semantic"
+        return SearchResponse(
+            query="proton transport",
+            results=[
+                SearchResult(
+                    article_id=str(uuid.uuid4()),
+                    chunk_id=str(uuid.uuid4()),
+                    title="Expected",
+                    doi="10.1000/example",
+                    page_start=1,
+                    page_end=1,
+                    source_type="body",
+                    snippet="proton transport evidence",
+                    score=0.8,
+                    retrieval_method="semantic_cosine",
+                )
+            ],
+            metadata={"embedding_model": "test/model", "manifest_sha256": "abc"},
+        )
+
+    monkeypatch.setattr("app.evaluation.retrieval.search_chunks", fake_search_chunks)
+    monkeypatch.setattr("app.evaluation.retrieval._article_checksums_for_results", lambda session, result_payload: {})
+    report = run_retrieval_evaluation(
+        object(),  # type: ignore[arg-type]
+        SimpleNamespace(default_top_k=10),  # type: ignore[arg-type]
+        questions_path,
+        collection="literature",
+        top_k=10,
+        method="semantic",
+    )
+
+    assert report["settings"]["retrieval_method"] == "semantic_cosine"
+    assert report["settings"]["retrieval_metadata"]["embedding_model"] == "test/model"
+    assert report["summary"]["top_1_passed"] == 1
+
+
+def test_retrieval_evaluation_records_hybrid_component_diagnostics(monkeypatch, tmp_path) -> None:
+    questions_path = tmp_path / "questions.yaml"
+    questions_path.write_text(
+        "- id: q01\n  query: proton transport\n  expected_article_dois:\n    - 10.1000/example\n  expected_keywords:\n    - proton\n",
+        encoding="utf-8",
+    )
+
+    def fake_search_chunks(*args: object, **kwargs: object) -> SearchResponse:
+        assert kwargs["method"] == "hybrid"
+        return SearchResponse(
+            query="proton transport",
+            results=[
+                SearchResult(
+                    article_id=str(uuid.uuid4()),
+                    chunk_id=str(uuid.uuid4()),
+                    title="Expected",
+                    doi="10.1000/example",
+                    page_start=1,
+                    page_end=1,
+                    source_type="body",
+                    snippet="proton transport evidence",
+                    score=0.03,
+                    retrieval_method="hybrid_rrf",
+                    method_scores={"exact_ilike": 10.0, "semantic_cosine": 0.8},
+                    method_ranks={"exact_ilike": 2, "semantic_cosine": 1},
+                )
+            ],
+            metadata={"fusion": "reciprocal_rank_fusion", "rrf_k": 60},
+        )
+
+    monkeypatch.setattr("app.evaluation.retrieval.search_chunks", fake_search_chunks)
+    monkeypatch.setattr("app.evaluation.retrieval._article_checksums_for_results", lambda session, result_payload: {})
+    report = run_retrieval_evaluation(
+        object(),  # type: ignore[arg-type]
+        SimpleNamespace(default_top_k=10),  # type: ignore[arg-type]
+        questions_path,
+        collection="literature",
+        top_k=10,
+        method="hybrid",
+    )
+
+    assert report["settings"]["retrieval_method"] == "hybrid_rrf"
+    assert report["settings"]["retrieval_metadata"]["rrf_k"] == 60
+    assert report["questions"][0]["top_result"]["method_ranks"] == {"exact_ilike": 2, "semantic_cosine": 1}
 
 
 def test_retrieval_evaluation_supports_title_and_checksum_targets(tmp_path) -> None:
@@ -183,7 +277,7 @@ def test_retrieval_evaluation_supports_title_and_checksum_targets(tmp_path) -> N
         "  expected_article_checksums:\n"
         "    - ABC123\n"
         "  expected_keywords:\n"
-        "    - solution-cast\n"
+        "    - solution-cast\n",
     )[0]
     response = SearchResponse(
         query="Moore Martin",
@@ -226,7 +320,7 @@ def test_retrieval_evaluation_reports_missing_targets_separately(tmp_path) -> No
         "  expected_article_checksums:\n"
         "    - missing-checksum\n"
         "  expected_keywords:\n"
-        "    - absent\n"
+        "    - absent\n",
     )[0]
     response = SearchResponse(query="DOI-less paper", results=[])
 
@@ -246,12 +340,7 @@ def test_retrieval_evaluation_reports_expected_article_rank(tmp_path) -> None:
     expected_article_id = str(uuid.uuid4())
     question = load_questions_from_text(
         tmp_path,
-        "- id: q01\n"
-        "  query: ranked paper\n"
-        "  expected_article_dois:\n"
-        "    - 10.1000/expected\n"
-        "  expected_keywords:\n"
-        "    - ranked\n",
+        "- id: q01\n  query: ranked paper\n  expected_article_dois:\n    - 10.1000/expected\n  expected_keywords:\n    - ranked\n",
     )[0]
     response = SearchResponse(
         query="ranked paper",
@@ -303,3 +392,102 @@ def test_write_evaluation_report_uses_exports_directory(tmp_path) -> None:
     assert output_path.parent == tmp_path / "exports"
     assert output_path.name.startswith("retrieval_eval_")
     assert output_path.read_text(encoding="utf-8")
+
+
+def test_compare_retrieval_reports_reports_deltas_regressions_and_improvements() -> None:
+    exact = {
+        "settings": {"method": "exact", "retrieval_method": "exact_ilike", "collection": "literature", "top_k": 10},
+        "summary": {"top_1_passed": 1, "recall_at_k": 1.0, "mean_rank": 2.0},
+        "questions": [
+            {"id": "regressed", "query": "q1", "passed": True, "top_1_passed": True, "rank_of_expected": 1},
+            {"id": "improved", "query": "q2", "passed": True, "top_1_passed": False, "rank_of_expected": 3},
+        ],
+    }
+    semantic = {
+        "settings": {
+            "method": "semantic",
+            "retrieval_method": "semantic_cosine",
+            "collection": "literature",
+            "top_k": 10,
+        },
+        "summary": {"top_1_passed": 1, "recall_at_k": 0.5, "mean_rank": 1.0},
+        "questions": [
+            {"id": "regressed", "query": "q1", "passed": False, "top_1_passed": False, "rank_of_expected": None},
+            {"id": "improved", "query": "q2", "passed": True, "top_1_passed": True, "rank_of_expected": 1},
+        ],
+    }
+
+    comparison = compare_retrieval_reports(exact, semantic)
+
+    assert comparison["regressions"] == ["regressed"]
+    assert comparison["improvements"] == ["improved"]
+    assert comparison["top_1_regressions"] == ["regressed"]
+    assert comparison["top_1_improvements"] == ["improved"]
+    assert comparison["summary"]["recall_at_k_delta"] == -0.5
+    assert comparison["summary"]["mean_rank_delta"] == -1.0
+
+
+def test_compare_retrieval_reports_rejects_different_top_k() -> None:
+    exact = {
+        "settings": {"method": "exact", "retrieval_method": "exact_ilike", "collection": "literature", "top_k": 10},
+        "summary": {},
+        "questions": [],
+    }
+    semantic = {
+        "settings": {
+            "method": "semantic",
+            "retrieval_method": "semantic_cosine",
+            "collection": "literature",
+            "top_k": 5,
+        },
+        "summary": {},
+        "questions": [],
+    }
+
+    with pytest.raises(ValueError, match="top_k"):
+        compare_retrieval_reports(exact, semantic)
+
+
+def test_compare_retrieval_methods_builds_three_way_deltas() -> None:
+    exact = _method_report("exact", "exact_ilike", passed=2, top_1=1, mean_rank=2.0, rank=2)
+    semantic = _method_report("semantic", "semantic_cosine", passed=1, top_1=1, mean_rank=1.0, rank=1)
+    hybrid = _method_report("hybrid", "hybrid_rrf", passed=2, top_1=2, mean_rank=1.0, rank=1)
+
+    comparison = compare_retrieval_methods(exact, semantic, hybrid)
+
+    assert comparison["methods"]["hybrid_rrf"]["top_1_passed"] == 2
+    assert comparison["deltas"]["hybrid_vs_exact"]["top_1_passed"] == 1.0
+    assert comparison["deltas"]["hybrid_vs_semantic"]["passed"] == 1.0
+    assert comparison["questions"][0]["hybrid_rank"] == 1
+
+
+def test_compare_retrieval_methods_rejects_wrong_hybrid_report() -> None:
+    exact = _method_report("exact", "exact_ilike", passed=1, top_1=1, mean_rank=1.0, rank=1)
+    semantic = _method_report("semantic", "semantic_cosine", passed=1, top_1=1, mean_rank=1.0, rank=1)
+
+    with pytest.raises(ValueError, match="hybrid report"):
+        compare_retrieval_methods(exact, semantic, semantic)
+
+
+def _method_report(method: str, concrete: str, *, passed: int, top_1: int, mean_rank: float, rank: int) -> dict:
+    return {
+        "settings": {"method": method, "retrieval_method": concrete, "collection": "literature", "top_k": 10},
+        "summary": {
+            "total": 2,
+            "passed": passed,
+            "top_1_passed": top_1,
+            "failed": 2 - passed,
+            "recall_at_k": 1.0,
+            "mean_rank": mean_rank,
+            "empty_result_queries": 0,
+        },
+        "questions": [
+            {
+                "id": "q01",
+                "query": "query",
+                "passed": passed > 0,
+                "top_1_passed": top_1 > 0,
+                "rank_of_expected": rank,
+            }
+        ],
+    }

@@ -1,8 +1,8 @@
 # Nafion RAG
 
-Local-first scientific literature retrieval system for Nafion/PFSA and lithium-ion battery research.
+Local-first scientific literature ingestion and retrieval system for Nafion/PFSA and lithium-ion battery research.
 
-The first implementation phase covers repository infrastructure and PDF ingestion only:
+The implemented system includes:
 
 - Local Python application and worker processes.
 - Local PostgreSQL database managed outside this repository.
@@ -12,8 +12,12 @@ The first implementation phase covers repository infrastructure and PDF ingestio
 - Page-level text extraction with PyMuPDF.
 - Deterministic chunking with page ranges.
 - CLI for ingesting one PDF or a folder.
+- Exact chunk retrieval as the default baseline.
+- Optional local semantic retrieval with FastEmbed and a rebuildable vector index.
+- Optional hybrid retrieval using reciprocal rank fusion over exact and semantic ranks.
+- Retrieval evaluation with exact/semantic/hybrid comparison reports.
 
-Not included in phase 1: embeddings, semantic search, RAG answers, and complex UI.
+Not implemented: RAG answer generation, external metadata lookup, and semantic/hybrid selectors in the HTML UI.
 
 ## Quick Start
 
@@ -85,6 +89,22 @@ Search indexed chunks through the API:
 
 ```text
 GET /search?q=Nafion&collection=literature&top_k=10
+```
+
+Build and use the local semantic index:
+
+```powershell
+python -m app.retrieval.cli build --embedding-model BAAI/bge-small-en-v1.5 --batch-size 64
+```
+
+```text
+GET /search?q=proton%20transport&collection=literature&top_k=10&method=semantic
+```
+
+Run equal-weight reciprocal rank fusion explicitly:
+
+```text
+GET /search?q=proton%20transport&collection=literature&top_k=10&method=hybrid
 ```
 
 Run retrieval evaluation:

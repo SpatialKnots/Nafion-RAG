@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     ocr_timeout_seconds: int = Field(default=900, ge=1)
     chunk_target_chars: int = Field(default=4500, ge=1000)
     chunk_overlap_chars: int = Field(default=600, ge=0)
-    hybrid_rrf_k: int = 60
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    hybrid_rrf_k: int = Field(default=60, ge=1)
+    hybrid_candidate_multiplier: int = Field(default=5, ge=1)
     default_top_k: int = 10
     enable_external_metadata_lookup: bool = False
 

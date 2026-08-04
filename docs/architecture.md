@@ -1,6 +1,6 @@
 # Architecture
 
-Nafion RAG is local-first. Phase 1 only implements source-preserving PDF ingestion.
+Nafion RAG is local-first. PostgreSQL remains the source of truth for source-preserving PDF ingestion and chunk evidence.
 
 ## Services
 
@@ -26,10 +26,26 @@ PDF path
 
 Original PDFs are never modified. OCR output is written to `data/processed/ocr/` when OCR is required and enabled. If OCRmyPDF is missing or the OCR output still lacks a usable text layer, ingestion fails with a diagnostic instead of silently indexing empty text.
 
-## Not In Phase 1
+## Retrieval Flow
 
-- Embeddings.
-- Semantic or hybrid search.
+```text
+query
+  -> exact (default): PostgreSQL ILIKE ranking
+  -> semantic (explicit): FastEmbed query embedding
+       -> validated local manifest v2 and normalized embedding matrix
+       -> cosine ranking
+  -> hybrid (explicit): exact and semantic candidate ranks
+       -> equal-weight reciprocal rank fusion
+       -> Chunk and Article evidence from PostgreSQL
+  -> article, DOI, chunk id, page range, source type, snippet, score
+```
+
+The semantic index under `data/processed/vector_indexes/` is generated data, not a source of scientific evidence. Every semantic request verifies its artifact checksums, model and dimension, corpus manifest, database chunk order, and chunk text checksums. A stale or damaged index fails with a rebuild command.
+
+Hybrid uses ranks rather than attempting to normalize incompatible exact and cosine scores. Component ranks and raw scores remain attached to each fused result for audit.
+
+## Not Implemented
+
 - RAG generation.
 - External metadata lookup.
 - Complex frontend.

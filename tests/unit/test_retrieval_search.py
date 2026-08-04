@@ -3,9 +3,21 @@ from __future__ import annotations
 import uuid
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
-from app.retrieval.search import _query_terms, exact_search, make_snippet, normalize_retrieval_method, search_chunks
+from app.retrieval.search import (
+    SearchResponse,
+    SearchResult,
+    _query_terms,
+    exact_search,
+    hybrid_search,
+    make_snippet,
+    normalize_retrieval_method,
+    search_chunks,
+    semantic_search,
+)
+from app.retrieval.vector_index import LoadedVectorIndex
 
 
 class FakeSession:
@@ -71,11 +83,180 @@ def test_search_chunks_dispatches_exact_method() -> None:
 
 def test_search_chunks_rejects_unknown_method() -> None:
     with pytest.raises(ValueError, match="Unsupported retrieval method"):
-        search_chunks(FakeSession(), "Nafion", method="semantic")  # type: ignore[arg-type]
+        search_chunks(FakeSession(), "Nafion", method="weighted")  # type: ignore[arg-type]
 
 
 def test_normalize_retrieval_method_accepts_exact_case_insensitive() -> None:
     assert normalize_retrieval_method(" Exact ") == "exact"
+
+
+def test_normalize_retrieval_method_accepts_semantic_case_insensitive() -> None:
+    assert normalize_retrieval_method(" Semantic ") == "semantic"
+
+
+def test_normalize_retrieval_method_accepts_hybrid_case_insensitive() -> None:
+    assert normalize_retrieval_method(" Hybrid ") == "hybrid"
+
+
+def test_hybrid_search_fuses_component_ranks_and_preserves_diagnostics(monkeypatch) -> None:
+    result_a = _search_result(uuid.UUID(int=1), score=100.0, method="exact_ilike")
+    result_b_exact = _search_result(uuid.UUID(int=2), score=50.0, method="exact_ilike")
+    result_b_semantic = _search_result(uuid.UUID(int=2), score=0.9, method="semantic_cosine")
+    result_c = _search_result(uuid.UUID(int=3), score=0.8, method="semantic_cosine")
+
+    def fake_exact(session, query, collection_name, top_k, source_type=None):
+        assert top_k == 10
+        assert source_type == "method"
+        return SearchResponse(query=query, results=[result_a, result_b_exact])
+
+    def fake_semantic(session, query, collection_name, top_k, source_type=None, *, settings=None):
+        assert top_k == 10
+        assert source_type == "method"
+        return SearchResponse(
+            query=query,
+            results=[result_b_semantic, result_c],
+            metadata={"embedding_model": "test/model", "manifest_sha256": "abc"},
+        )
+
+    monkeypatch.setattr("app.retrieval.search.exact_search", fake_exact)
+    monkeypatch.setattr("app.retrieval.search.semantic_search", fake_semantic)
+    settings = SimpleNamespace(hybrid_rrf_k=60, hybrid_candidate_multiplier=5)
+
+    response = hybrid_search(
+        FakeSession(),  # type: ignore[arg-type]
+        "query",
+        top_k=2,
+        source_type="method",
+        settings=settings,  # type: ignore[arg-type]
+    )
+
+    assert [result.chunk_id for result in response.results] == [str(uuid.UUID(int=2)), str(uuid.UUID(int=1))]
+    assert response.results[0].score == pytest.approx((1 / 62) + (1 / 61))
+    assert response.results[0].method_ranks == {"exact_ilike": 2, "semantic_cosine": 1}
+    assert response.results[0].method_scores == {"exact_ilike": 50.0, "semantic_cosine": 0.9}
+    assert response.results[1].method_ranks == {"exact_ilike": 1}
+    assert response.metadata["fusion"] == "reciprocal_rank_fusion"
+    assert response.metadata["candidate_k"] == 10
+
+
+def test_hybrid_search_prefers_exact_result_when_single_method_rrf_scores_tie(monkeypatch) -> None:
+    exact_result = _search_result(uuid.UUID(int=2), score=20.0, method="exact_ilike")
+    semantic_result = _search_result(uuid.UUID(int=1), score=0.8, method="semantic_cosine")
+    monkeypatch.setattr(
+        "app.retrieval.search.exact_search",
+        lambda *args, **kwargs: SearchResponse(query="query", results=[exact_result]),
+    )
+    monkeypatch.setattr(
+        "app.retrieval.search.semantic_search",
+        lambda *args, **kwargs: SearchResponse(query="query", results=[semantic_result]),
+    )
+
+    response = hybrid_search(
+        FakeSession(),  # type: ignore[arg-type]
+        "query",
+        top_k=2,
+        settings=SimpleNamespace(hybrid_rrf_k=60, hybrid_candidate_multiplier=5),  # type: ignore[arg-type]
+    )
+
+    assert [result.chunk_id for result in response.results] == [exact_result.chunk_id, semantic_result.chunk_id]
+
+
+def test_hybrid_search_does_not_fall_back_when_semantic_fails(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.retrieval.search.exact_search",
+        lambda *args, **kwargs: SearchResponse(query="query", results=[]),
+    )
+
+    def fail_semantic(*args, **kwargs):
+        raise ValueError("Invalid local vector index")
+
+    monkeypatch.setattr("app.retrieval.search.semantic_search", fail_semantic)
+
+    with pytest.raises(ValueError, match="Invalid local vector index"):
+        hybrid_search(
+            FakeSession(),  # type: ignore[arg-type]
+            "query",
+            settings=SimpleNamespace(hybrid_rrf_k=60, hybrid_candidate_multiplier=5),  # type: ignore[arg-type]
+        )
+
+
+def test_semantic_search_ranks_cosine_similarity_and_preserves_evidence() -> None:
+    index, chunks = _semantic_index()
+
+    response = semantic_search(
+        FakeSession(),  # type: ignore[arg-type]
+        "conductivity without exact terms",
+        top_k=2,
+        settings=SimpleNamespace(embedding_model="test/model", data_root=None),  # type: ignore[arg-type]
+        loaded_index=index,
+        query_embedder=lambda query, model: [0.9, 0.1],
+    )
+
+    assert [result.chunk_id for result in response.results] == [str(chunks[0].id), str(chunks[1].id)]
+    assert response.results[0].retrieval_method == "semantic_cosine"
+    assert response.results[0].page_start == 2
+    assert response.results[0].source_type == "body"
+    assert response.results[0].snippet
+    assert response.metadata["embedding_model"] == "test/model"
+    assert response.metadata["manifest_sha256"] == "manifest-checksum"
+
+
+def test_semantic_search_filters_source_type_before_top_k() -> None:
+    index, chunks = _semantic_index()
+
+    response = semantic_search(
+        FakeSession(),  # type: ignore[arg-type]
+        "method evidence",
+        top_k=1,
+        source_type="method",
+        settings=SimpleNamespace(embedding_model="test/model", data_root=None),  # type: ignore[arg-type]
+        loaded_index=index,
+        query_embedder=lambda query, model: [1.0, 0.0],
+    )
+
+    assert [result.chunk_id for result in response.results] == [str(chunks[1].id)]
+
+
+def test_semantic_search_uses_chunk_id_to_break_equal_score_ties() -> None:
+    index, chunks = _semantic_index()
+    index.embeddings[:] = np.asarray([[1.0, 0.0], [1.0, 0.0]], dtype=np.float32)
+
+    response = semantic_search(
+        FakeSession(),  # type: ignore[arg-type]
+        "equal",
+        top_k=2,
+        settings=SimpleNamespace(embedding_model="test/model", data_root=None),  # type: ignore[arg-type]
+        loaded_index=index,
+        query_embedder=lambda query, model: [1.0, 0.0],
+    )
+
+    assert [result.chunk_id for result in response.results] == sorted(str(chunk.id) for chunk in chunks)
+
+
+def test_semantic_search_rejects_query_dimension_mismatch() -> None:
+    index, _chunks = _semantic_index()
+
+    with pytest.raises(ValueError, match="dimension mismatch"):
+        semantic_search(
+            FakeSession(),  # type: ignore[arg-type]
+            "query",
+            settings=SimpleNamespace(embedding_model="test/model", data_root=None),  # type: ignore[arg-type]
+            loaded_index=index,
+            query_embedder=lambda query, model: [1.0, 0.0, 0.0],
+        )
+
+
+def test_semantic_search_rejects_zero_query_vector() -> None:
+    index, _chunks = _semantic_index()
+
+    with pytest.raises(ValueError, match="zero length"):
+        semantic_search(
+            FakeSession(),  # type: ignore[arg-type]
+            "query",
+            settings=SimpleNamespace(embedding_model="test/model", data_root=None),  # type: ignore[arg-type]
+            loaded_index=index,
+            query_embedder=lambda query, model: [0.0, 0.0],
+        )
 
 
 def test_exact_search_rejects_empty_query() -> None:
@@ -126,3 +307,58 @@ def test_make_snippet_normalizes_common_pdf_ligatures() -> None:
     snippet = make_snippet("Li-Naﬁon conductivity", "Li-Nafion", radius=20)
 
     assert "Li-Nafion" in snippet
+
+
+def _semantic_index() -> tuple[LoadedVectorIndex, list[object]]:
+    article = SimpleNamespace(id=uuid.uuid4(), title="Semantic paper", doi="10.1000/semantic")
+    chunks = [
+        SimpleNamespace(
+            id=uuid.UUID(int=1),
+            article_id=article.id,
+            page_start=2,
+            page_end=3,
+            source_type="body",
+            text="Proton transport increases after hydration.",
+            chunk_index=0,
+        ),
+        SimpleNamespace(
+            id=uuid.UUID(int=2),
+            article_id=article.id,
+            page_start=4,
+            page_end=4,
+            source_type="method",
+            text="Conductivity was measured by impedance spectroscopy.",
+            chunk_index=1,
+        ),
+    ]
+    chunk_ids = [str(chunk.id) for chunk in chunks]
+    return (
+        LoadedVectorIndex(
+            embeddings=np.asarray([[1.0, 0.0], [0.0, 1.0]], dtype=np.float32),
+            chunk_ids=chunk_ids,
+            rows_by_chunk_id={chunk_id: (chunk, article) for chunk_id, chunk in zip(chunk_ids, chunks, strict=True)},  # type: ignore[dict-item]
+            manifest={
+                "backend": "local_vector_index",
+                "embedding_model": "test/model",
+                "embedding_dimension": 2,
+                "chunk_count": 2,
+            },
+            manifest_sha256="manifest-checksum",
+        ),
+        chunks,
+    )
+
+
+def _search_result(chunk_id: uuid.UUID, *, score: float, method: str) -> SearchResult:
+    return SearchResult(
+        article_id=str(uuid.UUID(int=100)),
+        chunk_id=str(chunk_id),
+        title="Hybrid paper",
+        doi="10.1000/hybrid",
+        page_start=1,
+        page_end=2,
+        source_type="method",
+        snippet="hybrid evidence",
+        score=score,
+        retrieval_method=method,
+    )

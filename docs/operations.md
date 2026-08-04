@@ -49,7 +49,7 @@ The `tesseract_languages` check should report `PASS` and include `rus` in `insta
 
 ## Phase 2 Retrieval Baseline
 
-Phase 2 is an exact retrieval baseline for a small real corpus. It does not implement embeddings, semantic search, hybrid search, RAG answers, or external metadata lookup.
+Phase 2 remains the exact retrieval baseline for the small real corpus. Later phases add explicit semantic and hybrid methods without changing that baseline or implementing RAG answers.
 
 Run migrations before indexing a real corpus:
 
@@ -98,6 +98,22 @@ GET /search?q=Nafion&collection=literature&top_k=10&method=exact
 
 The concrete result method is `exact_ilike`; failures mean the current exact indexed chunks did not contain the expected DOI or keywords in the returned snippets. Do not interpret this as semantic retrieval quality.
 
+After building a valid local vector index, select semantic retrieval explicitly:
+
+```text
+GET /search?q=proton%20transport&collection=literature&top_k=10&method=semantic
+```
+
+Semantic results use `retrieval_method=semantic_cosine` and include top-level metadata for the embedding model, dimension, manifest checksum, backend, similarity, and indexed chunk count. `source_type` filtering is supported by all three implemented methods.
+
+Run hybrid retrieval explicitly:
+
+```text
+GET /search?q=proton%20transport&collection=literature&top_k=10&method=hybrid
+```
+
+Hybrid uses equal-weight reciprocal rank fusion with `HYBRID_RRF_K=60` and retrieves `top_k * HYBRID_CANDIDATE_MULTIPLIER` candidates from each component. The default multiplier is 5. Results use `retrieval_method=hybrid_rrf` and expose `method_scores` plus `method_ranks`. A semantic index failure aborts hybrid retrieval; there is no silent exact-only fallback.
+
 Run retrieval evaluation only after `docs/evaluation_questions.yaml` contains real expected DOI or keyword evidence:
 
 ```powershell
@@ -110,9 +126,27 @@ The evaluation CLI also accepts an explicit method flag for Phase 3 comparisons:
 
 ```powershell
 python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10 --method exact
+python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10 --method semantic
+python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10 --method hybrid
 ```
 
-Only `exact` is implemented at this gate. `semantic` and `hybrid` must not be reported as available until the source implements them and evaluation proves them.
+`exact`, `semantic`, and `hybrid` are implemented. `exact` remains the default pending a separate default-method decision.
+
+Compare reports produced with the same collection, question set, and `top_k`:
+
+```powershell
+python -m app.evaluation.cli compare data/exports/retrieval_eval_exact_TIMESTAMP.json data/exports/retrieval_eval_semantic_TIMESTAMP.json
+```
+
+The comparison reports metric deltas, per-question rank changes, regressions where exact passed and the candidate failed, and improvements where the candidate moved a non-top-1 exact result to top-1.
+
+Generate a three-method comparison:
+
+```powershell
+python -m app.evaluation.cli compare-methods EXACT_REPORT SEMANTIC_REPORT HYBRID_REPORT
+```
+
+This report separates top-k PASS regressions from top-1 regressions and records all three ranks for every evaluation question.
 
 Phase 3 storage planning is recorded in:
 
@@ -128,7 +162,7 @@ Write a manifest-only local vector index planning artifact after choosing an emb
 python -m app.retrieval.cli manifest --embedding-model MODEL_ID --embedding-dimension DIMENSION
 ```
 
-This command records chunk ids, article checksums, page/source metadata, chunk text checksums, corpus manifest checksum, and model metadata. It does not create embeddings and does not enable semantic or hybrid retrieval.
+This command records chunk ids, article checksums, page/source metadata, chunk text checksums, corpus manifest checksum, and model metadata. It does not create embeddings and cannot be used by semantic retrieval because its status is `manifest_only`.
 
 Build the local vector artifacts after FastEmbed is installed and the model choice is accepted:
 
@@ -136,7 +170,9 @@ Build the local vector artifacts after FastEmbed is installed and the model choi
 python -m app.retrieval.cli build --embedding-model BAAI/bge-small-en-v1.5 --batch-size 64
 ```
 
-The build command writes ignored local artifacts under `data/processed/vector_indexes/<model>/`: `embeddings.npy`, `chunk_ids.json`, and `manifest.json`. This still does not expose semantic or hybrid search; it only prepares a rebuildable local index for later retrieval implementation.
+The build command writes ignored local artifacts under `data/processed/vector_indexes/<model>/`: `embeddings.npy`, `chunk_ids.json`, and `manifest.json`. Manifest schema v2 records SHA-256 checksums for both artifact files, cosine normalization, model metadata, and source checksums.
+
+Semantic retrieval rejects manifest v1, `manifest_only` output, missing or modified artifact files, model/dimension mismatches, non-finite or non-normalized vectors, changed corpus manifests, and any database chunk or text mismatch. Rebuild the index with the build command after intentional corpus, model, or manifest changes.
 
 The first Phase 3 runtime is FastEmbed with `BAAI/bge-small-en-v1.5` as the initial local model. The model has 384 dimensions. First use may download model files from HuggingFace. On Windows, HuggingFace may warn that symlink-based cache optimization is unavailable; this affects cache efficiency, not the validity of the built index.
 
@@ -163,6 +199,10 @@ The evaluation summary preserves top-k PASS/FAIL and also reports ranking metric
 Each question also records `rank_of_expected` and per-question `recall_at_k`.
 
 The current exact baseline question set contains 24 questions, including DOI-backed, DOI-less title/checksum, Russian, table-oriented, and intentionally broad ambiguity queries.
+
+The accepted semantic evaluation and default-method decision are recorded in `docs/phase3_semantic_evaluation.md`.
+
+The accepted hybrid RRF evaluation is recorded in `docs/phase3_hybrid_evaluation.md`.
 
 Write a corpus/retrieval inventory report after ingestion or evaluation changes:
 
