@@ -1,0 +1,52 @@
+- id: p6_table_ma_solvent_aggregation_2009
+  query: "Table casting solvent DMAc DMF DMSO NMP EtOH ionic aggregation Nafion"
+  expected_article_dois:
+    - "10.1016/j.polymer.2009.01.060"
+  expected_keywords:
+    - "DMAc"
+    - "DMF"
+    - "ionic aggregation"
+  notes: "Priority 6 table/numeric evidence target for Ma et al. 2009 solvent-dependent aggregation data."
+- id: p6_table_sanginov_li_nafion_conductivity_2021
+  query: "Table Li-Nafion conductivity diglyme sulfolane ethylene carbonate"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  expected_keywords:
+    - "Li-Nafion"
+    - "sulfolane"
+    - "conductivity"
+  notes: "Priority 6 table/numeric evidence target for Sanginov et al. 2021 conductivity data."
+- id: p6_caption_welch_sans_morphology_2012
+  query: "Figure SANS morphology Nafion dispersion glycerol ethylene glycol"
+  expected_article_dois:
+    - "10.1021/mz3005204"
+  expected_keywords:
+    - "SANS"
+    - "glycerol"
+  notes: "Priority 6 figure/caption-oriented retrieval target for Welch et al. 2012."
+- id: p6_formula_sanginov_quantum_calculations_sup
+  query: "quantum chemical calculations M05-2X TZVP SMD ethylene carbonate sulfolane formula"
+  expected_article_titles:
+    - "Sanginov 2021 - sup"
+  expected_article_checksums:
+    - "72facadf39cdb1ddf220320ea2ccbb7cc3c5bcdb7fa2e4c8907b0e44841dbd27"
+  expected_keywords:
+    - "M05-2X"
+    - "TZVP"
+  notes: "Priority 6 formula/calculation-like evidence target for supplementary material."
+- id: p6_russian_caption_phase_diagram_2021
+  query: "таблица рисунок фазовая диаграмма этиленкарбонат сульфолан"
+  expected_article_dois:
+    - "10.31857/s0044453721060224"
+  expected_keywords:
+    - "ФАЗОВАЯ"
+    - "СУЛЬФОЛАН"
+  notes: "Priority 6 Russian caption/table-oriented retrieval target."
+- id: p6_numeric_kayumov_conductivity_2021
+  query: "diglyme sulfolane ethylene carbonate Li Nafion conductivity numeric values"
+  expected_article_dois:
+    - "10.31857/s0424857021060049"
+  expected_keywords:
+    - "diglyme"
+    - "conductivity"
+  notes: "Priority 6 numeric conductivity evidence target."

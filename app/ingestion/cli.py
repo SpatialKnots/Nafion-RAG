@@ -16,6 +16,7 @@ from app.core.config import get_settings
 from app.db.models import Article, ArticleTag, Chunk, Collection, Note, Page, PageTextLayer, Section, StructuredFact
 from app.db.session import SessionLocal
 from app.diagnostics.doctor import run_doctor
+from app.extraction.text_quality_report import build_reprocess_text_quality_dry_run, build_text_quality_report
 from app.ingestion.service import IngestionResult, ingest_pdf, reselect_article_text
 from app.ingestion.text_layers import article_text_layer_summary
 from app.retrieval.index_lifecycle import mark_vector_index_stale
@@ -290,6 +291,67 @@ def _write_corpus_report(report: dict[str, object], data_root: Path) -> Path:
     return output_path
 
 
+def _write_text_quality_report(report: dict[str, object], data_root: Path) -> Path:
+    export_dir = data_root / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    output_path = export_dir / f"text_quality_report_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.json"
+    output_path.write_text(json.dumps(_json_ready(report), ensure_ascii=False, indent=2), encoding="utf-8")
+    return output_path
+
+
+def _write_reprocess_report(report: dict[str, object], data_root: Path, article_id: UUID) -> Path:
+    export_dir = data_root / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    output_path = export_dir / f"reprocess_text_quality_{article_id}_{timestamp}.json"
+    output_path.write_text(json.dumps(_json_ready(report), ensure_ascii=False, indent=2), encoding="utf-8")
+    return output_path
+
+
+def _backup_article_content(session: Session, article: Article, backup_dir: Path, reason: str) -> Path:
+    payload: dict[str, object] = {
+        "created_at": datetime.now(UTC).isoformat(),
+        "reason": reason,
+        "article": {
+            "id": article.id,
+            "title": article.title,
+            "doi": article.doi,
+            "checksum_sha256": article.checksum_sha256,
+            "pdf_original_path": article.pdf_original_path,
+            "pdf_ocr_path": article.pdf_ocr_path,
+            "status": article.status,
+        },
+        "pages": [
+            _model_dict(page)
+            for page in session.scalars(select(Page).where(Page.article_id == article.id).order_by(Page.page_number))
+        ],
+        "chunks": [
+            _model_dict(chunk)
+            for chunk in session.scalars(select(Chunk).where(Chunk.article_id == article.id).order_by(Chunk.chunk_index))
+        ],
+        "text_layers": [
+            _model_dict(layer)
+            for layer in session.scalars(
+                select(PageTextLayer)
+                .where(PageTextLayer.article_id == article.id)
+                .order_by(PageTextLayer.page_number, PageTextLayer.layer_type)
+            )
+        ],
+        "sections": [
+            _model_dict(section)
+            for section in session.scalars(select(Section).where(Section.article_id == article.id).order_by(Section.page_start))
+        ],
+        "article_tags": [
+            _model_dict(tag)
+            for tag in session.scalars(select(ArticleTag).where(ArticleTag.article_id == article.id).order_by(ArticleTag.tag_type))
+        ],
+    }
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    output_path = backup_dir / f"article_reprocess_{article.id}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.json"
+    output_path.write_text(json.dumps(_json_ready(payload), ensure_ascii=False, indent=2), encoding="utf-8")
+    return output_path
+
+
 def _article_counts(session: Session, article_ids: list[UUID], model: Any) -> dict[UUID, int]:
     if not article_ids:
         return {}
@@ -446,6 +508,79 @@ def corpus_report(collection: str = "literature") -> None:
         report = _build_corpus_report(session, settings.data_root, collection)
     output_path = _write_corpus_report(report, settings.data_root)
     _echo_payload({"output_path": str(output_path), "summary": report["summary"], "latest_retrieval_eval": report["latest_retrieval_eval"]})
+
+
+@cli.command("text-quality-report")
+def text_quality_report(collection: str = "literature") -> None:
+    settings = get_settings()
+    with SessionLocal() as session:
+        report = build_text_quality_report(session, settings, collection)
+    output_path = _write_text_quality_report(report, settings.data_root)
+    _echo_payload(
+        {
+            "output_path": str(output_path),
+            "summary": {
+                "collection": report["collection"],
+                "article_count": report["article_count"],
+                "page_count": report["page_count"],
+                "empty_original_page_count": report["empty_original_page_count"],
+                "short_original_page_count": report["short_original_page_count"],
+                "ocr_used_pages": report["ocr_used_pages"],
+                "suspicious_page_count": report["suspicious_page_count"],
+            },
+        }
+    )
+
+
+@cli.command("reprocess-article")
+def reprocess_article(
+    article_id: Annotated[UUID, typer.Argument()],
+    mode: str = "text-quality",
+    apply: bool = False,
+) -> None:
+    if mode != "text-quality":
+        raise typer.BadParameter("mode must be text-quality")
+
+    settings = get_settings()
+    with SessionLocal() as session:
+        article = session.scalar(select(Article).where(Article.id == article_id))
+        if article is None:
+            raise typer.BadParameter(f"Unknown article: {article_id}")
+        report = build_reprocess_text_quality_dry_run(session, settings, article)
+        if apply:
+            backup_path = _backup_article_content(session, article, settings.data_root / "backups", "reprocess_article_text_quality")
+            try:
+                chunk_count = reselect_article_text(session, settings, article)
+                session.commit()
+            except Exception:
+                session.rollback()
+                raise
+            _echo_payload(
+                {
+                    "status": "reprocessed",
+                    "article_id": str(article_id),
+                    "mode": mode,
+                    "backup_path": str(backup_path),
+                    "chunk_count": chunk_count,
+                    "dry_run_report": {
+                        "current_counts": report["current_counts"],
+                        "candidate_actions": report["candidate_actions"],
+                    },
+                    "vector_index": "marked_stale",
+                }
+            )
+            return
+    output_path = _write_reprocess_report(report, settings.data_root, article_id)
+    _echo_payload(
+        {
+            "status": "dry_run",
+            "output_path": str(output_path),
+            "article_id": str(article_id),
+            "mode": mode,
+            "current_counts": report["current_counts"],
+            "candidate_actions": report["candidate_actions"],
+        }
+    )
 
 
 @cli.command("corpus-manifest")

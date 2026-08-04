@@ -34,6 +34,8 @@ def test_doctor_reports_missing_ocr_tools_without_crashing(monkeypatch, tmp_path
     assert report["database"]["status"] == "PASS"
     assert report["migrations"]["status"] == "PASS"
     assert report["data_root"]["status"] == "PASS"
+    assert report["text_quality_settings"]["status"] == "PASS"
+    assert report["text_quality_settings"]["short_page_chars"] == 200
     assert report["ocr_command"]["status"] == "FAIL"
     assert report["tesseract_languages"]["status"] == "FAIL"
     assert report["ghostscript"]["status"] == "FAIL"

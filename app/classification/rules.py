@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Article, ArticleTag, Chunk, Page, Section
+from app.extraction.text_quality import detect_formula_like_lines, table_like_line_count
 
 
 @dataclass(frozen=True)
@@ -129,18 +130,29 @@ def extract_tags(text: str) -> list[TagCandidate]:
 
 def classify_source_type(text: str) -> str:
     compact_lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if re.search(
+        r"^\s*(?:Table|\u0422\u0430\u0431\u043b\u0438\u0446\u0430)\s+\d+[\.:]?\s+",
+        text,
+        flags=re.IGNORECASE | re.MULTILINE,
+    ):
+        return "table_caption"
+    if re.search(r"^\s*(?:Fig\.|Figure|\u0420\u0438\u0441\.)\s*\d+", text, flags=re.IGNORECASE | re.MULTILINE):
+        return "figure_caption"
+    formula_lines = detect_formula_like_lines(text)
+    if compact_lines and len(formula_lines) / len(compact_lines) >= 0.3:
+        return "formula_block"
     if re.search(r"\bTable\s+\d+", text, flags=re.IGNORECASE):
         return "table"
-    table_like_lines = 0
+    table_like_lines = table_like_line_count(text)
+    legacy_table_like_lines = 0
     for line in compact_lines:
         numbers = re.findall(r"\d+(?:\.\d+)?", line)
         cells = re.split(r"\s{2,}|\t+", line)
         if len(numbers) >= 4 and len(cells) >= 4:
-            table_like_lines += 1
+            legacy_table_like_lines += 1
+    table_like_lines = max(table_like_lines, legacy_table_like_lines)
     if len(compact_lines) >= 4 and table_like_lines >= 4 and table_like_lines / len(compact_lines) >= 0.35:
         return "table"
-    if re.search(r"^\s*(?:Fig\.|Figure)\s*\d+", text, flags=re.IGNORECASE | re.MULTILINE):
-        return "figure_caption"
     if re.search(r"\b(?:DFT|quantum\s+chemical|calculation|GAUSS|квантово-хим|расчет[а-я]*)\b", text, flags=re.IGNORECASE):
         return "main_text"
     method_pattern = (

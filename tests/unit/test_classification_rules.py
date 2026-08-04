@@ -20,10 +20,16 @@ def test_extract_tags_detects_scientific_entities() -> None:
 
 
 def test_classify_source_type_detects_table_figure_and_method() -> None:
-    assert classify_source_type("Table 2\nSample 1 2 3 4\nA 5 6 7 8") == "table"
+    assert classify_source_type("Table 2. Conductivity values") == "table_caption"
+    assert classify_source_type("Sample 1 2 3 4\nA 5 6 7 8\nB 6 7 8 9\nC 7 8 9 10\nD 8 9 10 11") == "table"
     assert classify_source_type("Fig. 3. Temperature dependence of conductivity.") == "figure_caption"
     assert classify_source_type("The membranes were prepared and conductivity was measured.") == "method"
     assert classify_source_type("Nafion is a perfluorosulfonated ionomer.") == "main_text"
+
+
+def test_classify_source_type_detects_russian_caption_and_formula_blocks() -> None:
+    assert classify_source_type("\u0422\u0430\u0431\u043b\u0438\u0446\u0430 2. \u0414\u0430\u043d\u043d\u044b\u0435") == "table_caption"
+    assert classify_source_type("IEC = nSO3H / m\nlambda = 14\nplain text") == "formula_block"
 
 
 def test_classify_source_type_detects_russian_film_casting_methods() -> None:

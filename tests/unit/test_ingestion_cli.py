@@ -16,6 +16,7 @@ def _json_lines(output: str) -> list[dict[str, object]]:
 
 class FakeSession:
     committed = False
+    rolled_back = False
 
     def __enter__(self) -> FakeSession:
         return self
@@ -25,6 +26,9 @@ class FakeSession:
 
     def commit(self) -> None:
         self.committed = True
+
+    def rollback(self) -> None:
+        self.rolled_back = True
 
 
 def test_folder_reports_summary(monkeypatch, tmp_path) -> None:
@@ -152,6 +156,102 @@ def test_corpus_report_outputs_json_summary(monkeypatch, tmp_path) -> None:
     assert payload["output_path"].endswith(".json")
     assert Path(str(payload["output_path"])).exists()
     assert payload["summary"] == {"articles": 2, "articles_with_doi": 1}
+
+
+def test_text_quality_report_outputs_json_summary(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    session = FakeSession()
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: session)
+    monkeypatch.setattr(ingestion_cli, "get_settings", lambda: SimpleNamespace(data_root=tmp_path))
+
+    def fake_build_report(active_session: object, settings: object, collection: str) -> dict[str, object]:
+        assert active_session is session
+        assert collection == "literature"
+        return {
+            "collection": collection,
+            "article_count": 2,
+            "page_count": 5,
+            "empty_original_page_count": 1,
+            "short_original_page_count": 2,
+            "ocr_used_pages": 1,
+            "suspicious_page_count": 3,
+        }
+
+    monkeypatch.setattr(ingestion_cli, "build_text_quality_report", fake_build_report)
+
+    result = runner.invoke(ingestion_cli.cli, ["text-quality-report"])
+
+    assert result.exit_code == 0
+    payload = _json_lines(result.output)[0]
+    assert payload["output_path"].endswith(".json")
+    assert Path(str(payload["output_path"])).exists()
+    assert payload["summary"]["suspicious_page_count"] == 3
+
+
+def test_reprocess_article_text_quality_dry_run_writes_report(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    session = FakeSession()
+    article_id = uuid4()
+    article = SimpleNamespace(id=article_id, title="Dry run paper")
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: session)
+    monkeypatch.setattr(ingestion_cli, "get_settings", lambda: SimpleNamespace(data_root=tmp_path))
+    session.scalar = lambda statement: article  # type: ignore[method-assign]
+
+    def fake_dry_run(active_session: object, settings: object, active_article: object) -> dict[str, object]:
+        assert active_session is session
+        assert active_article is article
+        return {
+            "dry_run": True,
+            "mutation_performed": False,
+            "current_counts": {"pages": 2, "chunks": 1, "page_text_layers": 2},
+            "candidate_actions": {"evaluate_caption_evidence": 1},
+        }
+
+    monkeypatch.setattr(ingestion_cli, "build_reprocess_text_quality_dry_run", fake_dry_run)
+
+    result = runner.invoke(ingestion_cli.cli, ["reprocess-article", str(article_id)])
+
+    assert result.exit_code == 0
+    payload = _json_lines(result.output)[0]
+    assert payload["status"] == "dry_run"
+    assert payload["output_path"].endswith(".json")
+    assert Path(str(payload["output_path"])).exists()
+    assert payload["candidate_actions"] == {"evaluate_caption_evidence": 1}
+    assert session.committed is False
+
+
+def test_reprocess_article_apply_backs_up_reselects_and_commits(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    session = FakeSession()
+    article_id = uuid4()
+    article = SimpleNamespace(id=article_id, title="Apply paper")
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: session)
+    monkeypatch.setattr(ingestion_cli, "get_settings", lambda: SimpleNamespace(data_root=tmp_path))
+    session.scalar = lambda statement: article  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        ingestion_cli,
+        "build_reprocess_text_quality_dry_run",
+        lambda active_session, settings, active_article: {
+            "current_counts": {"pages": 2, "chunks": 1, "page_text_layers": 2},
+            "candidate_actions": {"evaluate_caption_evidence": 1},
+        },
+    )
+    monkeypatch.setattr(
+        ingestion_cli,
+        "_backup_article_content",
+        lambda active_session, active_article, backup_dir, reason: backup_dir / "backup.json",
+    )
+    monkeypatch.setattr(ingestion_cli, "reselect_article_text", lambda active_session, settings, active_article: 4)
+
+    result = runner.invoke(ingestion_cli.cli, ["reprocess-article", str(article_id), "--apply"])
+
+    assert result.exit_code == 0
+    payload = _json_lines(result.output)[0]
+    assert payload["status"] == "reprocessed"
+    assert payload["backup_path"].endswith("backup.json")
+    assert payload["chunk_count"] == 4
+    assert payload["vector_index"] == "marked_stale"
+    assert session.committed is True
 
 
 def test_latest_retrieval_eval_loads_newest_summary(tmp_path) -> None:

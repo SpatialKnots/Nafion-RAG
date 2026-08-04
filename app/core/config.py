@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     context_max_chars: int = Field(default=30000, ge=1)
     context_max_pages: int = Field(default=5, ge=1, le=20)
     context_highlight_max_terms: int = Field(default=12, ge=1, le=50)
+    text_quality_short_page_chars: int = Field(default=200, ge=1)
+    text_quality_control_char_ratio: float = Field(default=0.02, ge=0.0, le=1.0)
+    ocr_reprocess_allow_existing: bool = False
 
     @model_validator(mode="after")
     def validate_ingestion_timing(self) -> Settings:

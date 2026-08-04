@@ -217,6 +217,16 @@ def _check_ingestion_settings(settings: Settings) -> StatusPayload:
     )
 
 
+def _check_text_quality_settings(settings: Settings) -> StatusPayload:
+    return _payload(
+        "PASS",
+        "text quality audit settings are valid",
+        short_page_chars=settings.text_quality_short_page_chars,
+        control_char_ratio=settings.text_quality_control_char_ratio,
+        ocr_reprocess_allow_existing=settings.ocr_reprocess_allow_existing,
+    )
+
+
 def _check_vector_index_lifecycle(settings: Settings, session_factory: Callable[[], Session]) -> StatusPayload:
     try:
         with session_factory() as session:
@@ -266,6 +276,7 @@ def run_doctor(settings: Settings, session_factory: Callable[[], Session]) -> di
         "data_root": _check_data_root(settings),
         "upload_storage": _check_upload_storage(settings),
         "ingestion_settings": _check_ingestion_settings(settings),
+        "text_quality_settings": _check_text_quality_settings(settings),
         "vector_index_lifecycle": _check_vector_index_lifecycle(settings, session_factory),
         "corpus_files": _check_corpus_files(session_factory),
         "ocr_command": _check_ocr_command(settings),
