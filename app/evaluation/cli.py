@@ -6,6 +6,7 @@ import typer
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
+from app.evaluation.answers import run_answer_evaluation, write_answer_evaluation_report
 from app.evaluation.retrieval import (
     compare_retrieval_methods,
     compare_retrieval_reports,
@@ -29,6 +30,22 @@ def retrieval(questions_path: Path, collection: str = "literature", top_k: int =
     with SessionLocal() as session:
         report = run_retrieval_evaluation(session, settings, questions_path, collection=collection, top_k=top_k, method=method)
     output_path = write_evaluation_report(report, settings.data_root)
+    typer.echo({"output_path": str(output_path), "summary": report["summary"]})
+
+
+@cli.command("answers")
+def answers(questions_path: Path, collection: str = "literature", top_k: int = 5, method: str = "hybrid") -> None:
+    settings = get_settings()
+    with SessionLocal() as session:
+        report = run_answer_evaluation(
+            session,
+            settings,
+            questions_path,
+            collection=collection,
+            top_k=top_k,
+            method=method,
+        )
+    output_path = write_answer_evaluation_report(report, settings.data_root)
     typer.echo({"output_path": str(output_path), "summary": report["summary"]})
 
 

@@ -59,4 +59,4 @@ Semantic moved four questions that were not exact top-1 passes to top-1 passes:
 
 ## Verdict
 
-Semantic retrieval is operational and preserves source-linked evidence, but this model does not outperform the exact baseline on the accepted evaluation set. `exact` remains the default. `semantic` remains available only through explicit method selection. Hybrid retrieval was implemented and evaluated later in `docs/phase3_hybrid_evaluation.md`; RAG answer generation remains unimplemented.
+Semantic retrieval is operational and preserves source-linked evidence, but this model does not outperform the exact baseline on the accepted evaluation set. `exact` remains the default. `semantic` remains available only through explicit method selection. Hybrid retrieval was implemented and evaluated later in `docs/phase3_hybrid_evaluation.md`; the later answer layer is documented in `docs/phase4_rag_answers.md`.

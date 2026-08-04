@@ -130,8 +130,19 @@ def test_dashboard_returns_html(monkeypatch) -> None:
 
 
 def test_search_page_returns_results(monkeypatch) -> None:
-    def fake_exact_search(session: object, query: str, collection_name: str, top_k: int, source_type: str | None = None) -> object:
+    def fake_search_chunks(
+        session: object,
+        query: str,
+        collection_name: str,
+        top_k: int,
+        *,
+        method: str,
+        source_type: str | None = None,
+        settings: object | None = None,
+    ) -> object:
         assert source_type == "method"
+        assert method == "hybrid"
+        assert settings is not None
         result = SimpleNamespace(
             article_id=str(ARTICLE_ID),
             title="Li-Nafion evidence paper",
@@ -139,19 +150,23 @@ def test_search_page_returns_results(monkeypatch) -> None:
             page_start=1,
             page_end=1,
             source_type="method",
+            retrieval_method="hybrid_rrf",
             score=5.0,
             snippet="Nafion conductivity in NMP.",
         )
         return SimpleNamespace(results=[result])
 
-    monkeypatch.setattr("app.ui.exact_search", fake_exact_search)
-    response = search_page(_override_session(), q="Nafion", source_type="method")
+    monkeypatch.setattr("app.ui.search_chunks", fake_search_chunks)
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+    response = search_page(_override_session(), q="Nafion", source_type="method", method="hybrid")
 
     assert response.status_code == 200
     body = response.body.decode()
     assert "Li-Nafion evidence paper" in body
     assert "Nafion conductivity in NMP" in body
     assert "method" in body
+    assert "hybrid_rrf" in body
+    assert "value='hybrid' selected" in body
 
 
 def test_article_pages_return_html() -> None:

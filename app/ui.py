@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.models import Article, ArticleTag, Chunk, Page, PageTextLayer, Section
 from app.db.session import get_session
-from app.retrieval.search import exact_search
+from app.retrieval.search import search_chunks
 
 SessionDep = Annotated[Session, Depends(get_session)]
 router = APIRouter()
@@ -151,6 +151,11 @@ def dashboard(session: SessionDep) -> HTMLResponse:
       <input name="q" size="42" value="Li-Nafion conductivity">
       <input name="collection" value="literature">
       <input name="top_k" type="number" value="10" min="1">
+      <select name="method">
+        <option value="exact">exact</option>
+        <option value="semantic">semantic</option>
+        <option value="hybrid">hybrid</option>
+      </select>
       <button type="submit">Search</button>
     </form>
     """
@@ -164,11 +169,23 @@ def search_page(
     collection: str = "literature",
     top_k: int = Query(default=10, ge=1),
     source_type: str = "",
+    method: str = "exact",
 ) -> HTMLResponse:
     rows = ""
     normalized_source_type = source_type.strip() or None
     if q.strip():
-        response = exact_search(session, q, collection, top_k, source_type=normalized_source_type)
+        try:
+            response = search_chunks(
+                session,
+                q,
+                collection,
+                top_k,
+                method=method,
+                source_type=normalized_source_type,
+                settings=get_settings(),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         if response.results:
             rows = "".join(
                 "<tr>"
@@ -176,14 +193,15 @@ def search_page(
                 f"<div class='muted'>{_html(result.doi)}</div></td>"
                 f"<td class='num'>{result.page_start}-{result.page_end}</td>"
                 f"<td>{_html(result.source_type)}</td>"
-                f"<td class='num'>{result.score:.1f}</td>"
+                f"<td>{_html(result.retrieval_method)}</td>"
+                f"<td class='num'>{result.score:.4g}</td>"
                 f"<td>{_html(result.snippet)}</td>"
                 "</tr>"
                 for result in response.results
             )
         else:
-            rows = "<tr><td colspan='5'>No results</td></tr>"
-    empty_rows = "<tr><td colspan='5'>Enter a query.</td></tr>"
+            rows = "<tr><td colspan='6'>No results</td></tr>"
+    empty_rows = "<tr><td colspan='6'>Enter a query.</td></tr>"
     source_options = "".join(
         f"<option value='{_html(value)}' {'selected' if source_type == value else ''}>{_html(label)}</option>"
         for value, label in [
@@ -194,16 +212,20 @@ def search_page(
             ("figure_caption", "figure_caption"),
         ]
     )
+    method_options = "".join(
+        f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>" for value in ("exact", "semantic", "hybrid")
+    )
     body = f"""
     <h1>Search</h1>
     <form method="get" action="/ui/search">
       <label>Query<br><input name="q" size="52" value="{_html(q)}"></label>
       <label>Collection<br><input name="collection" value="{_html(collection)}"></label>
       <label>Source type<br><select name="source_type">{source_options}</select></label>
+      <label>Method<br><select name="method">{method_options}</select></label>
       <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
       <button type="submit">Search</button>
     </form>
-    <table><tr><th>Article</th><th class="num">Pages</th><th>Type</th><th class="num">Score</th><th>Snippet</th></tr>
+    <table><tr><th>Article</th><th class="num">Pages</th><th>Type</th><th>Method</th><th class="num">Score</th><th>Snippet</th></tr>
     {rows or empty_rows}</table>
     """
     return _layout("Search", body)

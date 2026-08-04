@@ -16,8 +16,10 @@ The implemented system includes:
 - Optional local semantic retrieval with FastEmbed and a rebuildable vector index.
 - Optional hybrid retrieval using reciprocal rank fusion over exact and semantic ranks.
 - Retrieval evaluation with exact/semantic/hybrid comparison reports.
+- Evidence-grounded `/answer` responses with claim-level article, chunk, and page citations.
+- A local extractive answer provider and an optional configurable Ollama provider.
 
-Not implemented: RAG answer generation, external metadata lookup, and semantic/hybrid selectors in the HTML UI.
+Not implemented: a runtime-verified generative model in the current environment, external metadata lookup, and a conversational chat UI.
 
 ## Quick Start
 
@@ -106,6 +108,16 @@ Run equal-weight reciprocal rank fusion explicitly:
 ```text
 GET /search?q=proton%20transport&collection=literature&top_k=10&method=hybrid
 ```
+
+Request an evidence-grounded answer:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/answer `
+  -ContentType application/json `
+  -Body '{"question":"How was Nafion conductivity measured?","method":"hybrid","top_k":5}'
+```
+
+The default `extractive` provider returns source excerpts rather than synthesized prose. To use a locally operated Ollama model, set `RAG_PROVIDER=ollama` and configure `RAG_MODEL`; this repository does not install or download a model automatically.
 
 Run retrieval evaluation:
 

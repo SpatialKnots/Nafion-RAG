@@ -4,6 +4,8 @@ import pytest
 from fastapi import HTTPException
 
 from app import main
+from app.generation.providers import GenerationOutputError, GenerationUnavailableError
+from app.generation.service import AnswerResponse
 from app.retrieval.search import SearchResponse
 
 
@@ -80,3 +82,42 @@ def test_search_endpoint_dispatches_hybrid_method(monkeypatch) -> None:
     payload = main.search(object(), q="proton transport", method="hybrid")
 
     assert payload["metadata"] == {"retrieval_method": "hybrid_rrf"}
+
+
+def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:
+    monkeypatch.setattr(
+        main,
+        "answer_question",
+        lambda *args, **kwargs: AnswerResponse(
+            query="question",
+            status="insufficient_evidence",
+            answer=None,
+            claims=[],
+            citations=[],
+            retrieval_method="hybrid",
+            generation_provider="extractive",
+            generation_model=None,
+            metadata={},
+        ),
+    )
+
+    payload = main.answer(object(), main.AnswerRequest(question="question"))
+
+    assert payload["status"] == "insufficient_evidence"
+    assert payload["retrieval_method"] == "hybrid"
+
+
+@pytest.mark.parametrize(
+    ("error", "status_code"),
+    [(GenerationUnavailableError("offline"), 503), (GenerationOutputError("invalid"), 502)],
+)
+def test_answer_endpoint_maps_generation_errors(monkeypatch, error: Exception, status_code: int) -> None:
+    def fail(*args: object, **kwargs: object) -> object:
+        raise error
+
+    monkeypatch.setattr(main, "answer_question", fail)
+
+    with pytest.raises(HTTPException) as exc_info:
+        main.answer(object(), main.AnswerRequest(question="question"))
+
+    assert exc_info.value.status_code == status_code

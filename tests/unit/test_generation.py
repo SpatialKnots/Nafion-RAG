@@ -1,0 +1,153 @@
+from __future__ import annotations
+
+import uuid
+from types import SimpleNamespace
+
+import pytest
+
+from app.generation.providers import (
+    ExtractiveAnswerProvider,
+    GeneratedClaim,
+    GenerationOutputError,
+    GenerationUnavailableError,
+    OllamaAnswerProvider,
+    ProviderResult,
+)
+from app.generation.service import answer_question, answer_response_to_dict, build_answer_provider
+from app.retrieval.search import SearchResponse, SearchResult
+
+
+def test_answer_question_returns_source_linked_extractive_claims(monkeypatch) -> None:
+    search_result = _search_result()
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="What is measured?",
+            results=[search_result],
+            metadata={"fusion": "reciprocal_rank_fusion"},
+        ),
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "What is measured?",
+        provider=ExtractiveAnswerProvider(max_claims=3),
+    )
+    payload = answer_response_to_dict(response)
+
+    assert response.status == "answered"
+    assert response.answer == "Conductivity was measured by impedance spectroscopy. [E1]"
+    assert payload["citations"][0]["chunk_id"] == search_result.chunk_id  # type: ignore[index]
+    assert payload["citations"][0]["page_start"] == 2  # type: ignore[index]
+    assert payload["citations"][0]["method_ranks"] == {"exact_ilike": 1, "semantic_cosine": 2}  # type: ignore[index]
+
+
+def test_answer_question_refuses_when_retrieval_returns_no_evidence(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(query="unknown", results=[]),
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "unknown",
+        provider=ExtractiveAnswerProvider(max_claims=3),
+    )
+
+    assert response.status == "insufficient_evidence"
+    assert response.answer is None
+    assert response.citations == []
+
+
+def test_answer_question_rejects_unknown_generated_citation(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(query="query", results=[_search_result()]),
+    )
+    provider = StaticProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="Unsupported claim", citation_ids=["E99"])],
+            provider="test",
+            model="test-model",
+        )
+    )
+
+    with pytest.raises(GenerationOutputError, match="unknown citations"):
+        answer_question(object(), _settings(), "query", provider=provider)  # type: ignore[arg-type]
+
+
+def test_answer_question_rejects_answerable_output_without_claims(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(query="query", results=[_search_result()]),
+    )
+    provider = StaticProvider(ProviderResult(answerable=True, claims=[], provider="test", model=None))
+
+    with pytest.raises(GenerationOutputError, match="at least one claim"):
+        answer_question(object(), _settings(), "query", provider=provider)  # type: ignore[arg-type]
+
+
+def test_build_answer_provider_rejects_unknown_provider() -> None:
+    settings = _settings()
+    settings.rag_provider = "unknown"
+
+    with pytest.raises(ValueError, match="Unsupported RAG provider"):
+        build_answer_provider(settings)  # type: ignore[arg-type]
+
+
+def test_ollama_provider_requires_configured_model() -> None:
+    with pytest.raises(GenerationUnavailableError, match="RAG_MODEL"):
+        OllamaAnswerProvider(base_url="http://127.0.0.1:11434", model="", timeout_seconds=10)
+
+
+def test_ollama_provider_parses_structured_claims() -> None:
+    provider = OllamaAnswerProvider(base_url="http://127.0.0.1:11434", model="test-model", timeout_seconds=10)
+
+    result = provider._parse_response(  # noqa: SLF001 - direct parser unit test
+        {"message": {"content": '{"answerable":true,"claims":[{"text":"Supported","citation_ids":["E1"]}]}'}}
+    )
+
+    assert result.answerable is True
+    assert result.claims == [GeneratedClaim(text="Supported", citation_ids=["E1"])]
+    assert result.model == "test-model"
+
+
+class StaticProvider:
+    def __init__(self, result: ProviderResult) -> None:
+        self.result = result
+
+    def generate(self, question: str, evidence: list[object]) -> ProviderResult:
+        return self.result
+
+
+def _settings() -> SimpleNamespace:
+    return SimpleNamespace(
+        default_collection="literature",
+        rag_top_k=5,
+        rag_retrieval_method="hybrid",
+        rag_provider="extractive",
+        rag_max_claims=5,
+        rag_ollama_url="http://127.0.0.1:11434",
+        rag_model="",
+        rag_timeout_seconds=120,
+    )
+
+
+def _search_result() -> SearchResult:
+    return SearchResult(
+        article_id=str(uuid.UUID(int=1)),
+        chunk_id=str(uuid.UUID(int=2)),
+        title="Evidence paper",
+        doi="10.1000/evidence",
+        page_start=2,
+        page_end=3,
+        source_type="method",
+        snippet="Conductivity was measured by impedance spectroscopy.",
+        score=0.03,
+        retrieval_method="hybrid_rrf",
+        method_scores={"exact_ilike": 100.0, "semantic_cosine": 0.8},
+        method_ranks={"exact_ilike": 1, "semantic_cosine": 2},
+    )

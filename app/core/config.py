@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     hybrid_rrf_k: int = Field(default=60, ge=1)
     hybrid_candidate_multiplier: int = Field(default=5, ge=1)
     default_top_k: int = 10
+    rag_provider: str = "extractive"
+    rag_retrieval_method: str = "hybrid"
+    rag_top_k: int = Field(default=5, ge=1)
+    rag_max_claims: int = Field(default=5, ge=1)
+    rag_ollama_url: str = "http://127.0.0.1:11434"
+    rag_model: str = ""
+    rag_timeout_seconds: int = Field(default=120, ge=1)
     enable_external_metadata_lookup: bool = False
 
 

@@ -44,8 +44,22 @@ The semantic index under `data/processed/vector_indexes/` is generated data, not
 
 Hybrid uses ranks rather than attempting to normalize incompatible exact and cosine scores. Component ranks and raw scores remain attached to each fused result for audit.
 
+## Answer Flow
+
+```text
+question
+  -> configured retrieval method (hybrid by default for /answer)
+  -> evidence IDs E1..En with article/chunk/page provenance
+  -> configured answer provider
+  -> structured claims with citation IDs
+  -> reject empty claims, uncited claims, and unknown citation IDs
+  -> answer text plus claims and source-linked citations
+```
+
+The default provider is `extractive`: each claim is an exact returned evidence excerpt. The optional `ollama` provider requests structured claims from an operator-configured local Ollama endpoint. Retrieved text is marked as untrusted data in the generation prompt. Provider output is structurally validated, but citation presence alone does not prove semantic entailment for generated prose.
+
 ## Not Implemented
 
-- RAG generation.
+- Runtime verification of generated prose with an installed language model.
 - External metadata lookup.
 - Complex frontend.

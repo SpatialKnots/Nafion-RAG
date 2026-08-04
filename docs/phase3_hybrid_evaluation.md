@@ -56,7 +56,7 @@ Every hybrid result retains the final RRF score, exact/semantic component ranks,
 
 The candidate satisfies the agreed technical acceptance threshold: no loss in top-k PASS or recall, aggregate top-1 improves by two, mean rank improves, and evidence traceability is preserved.
 
-`hybrid` is available through explicit method selection. `exact` remains the default because changing the default requires a separate user decision. RAG answer generation remains outside this gate.
+`hybrid` is available through explicit method selection. `exact` remains the default because changing the default requires a separate user decision. The later evidence-grounded answer layer is documented in `docs/phase4_rag_answers.md`.
 
 ## Rollback
 
