@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
 import numpy as np
-from sqlalchemy import Select, case, func, literal, or_, select
+from sqlalchemy import Select, case, exists, func, literal, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.config import Settings, get_settings
-from app.db.models import Article, Chunk, Collection
+from app.db.models import Article, ArticleTag, Chunk, Collection
 from app.documents.service import build_pdf_url
 from app.retrieval.vector_index import LoadedVectorIndex, embed_query_with_fastembed, load_current_vector_index_generation
 
@@ -26,6 +27,67 @@ CONCRETE_RETRIEVAL_METHODS: dict[RetrievalMethod, str] = {
     "hybrid": "hybrid_rrf",
 }
 QueryEmbeddingProvider = Callable[[str, str], Any]
+GroupBy = Literal["none", "article"]
+
+
+@dataclass(frozen=True)
+class SearchFilters:
+    article_id: uuid.UUID | None = None
+    doi: str | None = None
+    year: int | None = None
+    year_from: int | None = None
+    year_to: int | None = None
+    journal: str | None = None
+    source_type: str | None = None
+    text_layer: str | None = None
+    tag_type: str | None = None
+    tag_value: str | None = None
+
+    @classmethod
+    def normalize(
+        cls,
+        *,
+        article_id: uuid.UUID | str | None = None,
+        doi: str | None = None,
+        year: int | None = None,
+        year_from: int | None = None,
+        year_to: int | None = None,
+        journal: str | None = None,
+        source_type: str | None = None,
+        text_layer: str | None = None,
+        tag_type: str | None = None,
+        tag_value: str | None = None,
+    ) -> SearchFilters:
+        if year is not None and (year_from is not None or year_to is not None):
+            raise ValueError("year cannot be combined with year_from or year_to")
+        normalized_article_id = uuid.UUID(str(article_id)) if article_id is not None else None
+        return cls(
+            article_id=normalized_article_id,
+            doi=_blank_to_none(doi),
+            year=year,
+            year_from=year_from,
+            year_to=year_to,
+            journal=_blank_to_none(journal),
+            source_type=_blank_to_none(source_type),
+            text_layer=_blank_to_none(text_layer),
+            tag_type=_blank_to_none(tag_type),
+            tag_value=_blank_to_none(tag_value),
+        )
+
+    def as_metadata(self) -> dict[str, object]:
+        values = {
+            "article_id": str(self.article_id) if self.article_id is not None else None,
+            "doi": self.doi,
+            "year": self.year,
+            "year_from": self.year_from,
+            "year_to": self.year_to,
+            "journal": self.journal,
+            "source_type": self.source_type,
+            "text_layer": self.text_layer,
+            "tag_type": self.tag_type,
+            "tag_value": self.tag_value,
+        }
+        return {key: value for key, value in values.items() if value is not None}
 
 
 @dataclass(frozen=True)
@@ -41,8 +103,25 @@ class SearchResult:
     score: float
     retrieval_method: str
     text_layer: str = "original"
+    year: int | None = None
+    journal: str | None = None
     method_scores: dict[str, float] = field(default_factory=dict)
     method_ranks: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class SearchGroup:
+    article_id: str
+    title: str | None
+    doi: str | None
+    year: int | None
+    journal: str | None
+    best_score: float
+    best_page_start: int
+    best_page_end: int
+    result_count: int
+    total_result_count: int
+    results: list[SearchResult]
 
 
 @dataclass(frozen=True)
@@ -50,6 +129,41 @@ class SearchResponse:
     query: str
     results: list[SearchResult]
     metadata: dict[str, object] = field(default_factory=dict)
+    groups: list[SearchGroup] = field(default_factory=list)
+
+
+def _blank_to_none(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def apply_search_filters(statement: Select[Any], filters: SearchFilters) -> Select[Any]:
+    if filters.article_id is not None:
+        statement = statement.where(Article.id == filters.article_id)
+    if filters.doi is not None:
+        statement = statement.where(func.lower(Article.doi) == filters.doi.lower())
+    if filters.year is not None:
+        statement = statement.where(Article.year == filters.year)
+    if filters.year_from is not None:
+        statement = statement.where(Article.year >= filters.year_from)
+    if filters.year_to is not None:
+        statement = statement.where(Article.year <= filters.year_to)
+    if filters.journal is not None:
+        statement = statement.where(func.lower(Article.journal) == filters.journal.lower())
+    if filters.source_type is not None:
+        statement = statement.where(Chunk.source_type == filters.source_type)
+    if filters.text_layer is not None:
+        statement = statement.where(Chunk.text_layer == filters.text_layer)
+    if filters.tag_type is not None or filters.tag_value is not None:
+        tag_clause = select(ArticleTag.id).where(ArticleTag.article_id == Article.id)
+        if filters.tag_type is not None:
+            tag_clause = tag_clause.where(ArticleTag.tag_type == filters.tag_type)
+        if filters.tag_value is not None:
+            tag_clause = tag_clause.where(ArticleTag.tag_value == filters.tag_value)
+        statement = statement.where(exists(tag_clause))
+    return statement
 
 
 def _escape_like(query: str) -> str:
@@ -81,13 +195,18 @@ def make_snippet(text: str, query: str, radius: int = 140) -> str:
     return f"{prefix}{normalized[start:end].strip()}{suffix}"
 
 
-def _search_statement(query: str, collection: Collection, top_k: int, source_type: str | None = None) -> Select[tuple[Chunk, Article, int]]:
+def _search_statement(
+    query: str,
+    collection: Collection,
+    top_k: int,
+    filters: SearchFilters | None = None,
+) -> Select[tuple[Chunk, Article, int]]:
     lowered_text = func.lower(Chunk.text)
     phrase_pattern = f"%{_escape_like(query)}%"
     terms = _query_terms(query)
     patterns = [f"%{_escape_like(term)}%" for term in terms]
-    filters = [Chunk.text.ilike(phrase_pattern, escape="\\")]
-    filters.extend(Chunk.text.ilike(pattern, escape="\\") for pattern in patterns)
+    text_filters = [Chunk.text.ilike(phrase_pattern, escape="\\")]
+    text_filters.extend(Chunk.text.ilike(pattern, escape="\\") for pattern in patterns)
 
     score_expr = cast(ColumnElement[int], case((Chunk.text.ilike(phrase_pattern, escape="\\"), literal(1000)), else_=literal(0)))
     for term in terms:
@@ -101,13 +220,84 @@ def _search_statement(query: str, collection: Collection, top_k: int, source_typ
         select(Chunk, Article, score_expr.label("score"))
         .join(Article, Chunk.article_id == Article.id)
         .where(Article.collection_id == collection.id)
-        .where(or_(*filters))
+        .where(or_(*text_filters))
         .order_by(score_expr.desc(), Chunk.chunk_index.asc())
         .limit(top_k)
     )
-    if source_type is not None:
-        statement = statement.where(Chunk.source_type == source_type)
-    return statement
+    return apply_search_filters(statement, filters or SearchFilters())
+
+
+def _result_from_chunk_article(
+    chunk: Chunk,
+    article: Article,
+    *,
+    query: str,
+    score: float,
+    retrieval_method: str,
+    method_scores: dict[str, float] | None = None,
+    method_ranks: dict[str, int] | None = None,
+) -> SearchResult:
+    return SearchResult(
+        article_id=str(_as_uuid(article.id)),
+        chunk_id=str(_as_uuid(chunk.id)),
+        title=article.title,
+        doi=article.doi,
+        year=getattr(article, "year", None),
+        journal=getattr(article, "journal", None),
+        page_start=chunk.page_start,
+        page_end=chunk.page_end,
+        source_type=chunk.source_type,
+        text_layer=chunk.text_layer,
+        snippet=make_snippet(chunk.text, query),
+        score=score,
+        retrieval_method=retrieval_method,
+        method_scores=method_scores or {},
+        method_ranks=method_ranks or {},
+    )
+
+
+def _metadata(filters: SearchFilters, extra: dict[str, object] | None = None) -> dict[str, object]:
+    metadata = dict(extra or {})
+    metadata["filters"] = filters.as_metadata()
+    return metadata
+
+
+def normalize_group_by(group_by: str) -> GroupBy:
+    normalized = group_by.strip().lower()
+    if normalized in {"none", "article"}:
+        return cast(GroupBy, normalized)
+    raise ValueError("group_by must be one of: none, article")
+
+
+def group_results_by_article(results: list[SearchResult], *, chunks_per_article: int | None = None) -> list[SearchGroup]:
+    if chunks_per_article is not None and chunks_per_article <= 0:
+        raise ValueError("chunks_per_article must be positive")
+    grouped: OrderedDict[str, list[SearchResult]] = OrderedDict()
+    for result in results:
+        grouped.setdefault(result.article_id, []).append(result)
+
+    groups: list[SearchGroup] = []
+    for article_id, article_results in grouped.items():
+        visible_results = article_results[:chunks_per_article] if chunks_per_article is not None else article_results
+        if not visible_results:
+            continue
+        best = article_results[0]
+        groups.append(
+            SearchGroup(
+                article_id=article_id,
+                title=best.title,
+                doi=best.doi,
+                year=best.year,
+                journal=best.journal,
+                best_score=best.score,
+                best_page_start=best.page_start,
+                best_page_end=best.page_end,
+                result_count=len(visible_results),
+                total_result_count=len(article_results),
+                results=visible_results,
+            )
+        )
+    return groups
 
 
 def exact_search(
@@ -116,9 +306,13 @@ def exact_search(
     collection_name: str = "literature",
     top_k: int = 10,
     source_type: str | None = None,
+    filters: SearchFilters | None = None,
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
 ) -> SearchResponse:
     normalized_query = query.strip()
-    normalized_source_type = source_type.strip() if source_type else None
+    normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
+    normalized_group_by = normalize_group_by(group_by)
     if not normalized_query:
         raise ValueError("query must not be empty")
     if top_k <= 0:
@@ -128,25 +322,31 @@ def exact_search(
     if collection is None:
         raise ValueError(f"Unknown collection: {collection_name}")
 
-    rows = session.execute(_search_statement(normalized_query, collection, top_k, normalized_source_type)).all()
+    rows = session.execute(_search_statement(normalized_query, collection, top_k, normalized_filters)).all()
     results: list[SearchResult] = []
     for chunk, article, score in rows:
         results.append(
-            SearchResult(
-                article_id=str(_as_uuid(article.id)),
-                chunk_id=str(_as_uuid(chunk.id)),
-                title=article.title,
-                doi=article.doi,
-                page_start=chunk.page_start,
-                page_end=chunk.page_end,
-                source_type=chunk.source_type,
-                text_layer=chunk.text_layer,
-                snippet=make_snippet(chunk.text, normalized_query),
+            _result_from_chunk_article(
+                chunk,
+                article,
+                query=normalized_query,
                 score=float(score or 0),
                 retrieval_method="exact_ilike",
             )
         )
-    return SearchResponse(query=normalized_query, results=results)
+    metadata = _metadata(normalized_filters)
+    if normalized_group_by == "article":
+        groups = group_results_by_article(results, chunks_per_article=chunks_per_article)
+        metadata.update(
+            {
+                "group_by": "article",
+                "chunks_per_article": chunks_per_article,
+                "candidate_count_before_grouping": len(results),
+                "group_count": len(groups),
+            }
+        )
+        return SearchResponse(query=normalized_query, results=[], metadata=metadata, groups=groups)
+    return SearchResponse(query=normalized_query, results=results, metadata=metadata)
 
 
 def semantic_search(
@@ -155,13 +355,17 @@ def semantic_search(
     collection_name: str = "literature",
     top_k: int = 10,
     source_type: str | None = None,
+    filters: SearchFilters | None = None,
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
     *,
     settings: Settings | None = None,
     loaded_index: LoadedVectorIndex | None = None,
     query_embedder: QueryEmbeddingProvider | None = None,
 ) -> SearchResponse:
     normalized_query = query.strip()
-    normalized_source_type = source_type.strip() if source_type else None
+    normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
+    normalized_group_by = normalize_group_by(group_by)
     if not normalized_query:
         raise ValueError("query must not be empty")
     if top_k <= 0:
@@ -191,32 +395,21 @@ def semantic_search(
         raise ValueError("query embedding has zero length")
     normalized_vector = query_vector / query_norm
     scores = index.embeddings @ normalized_vector
+    db_filtered_chunk_ids = _semantic_filtered_chunk_ids(session, collection_name, normalized_filters)
 
     candidates = []
     for position, chunk_id in enumerate(index.chunk_ids):
         chunk, _article = index.rows_by_chunk_id[chunk_id]
-        if normalized_source_type is None or chunk.source_type == normalized_source_type:
+        if (db_filtered_chunk_ids is None or chunk_id in db_filtered_chunk_ids) and _index_row_matches_filters(
+            chunk, _article, normalized_filters
+        ):
             candidates.append((float(scores[position]), chunk_id))
     candidates.sort(key=lambda item: (-item[0], item[1]))
 
     results: list[SearchResult] = []
     for score, chunk_id in candidates[:top_k]:
         chunk, article = index.rows_by_chunk_id[chunk_id]
-        results.append(
-            SearchResult(
-                article_id=str(_as_uuid(article.id)),
-                chunk_id=str(_as_uuid(chunk.id)),
-                title=article.title,
-                doi=article.doi,
-                page_start=chunk.page_start,
-                page_end=chunk.page_end,
-                source_type=chunk.source_type,
-                text_layer=chunk.text_layer,
-                snippet=make_snippet(chunk.text, normalized_query),
-                score=score,
-                retrieval_method="semantic_cosine",
-            )
-        )
+        results.append(_result_from_chunk_article(chunk, article, query=normalized_query, score=score, retrieval_method="semantic_cosine"))
     metadata: dict[str, object] = {
         "backend": index.manifest["backend"],
         "embedding_model": embedding_model,
@@ -225,6 +418,18 @@ def semantic_search(
         "chunk_count": index.manifest["chunk_count"],
         "similarity": "cosine",
     }
+    metadata = _metadata(normalized_filters, metadata)
+    if normalized_group_by == "article":
+        groups = group_results_by_article(results, chunks_per_article=chunks_per_article)
+        metadata.update(
+            {
+                "group_by": "article",
+                "chunks_per_article": chunks_per_article,
+                "candidate_count_before_grouping": len(results),
+                "group_count": len(groups),
+            }
+        )
+        return SearchResponse(query=normalized_query, results=[], metadata=metadata, groups=groups)
     return SearchResponse(query=normalized_query, results=results, metadata=metadata)
 
 
@@ -234,20 +439,25 @@ def hybrid_search(
     collection_name: str = "literature",
     top_k: int = 10,
     source_type: str | None = None,
+    filters: SearchFilters | None = None,
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
     *,
     settings: Settings | None = None,
 ) -> SearchResponse:
     if top_k <= 0:
         raise ValueError("top_k must be positive")
+    normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
+    normalized_group_by = normalize_group_by(group_by)
     active_settings = settings or get_settings()
     candidate_k = top_k * active_settings.hybrid_candidate_multiplier
-    exact_response = exact_search(session, query, collection_name, candidate_k, source_type=source_type)
+    exact_response = exact_search(session, query, collection_name, candidate_k, filters=normalized_filters)
     semantic_response = semantic_search(
         session,
         query,
         collection_name,
         candidate_k,
-        source_type=source_type,
+        filters=normalized_filters,
         settings=active_settings,
     )
 
@@ -304,7 +514,20 @@ def hybrid_search(
             "component_methods": ["exact_ilike", "semantic_cosine"],
         }
     )
-    return SearchResponse(query=exact_response.query, results=fused_results[:top_k], metadata=metadata)
+    limited_results = fused_results[:top_k]
+    metadata = _metadata(normalized_filters, metadata)
+    if normalized_group_by == "article":
+        groups = group_results_by_article(limited_results, chunks_per_article=chunks_per_article)
+        metadata.update(
+            {
+                "group_by": "article",
+                "chunks_per_article": chunks_per_article,
+                "candidate_count_before_grouping": len(limited_results),
+                "group_count": len(groups),
+            }
+        )
+        return SearchResponse(query=exact_response.query, results=[], metadata=metadata, groups=groups)
+    return SearchResponse(query=exact_response.query, results=limited_results, metadata=metadata)
 
 
 def concrete_retrieval_method(method: str) -> str:
@@ -327,18 +550,32 @@ def search_chunks(
     *,
     method: str = "exact",
     source_type: str | None = None,
+    filters: SearchFilters | None = None,
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
     settings: Settings | None = None,
 ) -> SearchResponse:
     normalized_method = normalize_retrieval_method(method)
+    normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
     if normalized_method == "exact":
-        return exact_search(session, query, collection_name, top_k, source_type=source_type)
+        return exact_search(
+            session,
+            query,
+            collection_name,
+            top_k,
+            filters=normalized_filters,
+            group_by=group_by,
+            chunks_per_article=chunks_per_article,
+        )
     if normalized_method == "semantic":
         return semantic_search(
             session,
             query,
             collection_name,
             top_k,
-            source_type=source_type,
+            filters=normalized_filters,
+            group_by=group_by,
+            chunks_per_article=chunks_per_article,
             settings=settings,
         )
     if normalized_method == "hybrid":
@@ -347,26 +584,37 @@ def search_chunks(
             query,
             collection_name,
             top_k,
-            source_type=source_type,
+            filters=normalized_filters,
+            group_by=group_by,
+            chunks_per_article=chunks_per_article,
             settings=settings,
         )
     raise AssertionError(f"unhandled retrieval method: {normalized_method}")
 
 
 def search_response_to_dict(response: SearchResponse) -> dict[str, object]:
-    results = []
-    for result in response.results:
+    def result_to_payload(result: SearchResult) -> dict[str, object]:
         result_payload: dict[str, object] = {
             "article_id": result.article_id,
             "chunk_id": result.chunk_id,
             "title": result.title,
             "doi": result.doi,
+            "year": result.year,
+            "journal": result.journal,
             "page_start": result.page_start,
             "page_end": result.page_end,
             "source_type": result.source_type,
             "text_layer": result.text_layer,
             "pdf_url": build_pdf_url(result.article_id, "original"),
             "pdf_page_url": build_pdf_url(result.article_id, "original", result.page_start),
+            "context_url": (
+                f"/articles/{result.article_id}/chunks/{result.chunk_id}/context"
+                "?before=1&after=1"
+            ),
+            "page_context_url": (
+                f"/articles/{result.article_id}/pages/context"
+                f"?page_start={result.page_start}&page_end={result.page_end}&layer=selected"
+            ),
             "snippet": result.snippet,
             "score": result.score,
             "retrieval_method": result.retrieval_method,
@@ -375,14 +623,77 @@ def search_response_to_dict(response: SearchResponse) -> dict[str, object]:
             result_payload["method_scores"] = result.method_scores
         if result.method_ranks:
             result_payload["method_ranks"] = result.method_ranks
-        results.append(result_payload)
+        return result_payload
+
+    results = []
+    for result in response.results:
+        results.append(result_to_payload(result))
     payload: dict[str, object] = {
         "query": response.query,
         "results": results,
     }
+    if response.groups:
+        payload.pop("results")
+        payload["groups"] = [
+            {
+                "article_id": group.article_id,
+                "title": group.title,
+                "doi": group.doi,
+                "year": group.year,
+                "journal": group.journal,
+                "best_score": group.best_score,
+                "best_page_start": group.best_page_start,
+                "best_page_end": group.best_page_end,
+                "result_count": group.result_count,
+                "total_result_count": group.total_result_count,
+                "results": [result_to_payload(result) for result in group.results],
+            }
+            for group in response.groups
+        ]
     if response.metadata:
         payload["metadata"] = response.metadata
     return payload
+
+
+def _index_row_matches_filters(chunk: Chunk, article: Article, filters: SearchFilters) -> bool:
+    if filters.article_id is not None and _as_uuid(article.id) != filters.article_id:
+        return False
+    if filters.doi is not None and (article.doi is None or article.doi.lower() != filters.doi.lower()):
+        return False
+    if filters.year is not None and article.year != filters.year:
+        return False
+    if filters.year_from is not None and (article.year is None or article.year < filters.year_from):
+        return False
+    if filters.year_to is not None and (article.year is None or article.year > filters.year_to):
+        return False
+    if filters.journal is not None and (article.journal is None or article.journal.lower() != filters.journal.lower()):
+        return False
+    if filters.source_type is not None and chunk.source_type != filters.source_type:
+        return False
+    if filters.text_layer is not None and chunk.text_layer != filters.text_layer:
+        return False
+    if filters.tag_type is not None or filters.tag_value is not None:
+        tags = getattr(article, "tags", None)
+        if tags is None:
+            return True
+        if not any(
+            (filters.tag_type is None or tag.tag_type == filters.tag_type)
+            and (filters.tag_value is None or tag.tag_value == filters.tag_value)
+            for tag in tags
+        ):
+            return False
+    return True
+
+
+def _semantic_filtered_chunk_ids(session: Session, collection_name: str, filters: SearchFilters) -> set[str] | None:
+    if filters.tag_type is None and filters.tag_value is None:
+        return None
+    collection = session.scalar(select(Collection).where(Collection.name == collection_name))
+    if collection is None:
+        raise ValueError(f"Unknown collection: {collection_name}")
+    statement = select(Chunk.id).join(Article, Chunk.article_id == Article.id).where(Article.collection_id == collection.id)
+    statement = apply_search_filters(statement, filters)
+    return {str(_as_uuid(chunk_id)) for chunk_id in session.scalars(statement)}
 
 
 def _as_uuid(value: uuid.UUID | object) -> uuid.UUID | object:

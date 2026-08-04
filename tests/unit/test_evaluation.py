@@ -99,9 +99,15 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
         top_k: int,
         *,
         method: str = "exact",
+        filters: object | None = None,
+        group_by: str = "none",
+        chunks_per_article: int | None = None,
         settings: object | None = None,
     ) -> SearchResponse:
         assert method == "exact"
+        assert filters is not None
+        assert group_by == "none"
+        assert chunks_per_article is None
         assert settings is not None
         return SearchResponse(
             query=query,
@@ -135,6 +141,10 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
 
     assert report["settings"]["method"] == "exact"
     assert report["settings"]["retrieval_method"] == "exact_ilike"
+    assert report["settings"]["filter_mode"] == "unfiltered"
+    assert report["settings"]["filters"] == {}
+    assert report["settings"]["group_by"] == "none"
+    assert report["settings"]["chunks_per_article"] is None
     assert report["settings"]["retrieval_metadata"] == {}
     assert report["summary"] == {
         "total": 1,

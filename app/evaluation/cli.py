@@ -15,6 +15,7 @@ from app.evaluation.retrieval import (
     write_comparison_report,
     write_evaluation_report,
 )
+from app.retrieval.search import SearchFilters
 
 cli = typer.Typer(help="Nafion RAG evaluation commands.")
 
@@ -25,10 +26,47 @@ def main() -> None:
 
 
 @cli.command()
-def retrieval(questions_path: Path, collection: str = "literature", top_k: int = 10, method: str = "exact") -> None:
+def retrieval(
+    questions_path: Path,
+    collection: str = "literature",
+    top_k: int = 10,
+    method: str = "exact",
+    doi: str | None = None,
+    year: int | None = None,
+    year_from: int | None = None,
+    year_to: int | None = None,
+    journal: str | None = None,
+    source_type: str | None = None,
+    text_layer: str | None = None,
+    tag_type: str | None = None,
+    tag_value: str | None = None,
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
+) -> None:
     settings = get_settings()
+    filters = SearchFilters.normalize(
+        doi=doi,
+        year=year,
+        year_from=year_from,
+        year_to=year_to,
+        journal=journal,
+        source_type=source_type,
+        text_layer=text_layer,
+        tag_type=tag_type,
+        tag_value=tag_value,
+    )
     with SessionLocal() as session:
-        report = run_retrieval_evaluation(session, settings, questions_path, collection=collection, top_k=top_k, method=method)
+        report = run_retrieval_evaluation(
+            session,
+            settings,
+            questions_path,
+            collection=collection,
+            top_k=top_k,
+            method=method,
+            filters=filters,
+            group_by=group_by,
+            chunks_per_article=chunks_per_article,
+        )
     output_path = write_evaluation_report(report, settings.data_root)
     typer.echo({"output_path": str(output_path), "summary": report["summary"]})
 

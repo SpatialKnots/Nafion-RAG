@@ -12,6 +12,13 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.models import Article, IngestionJob
 from app.db.session import get_session
+from app.documents.context import (
+    ContextNotFoundError,
+    chunk_context_to_dict,
+    get_chunk_context,
+    get_page_range_context,
+    page_range_context_to_dict,
+)
 from app.documents.service import (
     PageEvidenceNotFoundError,
     PageLayer,
@@ -34,7 +41,7 @@ from app.retrieval.index_lifecycle import (
     request_vector_rebuild,
     vector_index_state_to_response,
 )
-from app.retrieval.search import search_chunks, search_response_to_dict
+from app.retrieval.search import SearchFilters, search_chunks, search_response_to_dict
 from app.retrieval.vector_index import VectorIndexUnavailableError
 from app.ui import router as ui_router
 
@@ -68,10 +75,36 @@ def search(
     q: str = Query(..., min_length=1),
     collection: str = "literature",
     top_k: int = Query(default=10, ge=1),
+    article_id: UUID | None = None,
+    doi: str | None = None,
+    year: int | None = None,
+    year_from: int | None = None,
+    year_to: int | None = None,
+    journal: str | None = None,
     source_type: str | None = None,
+    text_layer: str | None = None,
+    tag_type: str | None = None,
+    tag_value: str | None = None,
     method: str = "exact",
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
+    include_group_diagnostics: bool = False,
 ) -> dict[str, object]:
     try:
+        if chunks_per_article is not None and chunks_per_article <= 0:
+            raise ValueError("chunks_per_article must be positive")
+        filters = SearchFilters.normalize(
+            article_id=article_id,
+            doi=doi,
+            year=year,
+            year_from=year_from,
+            year_to=year_to,
+            journal=journal,
+            source_type=source_type,
+            text_layer=text_layer,
+            tag_type=tag_type,
+            tag_value=tag_value,
+        )
         return search_response_to_dict(
             search_chunks(
                 session,
@@ -79,7 +112,9 @@ def search(
                 collection,
                 top_k,
                 method=method,
-                source_type=source_type,
+                filters=filters,
+                group_by=group_by,
+                chunks_per_article=chunks_per_article,
                 settings=get_settings(),
             )
         )
@@ -152,6 +187,66 @@ def article_page_text(
         return page_evidence_to_dict(get_article_page(session, get_settings(), article, page_number, layer))
     except PageEvidenceNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/articles/{article_id}/chunks/{chunk_id}/context")
+def article_chunk_context(
+    session: SessionDep,
+    article_id: UUID,
+    chunk_id: UUID,
+    before: int = Query(default=1, ge=0),
+    after: int = Query(default=1, ge=0),
+    highlight_query: str | None = None,
+    max_chars: int | None = Query(default=None, ge=1),
+) -> dict[str, object]:
+    article = _get_article_or_404(session, article_id)
+    try:
+        return chunk_context_to_dict(
+            get_chunk_context(
+                session,
+                get_settings(),
+                article,
+                chunk_id,
+                before=before,
+                after=after,
+                highlight_query=highlight_query,
+                max_chars=max_chars,
+            )
+        )
+    except ContextNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/articles/{article_id}/pages/context")
+def article_page_range_context(
+    session: SessionDep,
+    article_id: UUID,
+    page_start: int = Query(..., ge=1),
+    page_end: int = Query(..., ge=1),
+    layer: Annotated[PageLayer, Query()] = "selected",
+    highlight_query: str | None = None,
+    max_chars: int | None = Query(default=None, ge=1),
+) -> dict[str, object]:
+    article = _get_article_or_404(session, article_id)
+    try:
+        return page_range_context_to_dict(
+            get_page_range_context(
+                session,
+                get_settings(),
+                article,
+                page_start=page_start,
+                page_end=page_end,
+                layer=layer,
+                highlight_query=highlight_query,
+                max_chars=max_chars,
+            )
+        )
+    except PageEvidenceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/ingestion/uploads")

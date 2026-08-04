@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     vector_rebuild_batch_size: int = Field(default=64, ge=1)
     vector_index_keep_generations: int = Field(default=2, ge=1)
     vector_staging_retention_hours: int = Field(default=24, ge=1)
+    context_max_neighbor_chunks: int = Field(default=3, ge=0, le=10)
+    context_max_chars: int = Field(default=30000, ge=1)
+    context_max_pages: int = Field(default=5, ge=1, le=20)
+    context_highlight_max_terms: int = Field(default=12, ge=1, le=50)
 
     @model_validator(mode="after")
     def validate_ingestion_timing(self) -> Settings:

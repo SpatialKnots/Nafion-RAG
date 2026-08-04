@@ -15,10 +15,11 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.models import Article, ArticleTag, Chunk, Collection, IngestionJob, Page, PageTextLayer, Section
 from app.db.session import get_session
-from app.documents.service import build_pdf_url
+from app.documents.context import ContextNotFoundError, get_chunk_context, get_page_range_context
+from app.documents.service import PageEvidenceNotFoundError, build_pdf_url
 from app.ingestion.queue import job_to_response
 from app.retrieval.index_lifecycle import list_vector_index_states, request_vector_rebuild, vector_index_state_to_response
-from app.retrieval.search import search_chunks
+from app.retrieval.search import SearchFilters, search_chunks
 
 SessionDep = Annotated[Session, Depends(get_session)]
 router = APIRouter()
@@ -66,6 +67,38 @@ def _ocr_pdf_link(article_id: UUID | str, label: str = "Open OCR PDF") -> str:
     return f"<a href='{_html(build_pdf_url(article_id, 'ocr'))}' target='_blank' rel='noopener'>{_html(label)}</a>"
 
 
+def _group_metadata(doi: str | None, year: int | None, journal: str | None) -> str:
+    return " ".join(_html(value) for value in (doi, year, journal) if value)
+
+
+def _context_link(article_id: UUID | str, chunk_id: UUID | str, query: str, label: str = "Context") -> str:
+    query_part = f"&highlight_query={_html(query)}" if query.strip() else ""
+    return f"<a href='/ui/articles/{_html(article_id)}/chunks/{_html(chunk_id)}/context?before=1&after=1{query_part}'>{_html(label)}</a>"
+
+
+def _highlighted_text(text: str, highlights: object) -> str:
+    if not isinstance(highlights, list):
+        return _html(text)
+    spans = []
+    for item in highlights:
+        start = getattr(item, "start", None)
+        end = getattr(item, "end", None)
+        if isinstance(start, int) and isinstance(end, int) and 0 <= start < end <= len(text):
+            spans.append((start, end))
+    if not spans:
+        return _html(text)
+    parts: list[str] = []
+    cursor = 0
+    for start, end in sorted(spans):
+        if start < cursor:
+            continue
+        parts.append(_html(text[cursor:start]))
+        parts.append(f"<mark>{_html(text[start:end])}</mark>")
+        cursor = end
+    parts.append(_html(text[cursor:]))
+    return "".join(parts)
+
+
 def _layout(title: str, body: str) -> HTMLResponse:
     css = """
     :root { color-scheme: light; --line:#d7dde5; --muted:#5c6675; --bg:#f6f8fb; --ink:#1d2430; --accent:#2454a6; }
@@ -90,6 +123,8 @@ def _layout(title: str, body: str) -> HTMLResponse:
     .actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .ok { color:#126b36; font-weight:600; }
     .warn { color:#9b5a00; font-weight:600; }
+    mark { background:#fff1a8; padding:0 1px; }
+    pre.context { white-space: pre-wrap; font-family: Consolas, monospace; font-size: 13px; margin: 6px 0 0; }
     input, select, button { font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:4px; background:#fff; }
     button { background:#2454a6; color:#fff; border-color:#2454a6; }
     form { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:14px; }
@@ -238,11 +273,35 @@ def search_page(
     q: str = "",
     collection: str = "literature",
     top_k: int = Query(default=10, ge=1),
+    article_id: UUID | None = None,
+    doi: str = "",
+    year: int | None = None,
+    year_from: int | None = None,
+    year_to: int | None = None,
+    journal: str = "",
     source_type: str = "",
+    text_layer: str = "",
+    tag_type: str = "",
+    tag_value: str = "",
     method: str = "exact",
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
 ) -> HTMLResponse:
     rows = ""
-    normalized_source_type = source_type.strip() or None
+    if chunks_per_article is not None and chunks_per_article <= 0:
+        raise HTTPException(status_code=400, detail="chunks_per_article must be positive")
+    filters = SearchFilters.normalize(
+        article_id=article_id,
+        doi=doi,
+        year=year,
+        year_from=year_from,
+        year_to=year_to,
+        journal=journal,
+        source_type=source_type,
+        text_layer=text_layer,
+        tag_type=tag_type,
+        tag_value=tag_value,
+    )
     if q.strip():
         try:
             response = search_chunks(
@@ -251,12 +310,30 @@ def search_page(
                 collection,
                 top_k,
                 method=method,
-                source_type=normalized_source_type,
+                filters=filters,
+                group_by=group_by,
+                chunks_per_article=chunks_per_article,
                 settings=get_settings(),
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        if response.results:
+        response_groups = getattr(response, "groups", [])
+        if response_groups:
+            rows = "".join(
+                "<tr>"
+                f"<td><a href='/ui/articles/{_html(group.article_id)}'>{_html(group.title)}</a>"
+                f"<div class='muted'>{_group_metadata(group.doi, group.year, group.journal)}</div></td>"
+                f"<td class='num'>{_html(_page_range(group.best_page_start, group.best_page_end))}</td>"
+                f"<td class='num'>{group.best_score:.4g}</td>"
+                f"<td class='num'>{group.result_count}/{group.total_result_count}</td>"
+                f"<td>{_html(group.results[0].retrieval_method)}</td>"
+                f"<td>{_html(group.results[0].snippet)}</td>"
+                f"<td class='actions'>{_context_link(group.article_id, group.results[0].chunk_id, q)}"
+                f"{_pdf_link(group.article_id, group.best_page_start)}</td>"
+                "</tr>"
+                for group in response_groups
+            )
+        elif response.results:
             rows = "".join(
                 "<tr>"
                 f"<td><a href='/ui/articles/{_html(result.article_id)}'>{_html(result.title)}</a>"
@@ -266,7 +343,8 @@ def search_page(
                 f"<td>{_html(result.retrieval_method)}</td>"
                 f"<td class='num'>{result.score:.4g}</td>"
                 f"<td>{_html(result.snippet)}</td>"
-                f"<td class='actions'>{_pdf_link(result.article_id, result.page_start)}</td>"
+                f"<td class='actions'>{_context_link(result.article_id, result.chunk_id, q)}"
+                f"{_pdf_link(result.article_id, result.page_start)}</td>"
                 "</tr>"
                 for result in response.results
             )
@@ -286,21 +364,153 @@ def search_page(
     method_options = "".join(
         f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>" for value in ("exact", "semantic", "hybrid")
     )
+    text_layer_options = "".join(
+        f"<option value='{_html(value)}' {'selected' if text_layer == value else ''}>{_html(label)}</option>"
+        for value, label in [("", "all"), ("original", "original"), ("ocr", "ocr")]
+    )
+    group_options = "".join(
+        f"<option value='{value}' {'selected' if group_by == value else ''}>{value}</option>" for value in ("none", "article")
+    )
+    chunks_value = "" if chunks_per_article is None else str(chunks_per_article)
+    table_header = (
+        '<tr><th>Article</th><th class="num">Best pages</th><th class="num">Best score</th>'
+        '<th class="num">Chunks</th><th>Method</th><th>Best snippet</th><th>PDF</th></tr>'
+        if group_by == "article"
+        else '<tr><th>Article</th><th class="num">Pages</th><th>Type / layer</th><th>Method</th>'
+        '<th class="num">Score</th><th>Snippet</th><th>PDF</th></tr>'
+    )
     body = f"""
     <h1>Search</h1>
     <form method="get" action="/ui/search">
       <label>Query<br><input name="q" size="52" value="{_html(q)}"></label>
       <label>Collection<br><input name="collection" value="{_html(collection)}"></label>
       <label>Source type<br><select name="source_type">{source_options}</select></label>
+      <label>Text layer<br><select name="text_layer">{text_layer_options}</select></label>
       <label>Method<br><select name="method">{method_options}</select></label>
       <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
+      <label>DOI<br><input name="doi" value="{_html(doi)}"></label>
+      <label>Year<br><input name="year" type="number" value="{_html(year)}"></label>
+      <label>Year from<br><input name="year_from" type="number" value="{_html(year_from)}"></label>
+      <label>Year to<br><input name="year_to" type="number" value="{_html(year_to)}"></label>
+      <label>Journal<br><input name="journal" value="{_html(journal)}"></label>
+      <label>Tag type<br><input name="tag_type" value="{_html(tag_type)}"></label>
+      <label>Tag value<br><input name="tag_value" value="{_html(tag_value)}"></label>
+      <label>Group by<br><select name="group_by">{group_options}</select></label>
+      <label>Chunks/article<br><input name="chunks_per_article" type="number" value="{_html(chunks_value)}" min="1"></label>
       <button type="submit">Search</button>
     </form>
-    <table><tr><th>Article</th><th class="num">Pages</th><th>Type / layer</th><th>Method</th>
-    <th class="num">Score</th><th>Snippet</th><th>PDF</th></tr>
+    <table>{table_header}
     {rows or empty_rows}</table>
     """
     return _layout("Search", body)
+
+
+@router.get("/ui/articles/{article_id}/chunks/{chunk_id}/context", response_class=HTMLResponse)
+def chunk_context_page(
+    session: SessionDep,
+    article_id: UUID,
+    chunk_id: UUID,
+    before: int = Query(default=1, ge=0),
+    after: int = Query(default=1, ge=0),
+    highlight_query: str = "",
+    max_chars: int | None = Query(default=None, ge=1),
+) -> HTMLResponse:
+    article = _get_article_or_404(session, article_id)
+    try:
+        context = get_chunk_context(
+            session,
+            get_settings(),
+            article,
+            chunk_id,
+            before=before,
+            after=after,
+            highlight_query=highlight_query,
+            max_chars=max_chars,
+        )
+    except ContextNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    rows = []
+    for chunk in context.chunks:
+        page_context = (
+            f"/ui/articles/{_html(context.article_id)}/pages/context?page_start={chunk.page_start}"
+            f"&page_end={chunk.page_end}&layer=selected"
+        )
+        if highlight_query.strip():
+            page_context += f"&highlight_query={_html(highlight_query)}"
+        rows.append(
+            "<section class='panel'>"
+            f"<p><strong>{_html(chunk.role)}</strong> chunk {chunk.chunk_index} &nbsp; "
+            f"pages {_html(_page_range(chunk.page_start, chunk.page_end))} &nbsp; "
+            f"{_html(chunk.source_type)} / {_html(chunk.text_layer)} &nbsp; "
+            f"<a href='{page_context}'>Page text</a> {_pdf_link(context.article_id, chunk.page_start)}</p>"
+            f"<pre class='context'>{_highlighted_text(chunk.text, chunk.highlights)}</pre>"
+            "</section>"
+        )
+    body = f"""
+    <h1>{_html(context.title)}</h1>
+    <section class="panel">
+      <p><strong>DOI:</strong> {_html(context.doi)} &nbsp; <strong>Requested chunk:</strong> {context.requested_chunk_index}</p>
+      <p class="actions"><a href="/ui/articles/{_html(context.article_id)}">Article</a>
+      <a href="{_html(context.pdf_page_url)}" target="_blank" rel="noopener">PDF page</a></p>
+      {"<p class='warn'>Truncated by context limit.</p>" if context.truncated else ""}
+    </section>
+    {"".join(rows) or "<p class='warn'>No context chunks.</p>"}
+    """
+    return _layout("Chunk Context", body)
+
+
+@router.get("/ui/articles/{article_id}/pages/context", response_class=HTMLResponse)
+def page_context_page(
+    session: SessionDep,
+    article_id: UUID,
+    page_start: int = Query(..., ge=1),
+    page_end: int = Query(..., ge=1),
+    layer: str = "selected",
+    highlight_query: str = "",
+    max_chars: int | None = Query(default=None, ge=1),
+) -> HTMLResponse:
+    article = _get_article_or_404(session, article_id)
+    if layer not in {"selected", "original", "ocr"}:
+        raise HTTPException(status_code=400, detail="layer must be one of: selected, original, ocr")
+    try:
+        context = get_page_range_context(
+            session,
+            get_settings(),
+            article,
+            page_start=page_start,
+            page_end=page_end,
+            layer=cast(Any, layer),
+            highlight_query=highlight_query,
+            max_chars=max_chars,
+        )
+    except PageEvidenceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    page_range = _page_range(context.page_start, context.page_end)
+    rows = "".join(
+        "<section class='panel'>"
+        f"<p><strong>Page {page.page_number}</strong> &nbsp; {_html(page.resolved_layer)} &nbsp; "
+        f"{'usable' if page.has_usable_text else 'not usable'}</p>"
+        f"<pre class='context'>{_highlighted_text(page.text, page.highlights)}</pre>"
+        "</section>"
+        for page in context.pages
+    )
+    body = f"""
+    <h1>{_html(context.title)}</h1>
+    <section class="panel">
+      <p><strong>Layer:</strong> {_html(context.layer)} &nbsp; <strong>Pages:</strong> {_html(page_range)}</p>
+      <p class="actions"><a href="/ui/articles/{_html(context.article_id)}">Article</a>
+      <a href="{_html(context.pdf_page_url)}" target="_blank" rel="noopener">PDF page</a></p>
+      {"<p class='warn'>Truncated by context limit.</p>" if context.truncated else ""}
+    </section>
+    {rows or "<p class='warn'>No page text.</p>"}
+    """
+    return _layout("Page Context", body)
 
 
 @router.get("/ui/ingestion", response_class=HTMLResponse)

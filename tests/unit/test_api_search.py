@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
 from app import main
+from app.documents.context import ChunkContext, ChunkContextItem, ContextNotFoundError, PageRangeContext
 from app.documents.service import PageEvidence, ResolvedPdf
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
 from app.generation.service import AnswerResponse
-from app.retrieval.search import SearchResponse
+from app.retrieval.search import SearchFilters, SearchResponse
 from app.retrieval.vector_index import VectorIndexUnavailableError
 
 
@@ -21,13 +24,18 @@ def test_search_endpoint_returns_exact_results(monkeypatch) -> None:
         *,
         method: str = "exact",
         source_type: str | None = None,
+        filters: object | None = None,
+        group_by: str = "none",
+        chunks_per_article: int | None = None,
         settings: object | None = None,
     ) -> SearchResponse:
         assert query == "Nafion"
         assert collection_name == "literature"
         assert top_k == 3
         assert method == "exact"
-        assert source_type == "method"
+        assert cast(SearchFilters, filters).source_type == "method"
+        assert group_by == "none"
+        assert chunks_per_article is None
         assert settings is not None
         return SearchResponse(query=query, results=[])
 
@@ -53,6 +61,9 @@ def test_search_endpoint_dispatches_semantic_method(monkeypatch) -> None:
         *,
         method: str = "exact",
         source_type: str | None = None,
+        filters: object | None = None,
+        group_by: str = "none",
+        chunks_per_article: int | None = None,
         settings: object | None = None,
     ) -> SearchResponse:
         assert method == "semantic"
@@ -75,6 +86,9 @@ def test_search_endpoint_dispatches_hybrid_method(monkeypatch) -> None:
         *,
         method: str = "exact",
         source_type: str | None = None,
+        filters: object | None = None,
+        group_by: str = "none",
+        chunks_per_article: int | None = None,
         settings: object | None = None,
     ) -> SearchResponse:
         assert method == "hybrid"
@@ -166,6 +180,91 @@ def test_page_endpoint_returns_stored_page_evidence(monkeypatch) -> None:
     assert payload["resolved_layer"] == "ocr"
     assert payload["pdf_page_url"] == "/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original#page=7"
     assert payload["layer_pdf_url"] == "/articles/11111111-1111-1111-1111-111111111111/pdf?layer=ocr"
+
+
+def test_chunk_context_endpoint_returns_context(monkeypatch) -> None:
+    monkeypatch.setattr(main, "_get_article_or_404", lambda session, article_id: object())
+    monkeypatch.setattr(
+        main,
+        "get_chunk_context",
+        lambda *args, **kwargs: ChunkContext(
+            article_id="11111111-1111-1111-1111-111111111111",
+            chunk_id="22222222-2222-2222-2222-222222222222",
+            title="Article title",
+            doi="10.1000/example",
+            requested_chunk_index=1,
+            chunks=[
+                ChunkContextItem(
+                    chunk_id="22222222-2222-2222-2222-222222222222",
+                    chunk_index=1,
+                    role="requested",
+                    page_start=2,
+                    page_end=2,
+                    source_type="method",
+                    text_layer="original",
+                    text="Nafion context",
+                    highlights=[],
+                )
+            ],
+            pdf_url="/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original",
+            pdf_page_url="/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original#page=2",
+            truncated=False,
+        ),
+    )
+
+    payload = main.article_chunk_context(
+        object(),
+        main.UUID("11111111-1111-1111-1111-111111111111"),
+        main.UUID("22222222-2222-2222-2222-222222222222"),
+    )
+
+    assert payload["requested_chunk_index"] == 1
+    assert payload["chunks"][0]["text"] == "Nafion context"
+    assert payload["pdf_page_url"].endswith("#page=2")
+
+
+def test_chunk_context_endpoint_maps_missing_chunk_to_404(monkeypatch) -> None:
+    monkeypatch.setattr(main, "_get_article_or_404", lambda session, article_id: object())
+    monkeypatch.setattr(main, "get_chunk_context", lambda *args, **kwargs: (_ for _ in ()).throw(ContextNotFoundError("missing")))
+
+    with pytest.raises(HTTPException) as exc_info:
+        main.article_chunk_context(
+            object(),
+            main.UUID("11111111-1111-1111-1111-111111111111"),
+            main.UUID("22222222-2222-2222-2222-222222222222"),
+        )
+
+    assert exc_info.value.status_code == 404
+
+
+def test_page_range_context_endpoint_returns_pages(monkeypatch) -> None:
+    monkeypatch.setattr(main, "_get_article_or_404", lambda session, article_id: object())
+    monkeypatch.setattr(
+        main,
+        "get_page_range_context",
+        lambda *args, **kwargs: PageRangeContext(
+            article_id="11111111-1111-1111-1111-111111111111",
+            title="Article title",
+            layer="selected",
+            page_start=2,
+            page_end=3,
+            pages=[],
+            pdf_url="/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original",
+            pdf_page_url="/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original#page=2",
+            truncated=False,
+        ),
+    )
+
+    payload = main.article_page_range_context(
+        object(),
+        main.UUID("11111111-1111-1111-1111-111111111111"),
+        page_start=2,
+        page_end=3,
+    )
+
+    assert payload["page_start"] == 2
+    assert payload["page_end"] == 3
+    assert payload["pdf_page_url"].endswith("#page=2")
 
 
 def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:

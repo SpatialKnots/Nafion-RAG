@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.db.models import Article
 from app.retrieval.search import (
+    SearchFilters,
     SearchResponse,
     concrete_retrieval_method,
     normalize_retrieval_method,
@@ -126,8 +127,22 @@ def _rank_of_expected_article(
     return None
 
 
+def _result_payloads_from_response(response: SearchResponse) -> list[dict[str, object]]:
+    payload = search_response_to_dict(response)
+    if "results" in payload:
+        return cast(list[dict[str, object]], payload["results"])
+    grouped_results: list[dict[str, object]] = []
+    groups = payload.get("groups", [])
+    if not isinstance(groups, list):
+        return grouped_results
+    for group in groups:
+        if isinstance(group, dict) and isinstance(group.get("results"), list):
+            grouped_results.extend(cast(list[dict[str, object]], group["results"]))
+    return grouped_results
+
+
 def _evaluate_question(question: EvaluationQuestion, response: SearchResponse, article_checksums: dict[str, str]) -> dict[str, Any]:
-    result_payload = cast(list[dict[str, object]], search_response_to_dict(response)["results"])
+    result_payload = _result_payloads_from_response(response)
     result_dois = {str(result["doi"]).lower() for result in result_payload if result["doi"]}
     result_titles = {_normalize_title(str(result["title"])) for result in result_payload if result["title"]}
     result_checksums = {checksum for result in result_payload if (checksum := article_checksums.get(str(result["article_id"])))}
@@ -140,6 +155,8 @@ def _evaluate_question(question: EvaluationQuestion, response: SearchResponse, a
     rank_of_expected = _rank_of_expected_article(result_payload, question, article_checksums)
     top_1_passed = rank_of_expected == 1 and not missing_keywords
     top_result = result_payload[0] if result_payload else None
+    candidate_count_before_grouping = response.metadata.get("candidate_count_before_grouping")
+    group_count = response.metadata.get("group_count")
     return {
         "id": question.id,
         "query": question.query,
@@ -156,6 +173,8 @@ def _evaluate_question(question: EvaluationQuestion, response: SearchResponse, a
         "missing_article_checksums": missing_checksums,
         "missing_keywords": missing_keywords,
         "result_count": len(result_payload),
+        "candidate_count_before_grouping": candidate_count_before_grouping,
+        "group_count": group_count,
         "top_result": top_result,
         "results": result_payload,
     }
@@ -169,18 +188,32 @@ def run_retrieval_evaluation(
     collection: str,
     top_k: int,
     method: str = "exact",
+    filters: SearchFilters | None = None,
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
 ) -> dict[str, Any]:
     normalized_method = normalize_retrieval_method(method)
+    normalized_filters = filters or SearchFilters()
     questions = load_questions(questions_path)
     evaluated = []
     retrieval_metadata: dict[str, object] = {}
     for question in questions:
-        response = search_chunks(session, question.query, collection, top_k, method=normalized_method, settings=settings)
+        response = search_chunks(
+            session,
+            question.query,
+            collection,
+            top_k,
+            method=normalized_method,
+            filters=normalized_filters,
+            group_by=group_by,
+            chunks_per_article=chunks_per_article,
+            settings=settings,
+        )
         if response.metadata:
             if retrieval_metadata and response.metadata != retrieval_metadata:
                 raise ValueError("retrieval metadata changed during evaluation")
             retrieval_metadata = response.metadata
-        result_payload = cast(list[dict[str, object]], search_response_to_dict(response)["results"])
+        result_payload = _result_payloads_from_response(response)
         evaluated.append(_evaluate_question(question, response, _article_checksums_for_results(session, result_payload)))
     failures = [item for item in evaluated if not item["passed"]]
     ranks = [item["rank_of_expected"] for item in evaluated if isinstance(item["rank_of_expected"], int)]
@@ -192,6 +225,10 @@ def run_retrieval_evaluation(
             "top_k": top_k,
             "method": normalized_method,
             "retrieval_method": concrete_retrieval_method(normalized_method),
+            "filter_mode": "filtered" if normalized_filters.as_metadata() else "unfiltered",
+            "filters": normalized_filters.as_metadata(),
+            "group_by": group_by,
+            "chunks_per_article": chunks_per_article,
             "default_top_k": settings.default_top_k,
             "retrieval_metadata": retrieval_metadata,
         },

@@ -7,6 +7,8 @@ import numpy as np
 import pytest
 
 from app.retrieval.search import (
+    SearchFilters,
+    SearchGroup,
     SearchResponse,
     SearchResult,
     _query_terms,
@@ -95,6 +97,44 @@ def test_search_response_serializes_text_layer_and_pdf_urls() -> None:
     assert serialized["text_layer"] == "original"
     assert serialized["pdf_url"] == f"/articles/{result.article_id}/pdf?layer=original"
     assert serialized["pdf_page_url"] == f"/articles/{result.article_id}/pdf?layer=original#page=1"
+    assert serialized["context_url"] == f"/articles/{result.article_id}/chunks/{result.chunk_id}/context?before=1&after=1"
+    assert serialized["page_context_url"] == f"/articles/{result.article_id}/pages/context?page_start=1&page_end=2&layer=selected"
+
+
+def test_search_filters_normalize_empty_strings_and_reject_mixed_year_filters() -> None:
+    filters = SearchFilters.normalize(doi=" 10.1000/example ", source_type=" ", year_from=2010)
+
+    assert filters.doi == "10.1000/example"
+    assert filters.source_type is None
+    assert filters.as_metadata() == {"doi": "10.1000/example", "year_from": 2010}
+    with pytest.raises(ValueError, match="year cannot be combined"):
+        SearchFilters.normalize(year=2020, year_to=2024)
+
+
+def test_search_response_serializes_grouped_results() -> None:
+    result_a = _search_result(uuid.UUID(int=1), score=2.0, method="exact_ilike")
+    result_b = _search_result(uuid.UUID(int=2), score=1.0, method="exact_ilike")
+    group = SearchGroup(
+        article_id=result_a.article_id,
+        title=result_a.title,
+        doi=result_a.doi,
+        year=2020,
+        journal="Journal",
+        best_score=result_a.score,
+        best_page_start=result_a.page_start,
+        best_page_end=result_a.page_end,
+        result_count=1,
+        total_result_count=2,
+        results=[result_a],
+    )
+
+    payload = search_response_to_dict(SearchResponse(query="query", results=[result_b], groups=[group], metadata={"group_by": "article"}))
+
+    assert "results" not in payload
+    assert payload["groups"][0]["result_count"] == 1
+    assert payload["groups"][0]["total_result_count"] == 2
+    assert payload["groups"][0]["results"][0]["chunk_id"] == result_a.chunk_id
+    assert payload["groups"][0]["results"][0]["context_url"].endswith("/context?before=1&after=1")
 
 
 def test_search_chunks_rejects_unknown_method() -> None:
@@ -120,14 +160,14 @@ def test_hybrid_search_fuses_component_ranks_and_preserves_diagnostics(monkeypat
     result_b_semantic = _search_result(uuid.UUID(int=2), score=0.9, method="semantic_cosine")
     result_c = _search_result(uuid.UUID(int=3), score=0.8, method="semantic_cosine")
 
-    def fake_exact(session, query, collection_name, top_k, source_type=None):
+    def fake_exact(session, query, collection_name, top_k, source_type=None, filters=None):
         assert top_k == 10
-        assert source_type == "method"
+        assert filters.source_type == "method"
         return SearchResponse(query=query, results=[result_a, result_b_exact])
 
-    def fake_semantic(session, query, collection_name, top_k, source_type=None, *, settings=None):
+    def fake_semantic(session, query, collection_name, top_k, source_type=None, filters=None, *, settings=None):
         assert top_k == 10
-        assert source_type == "method"
+        assert filters.source_type == "method"
         return SearchResponse(
             query=query,
             results=[result_b_semantic, result_c],
@@ -231,6 +271,22 @@ def test_semantic_search_filters_source_type_before_top_k() -> None:
     )
 
     assert [result.chunk_id for result in response.results] == [str(chunks[1].id)]
+
+
+def test_semantic_search_filters_doi_before_top_k() -> None:
+    index, chunks = _semantic_index()
+
+    response = semantic_search(
+        FakeSession(),  # type: ignore[arg-type]
+        "doi filtered",
+        top_k=1,
+        filters=SearchFilters.normalize(doi="10.1000/semantic"),
+        settings=SimpleNamespace(embedding_model="test/model", data_root=None),  # type: ignore[arg-type]
+        loaded_index=index,
+        query_embedder=lambda query, model: [1.0, 0.0],
+    )
+
+    assert [result.chunk_id for result in response.results] == [str(chunks[0].id)]
 
 
 def test_semantic_search_uses_chunk_id_to_break_equal_score_ties() -> None:
@@ -373,6 +429,8 @@ def _search_result(chunk_id: uuid.UUID, *, score: float, method: str) -> SearchR
         chunk_id=str(chunk_id),
         title="Hybrid paper",
         doi="10.1000/hybrid",
+        year=2020,
+        journal="Journal",
         page_start=1,
         page_end=2,
         source_type="method",

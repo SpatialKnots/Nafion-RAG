@@ -6,11 +6,23 @@ from collections.abc import Iterable
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 from fastapi import HTTPException
 
-from app.ui import _truncate, article_detail, article_text_layers, dashboard, ingestion_page, retrieval_report_page, search_page
+from app.documents.context import ChunkContext, ChunkContextItem
+from app.retrieval.search import SearchFilters
+from app.ui import (
+    _truncate,
+    article_detail,
+    article_text_layers,
+    chunk_context_page,
+    dashboard,
+    ingestion_page,
+    retrieval_report_page,
+    search_page,
+)
 
 ARTICLE_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
@@ -180,13 +192,19 @@ def test_search_page_returns_results(monkeypatch) -> None:
         *,
         method: str,
         source_type: str | None = None,
+        filters: object | None = None,
+        group_by: str = "none",
+        chunks_per_article: int | None = None,
         settings: object | None = None,
     ) -> object:
-        assert source_type == "method"
+        assert cast(SearchFilters, filters).source_type == "method"
+        assert group_by == "none"
+        assert chunks_per_article is None
         assert method == "hybrid"
         assert settings is not None
         result = SimpleNamespace(
             article_id=str(ARTICLE_ID),
+            chunk_id="22222222-2222-2222-2222-222222222222",
             title="Li-Nafion evidence paper",
             doi="10.1000/example",
             page_start=1,
@@ -210,8 +228,51 @@ def test_search_page_returns_results(monkeypatch) -> None:
     assert "method" in body
     assert "ocr" in body
     assert "/articles/11111111-1111-1111-1111-111111111111/pdf?layer=original#page=1" in body
+    assert "/ui/articles/11111111-1111-1111-1111-111111111111/chunks/22222222-2222-2222-2222-222222222222/context" in body
     assert "hybrid_rrf" in body
     assert "value='hybrid' selected" in body
+
+
+def test_chunk_context_page_renders_context(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.ui.get_chunk_context",
+        lambda *args, **kwargs: ChunkContext(
+            article_id=str(ARTICLE_ID),
+            chunk_id="22222222-2222-2222-2222-222222222222",
+            title="Li-Nafion evidence paper",
+            doi="10.1000/example",
+            requested_chunk_index=0,
+            chunks=[
+                ChunkContextItem(
+                    chunk_id="22222222-2222-2222-2222-222222222222",
+                    chunk_index=0,
+                    role="requested",
+                    page_start=1,
+                    page_end=1,
+                    source_type="method",
+                    text_layer="original",
+                    text="Nafion conductivity context.",
+                    highlights=[],
+                )
+            ],
+            pdf_url=f"/articles/{ARTICLE_ID}/pdf?layer=original",
+            pdf_page_url=f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1",
+            truncated=False,
+        ),
+    )
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+
+    response = chunk_context_page(
+        _override_session(),  # type: ignore[arg-type]
+        ARTICLE_ID,
+        uuid.UUID("22222222-2222-2222-2222-222222222222"),
+    )
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "Li-Nafion evidence paper" in body
+    assert "Nafion conductivity context" in body
+    assert f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1" in body
 
 
 def test_article_pages_return_html() -> None:
