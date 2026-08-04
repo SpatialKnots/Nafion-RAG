@@ -42,11 +42,25 @@ class Settings(BaseSettings):
     ingestion_max_attempts: int = Field(default=3, ge=1)
     ingestion_failed_retention_days: int = Field(default=7, ge=1)
     ingestion_worker_id: str = ""
+    worker_role: str = "all"
+    vector_auto_rebuild_enabled: bool = True
+    vector_rebuild_debounce_seconds: int = Field(default=10, ge=0)
+    vector_rebuild_poll_seconds: int = Field(default=2, ge=1)
+    vector_rebuild_lease_seconds: int = Field(default=1800, ge=1)
+    vector_rebuild_heartbeat_seconds: int = Field(default=30, ge=1)
+    vector_rebuild_max_attempts: int = Field(default=3, ge=1)
+    vector_rebuild_batch_size: int = Field(default=64, ge=1)
+    vector_index_keep_generations: int = Field(default=2, ge=1)
+    vector_staging_retention_hours: int = Field(default=24, ge=1)
 
     @model_validator(mode="after")
     def validate_ingestion_timing(self) -> Settings:
         if self.ingestion_heartbeat_seconds >= self.ingestion_lease_seconds:
             raise ValueError("INGESTION_HEARTBEAT_SECONDS must be less than INGESTION_LEASE_SECONDS")
+        if self.vector_rebuild_heartbeat_seconds >= self.vector_rebuild_lease_seconds:
+            raise ValueError("VECTOR_REBUILD_HEARTBEAT_SECONDS must be less than VECTOR_REBUILD_LEASE_SECONDS")
+        if self.worker_role not in {"ingestion", "vector", "all"}:
+            raise ValueError("WORKER_ROLE must be one of: ingestion, vector, all")
         return self
 
 

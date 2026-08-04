@@ -9,6 +9,7 @@ from app.documents.service import PageEvidence, ResolvedPdf
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
 from app.generation.service import AnswerResponse
 from app.retrieval.search import SearchResponse
+from app.retrieval.vector_index import VectorIndexUnavailableError
 
 
 def test_search_endpoint_returns_exact_results(monkeypatch) -> None:
@@ -84,6 +85,19 @@ def test_search_endpoint_dispatches_hybrid_method(monkeypatch) -> None:
     payload = main.search(object(), q="proton transport", method="hybrid")
 
     assert payload["metadata"] == {"retrieval_method": "hybrid_rrf"}
+
+
+def test_search_endpoint_maps_vector_index_unavailable_to_503(monkeypatch) -> None:
+    def fail_search(*args: object, **kwargs: object) -> object:
+        raise VectorIndexUnavailableError("Vector index is unavailable for collection 'literature'")
+
+    monkeypatch.setattr(main, "search_chunks", fail_search)
+
+    with pytest.raises(HTTPException) as exc_info:
+        main.search(object(), q="proton transport", method="semantic")
+
+    assert exc_info.value.status_code == 503
+    assert "Vector index is unavailable" in str(exc_info.value.detail)
 
 
 def test_pdf_endpoint_returns_inline_file_response(monkeypatch, tmp_path) -> None:

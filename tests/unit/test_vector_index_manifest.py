@@ -10,10 +10,15 @@ import pytest
 
 from app.retrieval.vector_index import (
     build_local_vector_index,
+    build_local_vector_index_generation,
+    build_vector_index_generation_manifest,
     build_vector_index_manifest,
     chunk_text_checksum,
+    corpus_fingerprint_sha256,
+    load_current_vector_index_generation,
     load_local_vector_index,
     safe_index_name,
+    vector_index_generation_root,
     write_vector_index_manifest,
 )
 
@@ -30,6 +35,18 @@ class FakeSession:
         result = SimpleNamespace(all=lambda: self.rows)
         result.tuples = lambda: result
         return result
+
+
+class FakeLifecycleSession(FakeSession):
+    def __init__(self, collection: object, rows: list[tuple[object, object]], state: object | None) -> None:
+        super().__init__(collection, rows)
+        self.state = state
+
+    def scalar(self, statement: object) -> object | None:
+        text = str(statement)
+        if "FROM vector_index_states" in text:
+            return self.state
+        return self.collection
 
 
 def test_chunk_text_checksum_is_stable() -> None:
@@ -170,6 +187,165 @@ def test_build_local_vector_index_writes_rebuildable_artifacts(tmp_path) -> None
     assert all(item["sha256"] for item in manifest["index_files"])
     assert matrix.shape == (2, 2)
     assert chunk_ids == [str(chunk_1.id), str(chunk_2.id)]
+
+
+def test_build_local_vector_index_generation_writes_v3_immutable_generation(tmp_path) -> None:
+    collection, article, chunks = _vector_fixture()
+    session = FakeSession(collection, [(chunks[0], article), (chunks[1], article)])
+
+    generation = build_local_vector_index_generation(
+        session,  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+        target_revision=7,
+        embedding_dimension=2,
+        batch_size=2,
+        generation_id="generation-1",
+        build_id="build-1",
+        embedder=lambda texts, batch_size: [[1.0, 0.0], [0.0, 1.0]],
+    )
+
+    import numpy as np
+
+    expected_root = tmp_path / "processed" / "vector_indexes" / "literature" / "test_model"
+    assert generation.root == expected_root
+    assert generation.manifest_path == expected_root / "generations" / "generation-1" / "manifest.json"
+    assert generation.current_pointer_path == expected_root / "current.json"
+    assert not (expected_root / "staging" / "build-1").exists()
+
+    manifest = json.loads(generation.manifest_path.read_text(encoding="utf-8"))
+    current = json.loads(generation.current_pointer_path.read_text(encoding="utf-8"))
+    matrix = np.load(generation.manifest_path.parent / "embeddings.npy")
+    chunk_ids = json.loads((generation.manifest_path.parent / "chunk_ids.json").read_text(encoding="utf-8"))
+
+    assert manifest["schema_version"] == 3
+    assert manifest["collection"] == "literature"
+    assert manifest["collection_id"] == str(collection.id)
+    assert manifest["generation_id"] == "generation-1"
+    assert manifest["build_id"] == "build-1"
+    assert manifest["target_revision"] == 7
+    assert manifest["corpus_fingerprint_sha256"] == generation.corpus_fingerprint_sha256
+    assert [item["name"] for item in manifest["index_files"]] == ["embeddings.npy", "chunk_ids.json"]
+    assert current == {
+        "generation_id": "generation-1",
+        "manifest_sha256": generation.manifest_sha256,
+        "target_revision": 7,
+    }
+    assert matrix.shape == (2, 2)
+    assert chunk_ids == [str(chunks[0].id), str(chunks[1].id)]
+
+
+def test_build_local_vector_index_generation_keeps_legacy_v2_artifacts_separate(tmp_path) -> None:
+    collection, article, chunks = _vector_fixture()
+    session = FakeSession(collection, [(chunks[0], article), (chunks[1], article)])
+    legacy_manifest = build_local_vector_index(
+        session,  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+        embedding_dimension=2,
+        embedder=lambda texts, batch_size: [[1.0, 0.0], [0.0, 1.0]],
+    )
+
+    build_local_vector_index_generation(
+        session,  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+        target_revision=1,
+        embedding_dimension=2,
+        generation_id="generation-1",
+        build_id="build-1",
+        embedder=lambda texts, batch_size: [[1.0, 0.0], [0.0, 1.0]],
+    )
+
+    assert legacy_manifest == tmp_path / "processed" / "vector_indexes" / "test_model" / "manifest.json"
+    assert json.loads(legacy_manifest.read_text(encoding="utf-8"))["schema_version"] == 2
+    assert (tmp_path / "processed" / "vector_indexes" / "literature" / "test_model" / "current.json").is_file()
+
+
+def test_load_current_vector_index_generation_requires_ready_v3_state(tmp_path) -> None:
+    from app.db.models import VectorIndexState
+
+    collection, article, chunks = _vector_fixture()
+    build_session = FakeSession(collection, [(chunks[0], article), (chunks[1], article)])
+    generation = build_local_vector_index_generation(
+        build_session,  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+        target_revision=2,
+        embedding_dimension=2,
+        generation_id="generation-1",
+        build_id="build-1",
+        embedder=lambda texts, batch_size: [[1.0, 0.0], [0.0, 1.0]],
+    )
+    state = VectorIndexState(
+        collection_id=collection.id,
+        embedding_model="test/model",
+        status="ready",
+        desired_revision=2,
+        active_revision=2,
+        active_generation_id=generation.generation_id,
+        active_manifest_sha256=generation.manifest_sha256,
+        attempt_count=1,
+    )
+    session = FakeLifecycleSession(collection, [(chunks[0], article), (chunks[1], article)], state)
+
+    loaded = load_current_vector_index_generation(
+        session,  # type: ignore[arg-type]
+        data_root=tmp_path,
+        collection="literature",
+        embedding_model="test/model",
+    )
+
+    assert loaded.manifest["schema_version"] == 3
+    assert loaded.manifest["generation_id"] == "generation-1"
+    assert loaded.chunk_ids == [str(chunks[0].id), str(chunks[1].id)]
+
+
+def test_vector_index_generation_root_includes_collection_and_model(tmp_path) -> None:
+    assert vector_index_generation_root(tmp_path, "lit/erature", "BAAI/bge-small-en-v1.5") == (
+        tmp_path / "processed" / "vector_indexes" / "lit_erature" / "BAAI_bge-small-en-v1.5"
+    )
+
+
+def test_corpus_fingerprint_changes_when_chunk_evidence_changes() -> None:
+    base = [{"chunk_id": "1", "chunk_index": 0, "source_text_checksum_sha256": "a"}]
+    changed = [{"chunk_id": "1", "chunk_index": 0, "source_text_checksum_sha256": "b"}]
+
+    assert corpus_fingerprint_sha256(base) == corpus_fingerprint_sha256(list(base))
+    assert corpus_fingerprint_sha256(base) != corpus_fingerprint_sha256(changed)
+
+
+def test_build_vector_index_generation_manifest_records_lifecycle_fields() -> None:
+    collection, article, chunks = _vector_fixture()
+
+    manifest = build_vector_index_generation_manifest(
+        FakeSession(collection, [(chunks[0], article), (chunks[1], article)]),  # type: ignore[arg-type]
+        collection="literature",
+        embedding_model="test/model",
+        embedding_dimension=2,
+        generation_id="generation-1",
+        build_id="build-1",
+        target_revision=3,
+        build_command="vector rebuild",
+        batch_size=5,
+        snapshot_created_at=datetime(2026, 8, 3, tzinfo=UTC),
+        build_started_at=datetime(2026, 8, 3, tzinfo=UTC),
+        build_finished_at=datetime(2026, 8, 3, tzinfo=UTC),
+    )
+
+    assert manifest["schema_version"] == 3
+    assert manifest["status"] == "built"
+    assert manifest["collection_id"] == str(collection.id)
+    assert manifest["generation_id"] == "generation-1"
+    assert manifest["target_revision"] == 3
+    assert manifest["batch_size"] == 5
+    assert manifest["build_command"] == "vector rebuild"
+    assert manifest["corpus_fingerprint_sha256"]
+    assert manifest["chunk_count"] == 2
 
 
 def test_build_local_vector_index_normalizes_vectors(tmp_path) -> None:

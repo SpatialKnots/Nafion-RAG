@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, Numeric, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +23,7 @@ class Collection(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     articles: Mapped[list[Article]] = relationship(back_populates="collection")
+    vector_index_states: Mapped[list[VectorIndexState]] = relationship(back_populates="collection", cascade="all, delete-orphan")
 
 
 class Article(Base):
@@ -162,6 +163,46 @@ class IngestionJob(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class VectorIndexState(Base):
+    __tablename__ = "vector_index_states"
+    __table_args__ = (
+        UniqueConstraint("collection_id", "embedding_model", name="uq_vector_index_states_collection_model"),
+        CheckConstraint("status IN ('ready', 'stale', 'rebuilding', 'failed')", name="ck_vector_index_states_status"),
+        CheckConstraint("desired_revision >= 0", name="ck_vector_index_states_desired_revision"),
+        CheckConstraint("active_revision IS NULL OR active_revision >= 0", name="ck_vector_index_states_active_revision"),
+        CheckConstraint("building_revision IS NULL OR building_revision >= 0", name="ck_vector_index_states_building_revision"),
+        CheckConstraint("attempt_count >= 0", name="ck_vector_index_states_attempt_count"),
+        CheckConstraint(
+            "status != 'ready' OR (active_revision IS NOT NULL "
+            "AND active_generation_id IS NOT NULL AND active_manifest_sha256 IS NOT NULL)",
+            name="ck_vector_index_states_ready_active_generation",
+        ),
+        Index("ix_vector_index_states_status_requested_at", "status", "requested_at"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collections.id", ondelete="CASCADE"), nullable=False)
+    embedding_model: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="stale")
+    desired_revision: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
+    active_revision: Mapped[int | None] = mapped_column(BigInteger)
+    building_revision: Mapped[int | None] = mapped_column(BigInteger)
+    active_generation_id: Mapped[str | None] = mapped_column(Text)
+    active_manifest_sha256: Mapped[str | None] = mapped_column(Text)
+    requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    worker_id: Mapped[str | None] = mapped_column(Text)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error_type: Mapped[str | None] = mapped_column(Text)
+    last_error_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    collection: Mapped[Collection] = relationship(back_populates="vector_index_states")
 
 
 class StructuredFact(Base):

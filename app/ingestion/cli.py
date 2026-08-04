@@ -18,6 +18,7 @@ from app.db.session import SessionLocal
 from app.diagnostics.doctor import run_doctor
 from app.ingestion.service import IngestionResult, ingest_pdf, reselect_article_text
 from app.ingestion.text_layers import article_text_layer_summary
+from app.retrieval.index_lifecycle import mark_vector_index_stale
 
 cli = typer.Typer(help="Nafion RAG ingestion commands.")
 
@@ -425,7 +426,13 @@ def prune_missing_corpus(apply: bool = False) -> None:
             return
 
         backup_path = _backup_missing_articles(session, articles, settings.data_root / "backups")
+        collection_ids = sorted(
+            {collection_id for article in articles if (collection_id := getattr(article, "collection_id", None)) is not None}
+        )
         counts = _delete_articles(session, articles)
+        embedding_model = getattr(settings, "embedding_model", "BAAI/bge-small-en-v1.5")
+        for collection_id in collection_ids:
+            mark_vector_index_stale(session, collection_id=collection_id, embedding_model=embedding_model)
         session.commit()
         summary["backup_path"] = str(backup_path)
         summary["deleted"] = counts

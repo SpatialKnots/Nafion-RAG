@@ -14,7 +14,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from app.core.config import Settings, get_settings
 from app.db.models import Article, Chunk, Collection
 from app.documents.service import build_pdf_url
-from app.retrieval.vector_index import LoadedVectorIndex, embed_query_with_fastembed, load_local_vector_index
+from app.retrieval.vector_index import LoadedVectorIndex, embed_query_with_fastembed, load_current_vector_index_generation
 
 STOPWORDS = {"and", "in", "or", "the", "using", "vs", "with"}
 LIGATURES = str.maketrans({"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl"})
@@ -169,7 +169,7 @@ def semantic_search(
 
     active_settings = settings or get_settings()
     embedding_model = active_settings.embedding_model
-    index = loaded_index or load_local_vector_index(
+    index = loaded_index or load_current_vector_index_generation(
         session,
         data_root=active_settings.data_root,
         collection=collection_name,

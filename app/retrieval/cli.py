@@ -7,7 +7,19 @@ import typer
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
-from app.retrieval.vector_index import build_local_vector_index, build_vector_index_manifest, write_vector_index_manifest
+from app.retrieval.index_cleanup import cleanup_vector_index_generations
+from app.retrieval.index_lifecycle import (
+    complete_vector_rebuild,
+    get_vector_index_state_by_collection_name,
+    request_vector_rebuild,
+    vector_index_state_to_response,
+)
+from app.retrieval.vector_index import (
+    build_local_vector_index,
+    build_local_vector_index_generation,
+    build_vector_index_manifest,
+    write_vector_index_manifest,
+)
 
 cli = typer.Typer(help="Retrieval index planning commands.")
 
@@ -73,6 +85,62 @@ def build(
             batch_size=batch_size,
         )
     typer.echo({"output_path": str(output_path), "summary": {"collection": collection, "embedding_model": embedding_model}})
+
+
+@cli.command("status")
+def status(collection: str = "literature", embedding_model: str | None = None) -> None:
+    settings = get_settings()
+    model = embedding_model or settings.embedding_model
+    with SessionLocal() as session:
+        state = get_vector_index_state_by_collection_name(session, collection_name=collection, embedding_model=model)
+        if state is None:
+            typer.echo({"collection": collection, "embedding_model": model, "status": "missing"})
+            raise typer.Exit(code=1)
+        typer.echo(vector_index_state_to_response(state))
+
+
+@cli.command("rebuild-request")
+def rebuild_request(collection: str = "literature", embedding_model: str | None = None) -> None:
+    settings = get_settings()
+    model = embedding_model or settings.embedding_model
+    with SessionLocal() as session:
+        state = request_vector_rebuild(session, collection_name=collection, embedding_model=model)
+        session.commit()
+        typer.echo(vector_index_state_to_response(state))
+
+
+@cli.command("build-generation")
+def build_generation(
+    collection: str = "literature",
+    embedding_model: str | None = None,
+    batch_size: int | None = None,
+) -> None:
+    settings = get_settings()
+    model = embedding_model or settings.embedding_model
+    size = batch_size or settings.vector_rebuild_batch_size
+    with SessionLocal() as session:
+        state = request_vector_rebuild(session, collection_name=collection, embedding_model=model)
+        state.status = "rebuilding"
+        state.building_revision = state.desired_revision
+        generation = build_local_vector_index_generation(
+            session,
+            data_root=settings.data_root,
+            collection=collection,
+            embedding_model=model,
+            target_revision=state.building_revision,
+            batch_size=size,
+            build_command="python -m app.retrieval.cli build-generation",
+        )
+        complete_vector_rebuild(state, generation_id=generation.generation_id, manifest_sha256=generation.manifest_sha256)
+        session.commit()
+        typer.echo(vector_index_state_to_response(state))
+
+
+@cli.command("cleanup")
+def cleanup(apply: bool = False) -> None:
+    settings = get_settings()
+    with SessionLocal() as session:
+        typer.echo(cleanup_vector_index_generations(session, settings, apply=apply))
 
 
 if __name__ == "__main__":

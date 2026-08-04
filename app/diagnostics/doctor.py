@@ -12,7 +12,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.db.models import Article
+from app.db.models import Article, VectorIndexState
 from app.extraction.ocr import _OCR_TOOL_DIRS, _ocr_env, _resolve_command
 
 StatusPayload = dict[str, Any]
@@ -217,6 +217,47 @@ def _check_ingestion_settings(settings: Settings) -> StatusPayload:
     )
 
 
+def _check_vector_index_lifecycle(settings: Settings, session_factory: Callable[[], Session]) -> StatusPayload:
+    try:
+        with session_factory() as session:
+            states = list(session.scalars(select(VectorIndexState).order_by(VectorIndexState.embedding_model)))
+    except Exception as exc:
+        return _payload("FAIL", "could not inspect vector index lifecycle state", error_type=type(exc).__name__, error=str(exc))
+    if not states:
+        return _payload("WARN", "no vector index lifecycle state rows exist")
+
+    ready = 0
+    stale = 0
+    failed = 0
+    incomplete_ready: list[str] = []
+    for state in states:
+        if state.status == "ready":
+            ready += 1
+            if state.active_revision != state.desired_revision or not state.active_generation_id or not state.active_manifest_sha256:
+                incomplete_ready.append(str(state.id))
+        elif state.status == "stale":
+            stale += 1
+        elif state.status == "failed":
+            failed += 1
+    if incomplete_ready:
+        return _payload(
+            "FAIL",
+            "ready vector index state is incomplete or stale",
+            state_count=len(states),
+            incomplete_ready_state_ids=incomplete_ready[:10],
+        )
+    status = "PASS" if ready else "WARN"
+    return _payload(
+        status,
+        "vector index lifecycle state inspected",
+        state_count=len(states),
+        ready=ready,
+        stale=stale,
+        failed=failed,
+        auto_rebuild_enabled=settings.vector_auto_rebuild_enabled,
+    )
+
+
 def run_doctor(settings: Settings, session_factory: Callable[[], Session]) -> dict[str, StatusPayload]:
     required_languages = {part for part in settings.ocr_languages.split("+") if part}
     return {
@@ -225,6 +266,7 @@ def run_doctor(settings: Settings, session_factory: Callable[[], Session]) -> di
         "data_root": _check_data_root(settings),
         "upload_storage": _check_upload_storage(settings),
         "ingestion_settings": _check_ingestion_settings(settings),
+        "vector_index_lifecycle": _check_vector_index_lifecycle(settings, session_factory),
         "corpus_files": _check_corpus_files(session_factory),
         "ocr_command": _check_ocr_command(settings),
         "tesseract_languages": _check_tesseract_languages(required_languages),

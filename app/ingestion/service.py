@@ -26,6 +26,7 @@ from app.ingestion.text_layers import (
     select_best_pages,
 )
 from app.metadata.doi import extract_first_doi
+from app.retrieval.index_lifecycle import mark_vector_index_stale
 
 
 @dataclass(frozen=True)
@@ -138,6 +139,7 @@ def reselect_article_text(session: Session, settings: Settings, article: Article
     selected_pages = select_best_pages(session, article)
     chunk_count = _replace_article_content(session, settings, article, selected_pages)
     classify_article(session, article)
+    mark_vector_index_stale(session, collection_id=article.collection_id, embedding_model=settings.embedding_model)
     return chunk_count
 
 
@@ -230,6 +232,7 @@ def process_pdf(
     chunk_count = _replace_article_content(session, settings, article, selected_pages)
     session.flush()
     classify_article(session, article)
+    mark_vector_index_stale(session, collection_id=collection.id, embedding_model=settings.embedding_model)
 
     return IngestionResult(
         article_id=str(article.id),

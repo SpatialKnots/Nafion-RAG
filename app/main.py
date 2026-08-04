@@ -28,7 +28,14 @@ from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import enqueue_upload, job_to_response
 from app.ingestion.schemas import IngestionJobResponse, JobsResponse, UploadItemResponse, UploadItemStatus, UploadResponse
 from app.ingestion.upload import UploadValidationError, remove_staged_file, stage_upload_file
+from app.retrieval.index_lifecycle import (
+    get_vector_index_state_by_collection_name,
+    list_vector_index_states,
+    request_vector_rebuild,
+    vector_index_state_to_response,
+)
 from app.retrieval.search import search_chunks, search_response_to_dict
+from app.retrieval.vector_index import VectorIndexUnavailableError
 from app.ui import router as ui_router
 
 app = FastAPI(title="Nafion RAG", version="0.1.0")
@@ -76,8 +83,38 @@ def search(
                 settings=get_settings(),
             )
         )
+    except VectorIndexUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/vector-indexes")
+def vector_indexes(session: SessionDep) -> dict[str, object]:
+    return {"items": [vector_index_state_to_response(state) for state in list_vector_index_states(session)]}
+
+
+@app.get("/vector-indexes/{collection}")
+def vector_index_detail(session: SessionDep, collection: str, embedding_model: str | None = None) -> dict[str, object]:
+    model = embedding_model or get_settings().embedding_model
+    try:
+        state = get_vector_index_state_by_collection_name(session, collection_name=collection, embedding_model=model)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if state is None:
+        return {"collection": collection, "embedding_model": model, "status": "missing"}
+    return vector_index_state_to_response(state)
+
+
+@app.post("/vector-indexes/{collection}/rebuild")
+def vector_index_rebuild(session: SessionDep, collection: str, embedding_model: str | None = None) -> dict[str, object]:
+    model = embedding_model or get_settings().embedding_model
+    try:
+        state = request_vector_rebuild(session, collection_name=collection, embedding_model=model)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    session.commit()
+    return vector_index_state_to_response(state)
 
 
 @app.get("/articles/{article_id}/pdf")
@@ -197,5 +234,7 @@ def answer(session: SessionDep, request: AnswerRequest) -> dict[str, object]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except GenerationOutputError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except VectorIndexUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

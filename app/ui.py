@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated, Any, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from app.db.models import Article, ArticleTag, Chunk, Collection, IngestionJob, 
 from app.db.session import get_session
 from app.documents.service import build_pdf_url
 from app.ingestion.queue import job_to_response
+from app.retrieval.index_lifecycle import list_vector_index_states, request_vector_rebuild, vector_index_state_to_response
 from app.retrieval.search import search_chunks
 
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -99,6 +100,7 @@ def _layout(title: str, body: str) -> HTMLResponse:
         '<a href="/ui/search">Search</a>'
         '<a href="/ui/articles">Articles</a>'
         '<a href="/ui/ingestion">Ingestion</a>'
+        '<a href="/ui/vector-indexes">Vector indexes</a>'
         '<a href="/ui/reports/retrieval">Retrieval report</a>'
         '<a href="/ui/reports/classification">Classification report</a>'
     )
@@ -180,6 +182,54 @@ def dashboard(session: SessionDep) -> HTMLResponse:
     </form>
     """
     return _layout("Dashboard", body)
+
+
+@router.get("/ui/vector-indexes", response_class=HTMLResponse)
+def vector_indexes_page(session: SessionDep) -> HTMLResponse:
+    states = [vector_index_state_to_response(state) for state in list_vector_index_states(session)]
+    rows = []
+    for state in states:
+        collection = str(state.get("collection") or state.get("collection_id"))
+        model = str(state["embedding_model"])
+        error = ""
+        if state.get("last_error_type") or state.get("last_error_message"):
+            error = f"<div class='warn'>{_html(state.get('last_error_type'))}: {_html(state.get('last_error_message'))}</div>"
+        rows.append(
+            "<tr>"
+            f"<td>{_html(collection)}</td>"
+            f"<td class='path'>{_html(model)}</td>"
+            f"<td>{_html(state['status'])}{error}</td>"
+            f"<td class='num'>{_html(state['desired_revision'])}</td>"
+            f"<td class='num'>{_html(state['active_revision'])}</td>"
+            f"<td class='num'>{_html(state['building_revision'])}</td>"
+            f"<td>{_html(state['requested_at'])}</td>"
+            f"<td>{_html(state['finished_at'])}</td>"
+            "<td>"
+            f"<form method='post' action='/ui/vector-indexes/{_html(collection)}/rebuild'>"
+            f"<input type='hidden' name='embedding_model' value='{_html(model)}'>"
+            "<button type='submit'>Rebuild</button></form>"
+            "</td>"
+            "</tr>"
+        )
+    table_rows = "".join(rows) or "<tr><td colspan='9'>No vector index states</td></tr>"
+    body = (
+        "<h1>Vector Indexes</h1>"
+        "<table><tr><th>Collection</th><th>Embedding model</th><th>Status</th>"
+        "<th class='num'>Desired</th><th class='num'>Active</th><th class='num'>Building</th>"
+        f"<th>Requested</th><th>Finished</th><th>Action</th></tr>{table_rows}</table>"
+        "<p class='muted'>Exact search is independent. Semantic and hybrid require a ready vector index generation.</p>"
+    )
+    return _layout("Vector Indexes", body)
+
+
+@router.post("/ui/vector-indexes/{collection}/rebuild", response_class=HTMLResponse)
+def vector_index_rebuild_action(session: SessionDep, collection: str, embedding_model: Annotated[str, Form()]) -> HTMLResponse:
+    try:
+        request_vector_rebuild(session, collection_name=collection, embedding_model=embedding_model)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    session.commit()
+    return vector_indexes_page(session)
 
 
 @router.get("/ui/search", response_class=HTMLResponse)
