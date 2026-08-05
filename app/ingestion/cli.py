@@ -195,7 +195,7 @@ def _latest_retrieval_eval(data_root: Path) -> dict[str, object] | None:
     export_dir = data_root / "exports"
     if not export_dir.exists():
         return None
-    reports = sorted(export_dir.glob("retrieval_eval_*.json"), key=lambda path: path.name, reverse=True)
+    reports = sorted(export_dir.glob("retrieval_eval_*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
     if not reports:
         return None
     latest = reports[0]

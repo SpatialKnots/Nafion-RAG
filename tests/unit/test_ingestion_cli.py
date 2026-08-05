@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -158,6 +159,24 @@ def test_corpus_report_outputs_json_summary(monkeypatch, tmp_path) -> None:
     assert payload["summary"] == {"articles": 2, "articles_with_doi": 1}
 
 
+def test_latest_retrieval_eval_uses_file_mtime_not_name(tmp_path) -> None:
+    export_dir = tmp_path / "exports"
+    export_dir.mkdir()
+    older = export_dir / "retrieval_eval_semantic_20260804T083642Z.json"
+    newer = export_dir / "retrieval_eval_extended_hybrid_20260805T062109Z.json"
+    older.write_text(json.dumps({"created_at": "old", "summary": {"total": 24}, "settings": {"method": "semantic"}}), encoding="utf-8")
+    newer.write_text(json.dumps({"created_at": "new", "summary": {"total": 46}, "settings": {"method": "hybrid"}}), encoding="utf-8")
+    os.utime(older, (100, 100))
+    os.utime(newer, (200, 200))
+
+    latest = ingestion_cli._latest_retrieval_eval(tmp_path)
+
+    assert latest is not None
+    assert latest["path"] == str(newer)
+    assert latest["created_at"] == "new"
+    assert latest["summary"] == {"total": 46}
+
+
 def test_text_quality_report_outputs_json_summary(monkeypatch, tmp_path) -> None:
     runner = CliRunner()
     session = FakeSession()
@@ -264,6 +283,8 @@ def test_latest_retrieval_eval_loads_newest_summary(tmp_path) -> None:
         json.dumps({"created_at": "2026-08-03T01:00:00Z", "summary": {"total": 15}, "settings": {"top_k": 10}}),
         encoding="utf-8",
     )
+    os.utime(older, (100, 100))
+    os.utime(newer, (200, 200))
 
     report = ingestion_cli._latest_retrieval_eval(tmp_path)
 

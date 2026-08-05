@@ -1,0 +1,18 @@
+exact:
+  min_article_recall_at_k: 0.75
+  min_mrr: 0.50
+  min_unanswerable_pass_rate: 1.00
+  max_empty_result_queries: 1
+  max_false_answerable: 0
+semantic:
+  min_article_recall_at_k: 0.70
+  min_mrr: 0.45
+  min_unanswerable_pass_rate: 1.00
+  max_empty_result_queries: 1
+  max_false_answerable: 0
+hybrid:
+  min_article_recall_at_k: 0.75
+  min_mrr: 0.50
+  min_unanswerable_pass_rate: 1.00
+  max_empty_result_queries: 1
+  max_false_answerable: 0

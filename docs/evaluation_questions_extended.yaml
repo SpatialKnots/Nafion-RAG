@@ -1,0 +1,462 @@
+- id: qext001_ma_solution_casting_morphology
+  query: "Morphology properties Nafion membranes solution casting"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1016/j.polymer.2009.01.060"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1016/j.polymer.2009.01.060"
+        text_contains: ["solution casting", "Nafion"]
+        relevance: 2
+  notes: "Ma 2009 solution-cast Nafion morphology baseline."
+- id: qext002_ma_casting_solvents_aggregation
+  query: "DMAc DMF NMF ionic aggregation sphere radius Nafion"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1016/j.polymer.2009.01.060"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1016/j.polymer.2009.01.060"
+        text_contains: ["DMAc", "DMF"]
+        relevance: 2
+  notes: "Solvent-dependent aggregation evidence from Ma 2009."
+- id: qext003_ma_table_solvent_set
+  query: "Nafion casting solvent table DMF DMSO NMP EtOH DMAc"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1016/j.polymer.2009.01.060"
+        relevance: 3
+  notes: "Broad solvent/table-oriented Ma 2009 case."
+- id: qext004_dai_casting_solvent_annealing
+  query: "Effect casting solvent annealing temperature recast Nafion membranes"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1016/j.memsci.2016.09.014"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1016/j.memsci.2016.09.014"
+        text_contains: ["solvent", "temperature"]
+        relevance: 2
+  notes: "Dai 2017 casting solvent and annealing temperature."
+- id: qext005_dai_vanadium_permeability
+  query: "vanadium permeability recast Nafion membranes current efficiency"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1016/j.memsci.2016.09.014"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1016/j.memsci.2016.09.014"
+        text_contains: ["vanadium", "permeability"]
+        relevance: 2
+  notes: "Dai 2017 VRFB permeability evidence."
+- id: qext006_dai_vrfb_recast_performance
+  query: "recast Nafion membranes vanadium redox flow battery performance solvent"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1016/j.memsci.2016.09.014"
+        relevance: 3
+  notes: "Paraphrase case for Dai 2017 VRFB membrane performance."
+- id: qext007_laporta_water_recast
+  query: "PSFA dispersions pure water Recast Nafion-117 thin film"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1002/1439-2054(20001001)282:1"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1002/1439-2054(20001001)282:1"
+        text_contains: ["PSFA", "pure water"]
+        relevance: 2
+  notes: "Laporta 2000 recast Nafion-117 from water solution."
+- id: qext008_laporta_water_absorption_conductivity
+  query: "recast Nafion 117 water absorption conductivity thin film"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1002/1439-2054(20001001)282:1"
+        relevance: 3
+  notes: "Laporta 2000 water/thin-film property query."
+- id: qext009_kim_dispersion_cast_toughness
+  query: "Origin Toughness Dispersion-Cast Nafion membranes"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1021/ma502538k"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1021/ma502538k"
+        text_contains: ["Origin", "Toughness"]
+        relevance: 2
+  notes: "Kim 2015 dispersion-cast toughness baseline."
+- id: qext010_kim_chain_entanglements
+  query: "dispersion-cast Nafion mechanical toughness polymer chain entanglements"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1021/ma502538k"
+        relevance: 3
+  notes: "Kim 2015 mechanism paraphrase."
+- id: qext011_kim_sans_dispersion_particles
+  query: "Nafion dispersing fluids SANS particle gelation 2-propanol"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1021/ma502538k"
+        relevance: 3
+  notes: "Kim 2015 SANS/dispersion-fluid query."
+- id: qext012_welch_sans_glycerol
+  query: "Welch SANS NMR glycerol ethylene glycol Nafion"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1021/mz3005204"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1021/mz3005204"
+        text_contains: ["SANS", "glycerol"]
+        relevance: 2
+  notes: "Welch 2012 dilute solvent systems."
+- id: qext013_welch_dilute_solvent_dispersion_solution
+  query: "Nafion dilute solvent systems dispersion or solution morphology SANS"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1021/mz3005204"
+        relevance: 3
+  notes: "Broad Welch 2012 morphology/SANS case."
+- id: qext014_welch_nmp_absence_peak
+  query: "Nafion in NMP SANS profile absence of peak"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1021/mz3005204"
+        relevance: 3
+  notes: "Welch 2012 NMP-specific evidence case."
+- id: qext015_cho_pvdf_dmfc
+  query: "Nafion Polyvinylidene Fluoride Direct Methanol Fuel Cell solvent casting"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1080/00986445.2013.855205"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1080/00986445.2013.855205"
+        text_contains: ["Polyvinylidene Fluoride", "Direct Methanol Fuel Cell"]
+        relevance: 2
+  notes: "Cho 2015 Nafion/PVDF DMFC case."
+- id: qext016_cho_solvent_casting_condition
+  query: "solvent casting condition electrochemical properties Nafion PVDF blend"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1080/00986445.2013.855205"
+        relevance: 3
+  notes: "Cho 2015 title-level paraphrase."
+- id: qext017_mohammadi_chlor_alkali
+  query: "Mohammadi Rabiee perfluorosulfonic sodium Chlor-Alkali"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1002/app.33526"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1002/app.33526"
+        text_contains: ["Perfluorosulfonic Sodium", "Chlor-Alkali"]
+        relevance: 2
+  notes: "Mohammadi and Rabiee 2011 Chlor-Alkali application."
+- id: qext018_mohammadi_performance_evaluation
+  query: "performance evaluation perfluorosulfonic sodium type membrane chlor alkali application"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1002/app.33526"
+        relevance: 3
+  notes: "Mohammadi and Rabiee 2011 paraphrase."
+- id: qext019_moore_martin_solution_cast_pfsi
+  query: "Chemical Morphological Properties Solution-Cast Perfluorosulfonate Ionomers Moore Martin"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - title_contains: "Chemical and morphological properties of solution-cast perfluorosulfonate ionomers"
+        checksum: "a537b029ae93c418c0d37df1cae1ce5862ca4bbeaa1abc689a3958760444c30f"
+        relevance: 3
+    chunks:
+      - article_checksum: "a537b029ae93c418c0d37df1cae1ce5862ca4bbeaa1abc689a3958760444c30f"
+        text_contains: ["Solution-Cast", "Perfluorosulfonate"]
+        relevance: 2
+  notes: "DOI-less Moore and Martin 1988."
+- id: qext020_moore_martin_waxd_recast
+  query: "WAXD scans recast solution processed Nafion Moore Martin"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - checksum: "a537b029ae93c418c0d37df1cae1ce5862ca4bbeaa1abc689a3958760444c30f"
+        relevance: 3
+  notes: "DOI-less Moore and Martin WAXD/morphology evidence."
+- id: qext021_sanginov_li_nafion_ec_sl
+  query: "Sanginov Li-Nafion sulfolane ethylene carbonate conductivity"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1016/j.electacta.2021.137914"
+        relevance: 3
+  notes: "Sanginov 2021 Li-Nafion EC/SL conductivity."
+- id: qext022_sanginov_quantum_swelling
+  query: "binary plasticiser Quantum chemical calculations Swelling Ionic conductivity"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1016/j.electacta.2021.137914"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1016/j.electacta.2021.137914"
+        text_contains: ["Quantum chemical", "Swelling"]
+        relevance: 2
+  notes: "Sanginov 2021 abstract/method terms."
+- id: qext023_sanginov_solubility_shells
+  query: "sulfolane ethylene carbonate lithium solvation shells Nafion membrane"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.1016/j.electacta.2021.137914"
+        relevance: 3
+  notes: "Sanginov 2021 solvation-shell evidence."
+- id: qext024_sanginov_sup_m05_tzvp_smd
+  query: "M05-2X TZVP SMD ethylene carbonate sulfolane quantum chemical calculations"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - title: "Sanginov 2021 - sup"
+        checksum: "72facadf39cdb1ddf220320ea2ccbb7cc3c5bcdb7fa2e4c8907b0e44841dbd27"
+        relevance: 3
+    chunks:
+      - article_checksum: "72facadf39cdb1ddf220320ea2ccbb7cc3c5bcdb7fa2e4c8907b0e44841dbd27"
+        text_contains: ["M05-2X/TZVP", "SMD"]
+        relevance: 2
+  notes: "DOI-less Sanginov supplementary computational-method evidence."
+- id: qext025_sanginov_sup_dielectric_constant
+  query: "M05-2X TZVP SMD dielectric constant quantum chemical calculations"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - checksum: "72facadf39cdb1ddf220320ea2ccbb7cc3c5bcdb7fa2e4c8907b0e44841dbd27"
+        relevance: 3
+  notes: "Sanginov supplementary dielectric-constant appendix."
+- id: qext026_istomina_mixing_temperature
+  query: "Istomina Yaroslavtseva Reznitskikh mixing temperature physicochemical"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.3390/polym13071150"
+        relevance: 3
+    chunks:
+      - article_doi: "10.3390/polym13071150"
+        text_contains: ["mixing temperature", "physicochemical"]
+        relevance: 2
+  notes: "Istomina 2021 Li-Nafion EC/SL mixing-temperature paper."
+- id: qext027_istomina_li_nafion_solvents
+  query: "Li-Nafion ethylene carbonate sulfolane mixing temperature polymer membrane"
+  language: en
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.3390/polym13071150"
+        relevance: 3
+  notes: "Istomina 2021 English paraphrase."
+- id: qext028_reznitskikh_phase_diagram_ru
+  query: "фазовая диаграмма системы этиленкарбонат сульфолан"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.31857/s0044453721060224"
+        relevance: 3
+  notes: "Russian query for Reznitskikh 2021 phase diagram."
+- id: qext029_reznitskikh_phase_diagram_caps_ru
+  query: "ФАЗОВАЯ ДИАГРАММА СИСТЕМЫ ЭТИЛЕНКАРБОНАТ СУЛЬФОЛАН"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.31857/s0044453721060224"
+        relevance: 3
+  notes: "Uppercase Russian title query."
+- id: qext030_kayumov_conductivity_ru
+  query: "электропроводность литий-проводящих мембран Нафион сульфолан этиленкарбонат диглим"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.31857/s0424857021060049"
+        relevance: 3
+  notes: "Russian Kayumov 2021 conductivity query."
+- id: qext031_kayumov_diglyme_ru
+  query: "диглим сульфолан этиленкарбонат литий-проводящие мембраны Нафион"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.31857/s0424857021060049"
+        relevance: 3
+  notes: "Russian solvent-specific Kayumov 2021 query."
+- id: qext032_chernyuk_water_thermodynamics_ru
+  query: "термодинамика взаимодействия полиперфторсульфоновой кислоты Nafion с водой"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.31857/s2308112023700463"
+        relevance: 3
+  notes: "Russian Chernyuk 2023 Nafion-water thermodynamics."
+- id: qext033_chernyuk_2023_water_caps_ru
+  query: "ТЕРМОДИНАМИКА ВЗАИМОДЕЙСТВИЯ NAFION С ВОДОЙ"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - doi: "10.31857/s2308112023700463"
+        relevance: 3
+  notes: "Uppercase Russian Chernyuk 2023 query."
+- id: qext034_chernyuk_dissertation_title_ru
+  query: "Чернюк Семён Дмитриевич влияние ионов лития термодинамические релаксационные свойства мембран Nafion"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - title: "Диссертация Чернюк С.Д."
+        checksum: "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+        relevance: 3
+  notes: "DOI-less Russian dissertation query."
+- id: qext035_chernyuk_dissertation_solvent_table_ru
+  query: "растворитель проводимость Li-Nafion НМП этанол диглим таблица"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - checksum: "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+        relevance: 3
+  notes: "Russian dissertation table-oriented conductivity query."
+- id: qext036_chernyuk_dissertation_dft_ru
+  query: "DFT комплексы Li Nafion параметры растворителей энтальпия набухания"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - checksum: "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+        relevance: 3
+  notes: "Russian dissertation DFT/solvent-parameter query."
+- id: qext037_chernyuk_2024_enthalpy_ru
+  query: "энтальпия взаимодействия литированной мембраны Nafion водными растворами спиртов"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - title: "Чернюк 2024"
+        checksum: "de0c55db3994c9a6c2a2e3f0939d3b28b907fe3ac0c6ca867050be02bc53f182"
+        relevance: 3
+  notes: "DOI-less Chernyuk 2024 enthalpy query."
+- id: qext038_chernyuk_2024_alcohol_solutions_ru
+  query: "водные растворы спиртов литированная мембрана Nafion энтальпия"
+  language: ru
+  answerable: true
+  expected:
+    articles:
+      - checksum: "de0c55db3994c9a6c2a2e3f0939d3b28b907fe3ac0c6ca867050be02bc53f182"
+        relevance: 3
+  notes: "Russian paraphrase for Chernyuk 2024."
+- id: qext039_absent_mars_regolith
+  query: "zirconium cerium extraterrestrial regolith perchlorate electrolyte"
+  language: en
+  answerable: false
+  expected:
+    articles: []
+    chunks: []
+  notes: "Unanswerable control: off-corpus extraterrestrial electrolyte topic."
+- id: qext040_absent_graphene_quantum_dots
+  query: "graphene quantum dots perovskite solar cell Nafion binder"
+  language: en
+  answerable: false
+  expected:
+    articles: []
+    chunks: []
+  notes: "Unanswerable control: material/device topic outside current corpus."
+- id: qext041_absent_biomedical_drug_delivery
+  query: "Nafion biomedical drug delivery hydrogel wound dressing"
+  language: en
+  answerable: false
+  expected:
+    articles: []
+    chunks: []
+  notes: "Unanswerable control: biomedical application outside current corpus."
+- id: qext042_absent_high_temperature_pbi
+  query: "polybenzimidazole phosphoric acid anhydrous fuel cell Nafion composite"
+  language: en
+  answerable: false
+  expected:
+    articles: []
+    chunks: []
+  notes: "Unanswerable control: PBI/phosphoric-acid topic not represented in the corpus."
+- id: qext043_absent_machine_learning_synthesis
+  query: "machine learning synthesis planning perfluorosulfonic ionomer membrane"
+  language: en
+  answerable: false
+  expected:
+    articles: []
+    chunks: []
+  notes: "Unanswerable control: ML synthesis planning outside corpus scope."
+- id: qext044_absent_neutron_radiography
+  query: "operando neutron radiography water flooding PEM fuel cell Nafion"
+  language: en
+  answerable: false
+  expected:
+    articles: []
+    chunks: []
+  notes: "Unanswerable control: operando radiography topic outside current set."
+- id: qext045_absent_alkaline_exchange_membrane
+  query: "quaternary ammonium alkaline exchange membrane hydroxide conductivity"
+  language: en
+  answerable: false
+  expected:
+    articles: []
+    chunks: []
+  notes: "Unanswerable control: AEM chemistry outside Nafion/PFSA corpus."
+- id: qext046_absent_redox_mediator_lithium_sulfur
+  query: "lithium sulfur battery redox mediator polysulfide shuttle Nafion separator"
+  language: en
+  answerable: false
+  expected:
+    articles: []
+    chunks: []
+  notes: "Unanswerable control: Li-S battery separator topic outside current corpus."

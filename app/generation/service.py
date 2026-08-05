@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.generation.providers import (
     AnswerProvider,
     Evidence,
@@ -106,6 +107,28 @@ def answer_question(
         settings=settings,
     )
     evidence = _evidence_from_response(retrieval)
+    adequacy = assess_evidence_adequacy(normalized_question, evidence)
+    adequacy_metadata = {
+        "adequate": adequacy.adequate,
+        "reason": adequacy.reason,
+        "distinctive_terms": adequacy.distinctive_terms,
+        "matched_terms": adequacy.matched_terms,
+        "top_matched_terms": adequacy.top_matched_terms,
+        "coverage": adequacy.coverage,
+        "top_coverage": adequacy.top_coverage,
+    }
+    if not adequacy.adequate:
+        return AnswerResponse(
+            query=normalized_question,
+            status="insufficient_evidence",
+            answer=None,
+            claims=[],
+            citations=[],
+            retrieval_method=active_method,
+            generation_provider=settings.rag_provider,
+            generation_model=settings.rag_model or None,
+            metadata={"retrieval": retrieval.metadata, "retrieved_count": len(retrieval.results), "evidence_adequacy": adequacy_metadata},
+        )
     active_provider = provider or build_answer_provider(settings)
     generated = active_provider.generate(normalized_question, evidence)
     if not evidence or not generated.answerable:
@@ -118,7 +141,7 @@ def answer_question(
             retrieval_method=active_method,
             generation_provider=generated.provider,
             generation_model=generated.model,
-            metadata={"retrieval": retrieval.metadata, "retrieved_count": len(retrieval.results)},
+            metadata={"retrieval": retrieval.metadata, "retrieved_count": len(retrieval.results), "evidence_adequacy": adequacy_metadata},
         )
     _validate_claims(generated.claims, evidence)
     used_ids = {citation_id for claim in generated.claims for citation_id in claim.citation_ids}
@@ -133,7 +156,7 @@ def answer_question(
         retrieval_method=active_method,
         generation_provider=generated.provider,
         generation_model=generated.model,
-        metadata={"retrieval": retrieval.metadata, "retrieved_count": len(retrieval.results)},
+        metadata={"retrieval": retrieval.metadata, "retrieved_count": len(retrieval.results), "evidence_adequacy": adequacy_metadata},
     )
 
 

@@ -317,3 +317,44 @@ Inspect the latest retrieval evaluation report in the UI:
 ```text
 http://127.0.0.1:8000/ui/reports/retrieval
 ```
+
+## Extended Retrieval Evaluation
+
+Priority 8 adds a separate extended evaluation path. It does not change search
+scoring or the legacy `retrieval` command.
+
+Run the seed extended set:
+
+```powershell
+python -m app.evaluation.cli retrieval-extended docs/evaluation_questions_extended.yaml --top-k 10 --method exact
+```
+
+Run threshold checks:
+
+```powershell
+python -m app.evaluation.cli retrieval-extended docs/evaluation_questions_extended.yaml --top-k 10 --method exact --check-thresholds
+```
+
+Thresholds live in:
+
+```text
+docs/evaluation_thresholds.yaml
+```
+
+Extended reports are written to:
+
+```text
+data/exports/retrieval_eval_extended_<method>_<timestamp>.json
+```
+
+The extended schema supports:
+
+- graded article targets by DOI, title, title substring, checksum, or article ID;
+- chunk targets by chunk ID or stable text fragments scoped to an article;
+- answerable and unanswerable questions;
+- article Recall@k, Precision@k, MRR, nDCG@k, chunk Recall@k, latency, and evidence trace completeness.
+- deterministic evidence-adequacy diagnostics for unanswerable controls.
+
+Unanswerable controls are not expected to return an empty retrieval list. They
+pass when retrieved snippets fail the shared evidence-adequacy policy and would
+therefore be treated as `insufficient_evidence` by the answer layer.

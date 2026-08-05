@@ -22,7 +22,7 @@ def test_answer_question_returns_source_linked_extractive_claims(monkeypatch) ->
     monkeypatch.setattr(
         "app.generation.service.search_chunks",
         lambda *args, **kwargs: SearchResponse(
-            query="What is measured?",
+            query="How was conductivity measured?",
             results=[search_result],
             metadata={"fusion": "reciprocal_rank_fusion"},
         ),
@@ -31,7 +31,7 @@ def test_answer_question_returns_source_linked_extractive_claims(monkeypatch) ->
     response = answer_question(
         object(),  # type: ignore[arg-type]
         _settings(),  # type: ignore[arg-type]
-        "What is measured?",
+        "How was conductivity measured?",
         provider=ExtractiveAnswerProvider(max_claims=3),
     )
     payload = answer_response_to_dict(response)
@@ -61,10 +61,44 @@ def test_answer_question_refuses_when_retrieval_returns_no_evidence(monkeypatch)
     assert response.citations == []
 
 
+def test_answer_question_refuses_when_evidence_lacks_distinctive_terms(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="zirconium cerium extraterrestrial regolith perchlorate electrolyte",
+            results=[
+                SearchResult(
+                    article_id=str(uuid.UUID(int=1)),
+                    chunk_id=str(uuid.UUID(int=2)),
+                    title="Unrelated paper",
+                    doi=None,
+                    page_start=1,
+                    page_end=1,
+                    source_type="body",
+                    snippet="Nafion conductivity in polymer membranes.",
+                    score=1.0,
+                    retrieval_method="exact_ilike",
+                )
+            ],
+        ),
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "zirconium cerium extraterrestrial regolith perchlorate electrolyte",
+        provider=ExtractiveAnswerProvider(max_claims=3),
+    )
+
+    assert response.status == "insufficient_evidence"
+    assert response.claims == []
+    assert response.metadata["evidence_adequacy"]["adequate"] is False  # type: ignore[index]
+
+
 def test_answer_question_rejects_unknown_generated_citation(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.generation.service.search_chunks",
-        lambda *args, **kwargs: SearchResponse(query="query", results=[_search_result()]),
+        lambda *args, **kwargs: SearchResponse(query="conductivity measured", results=[_search_result()]),
     )
     provider = StaticProvider(
         ProviderResult(
@@ -76,18 +110,18 @@ def test_answer_question_rejects_unknown_generated_citation(monkeypatch) -> None
     )
 
     with pytest.raises(GenerationOutputError, match="unknown citations"):
-        answer_question(object(), _settings(), "query", provider=provider)  # type: ignore[arg-type]
+        answer_question(object(), _settings(), "conductivity measured", provider=provider)  # type: ignore[arg-type]
 
 
 def test_answer_question_rejects_answerable_output_without_claims(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.generation.service.search_chunks",
-        lambda *args, **kwargs: SearchResponse(query="query", results=[_search_result()]),
+        lambda *args, **kwargs: SearchResponse(query="conductivity measured", results=[_search_result()]),
     )
     provider = StaticProvider(ProviderResult(answerable=True, claims=[], provider="test", model=None))
 
     with pytest.raises(GenerationOutputError, match="at least one claim"):
-        answer_question(object(), _settings(), "query", provider=provider)  # type: ignore[arg-type]
+        answer_question(object(), _settings(), "conductivity measured", provider=provider)  # type: ignore[arg-type]
 
 
 def test_build_answer_provider_rejects_unknown_provider() -> None:
