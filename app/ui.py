@@ -17,9 +17,12 @@ from app.db.models import Article, ArticleTag, Chunk, Collection, IngestionJob, 
 from app.db.session import get_session
 from app.documents.context import ContextNotFoundError, get_chunk_context, get_page_range_context
 from app.documents.service import PageEvidenceNotFoundError, build_pdf_url
+from app.generation.providers import GenerationOutputError, GenerationUnavailableError
+from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import job_to_response
 from app.retrieval.index_lifecycle import list_vector_index_states, request_vector_rebuild, vector_index_state_to_response
 from app.retrieval.search import SearchFilters, search_chunks
+from app.retrieval.vector_index import VectorIndexUnavailableError
 
 SessionDep = Annotated[Session, Depends(get_session)]
 router = APIRouter()
@@ -126,17 +129,24 @@ def _layout(title: str, body: str) -> HTMLResponse:
     mark { background:#fff1a8; padding:0 1px; }
     pre.context { white-space: pre-wrap; font-family: Consolas, monospace; font-size: 13px; margin: 6px 0 0; }
     input, select, button { font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:4px; background:#fff; }
+    textarea { font: inherit; padding:7px 8px; border:1px solid var(--line); border-radius:4px; background:#fff;
+      min-width: min(720px, 100%); }
     button { background:#2454a6; color:#fff; border-color:#2454a6; }
     form { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:14px; }
+    form.stack { display:block; }
+    form.stack label { display:block; margin:0 0 10px; }
+    form.stack .actions { margin-top:8px; }
     a { color: var(--accent); }
     """
     nav = (
         '<a href="/">Dashboard</a>'
         '<a href="/ui/search">Search</a>'
+        '<a href="/ui/answer">Answer</a>'
         '<a href="/ui/articles">Articles</a>'
         '<a href="/ui/ingestion">Ingestion</a>'
         '<a href="/ui/vector-indexes">Vector indexes</a>'
         '<a href="/ui/reports/retrieval">Retrieval report</a>'
+        '<a href="/ui/reports/text-quality">Text quality</a>'
         '<a href="/ui/reports/classification">Classification report</a>'
     )
     html = f"""<!doctype html>
@@ -158,10 +168,16 @@ def _layout(title: str, body: str) -> HTMLResponse:
 def dashboard(session: SessionDep) -> HTMLResponse:
     settings = get_settings()
     retrieval_report = _latest_report(settings.data_root, "retrieval_eval_*.json")
+    text_quality_report = _latest_report(settings.data_root, "text_quality_report_*.json")
     retrieval_report_link = (
         f"<a href='/ui/reports/retrieval'>Latest retrieval evaluation</a><div class='path'>{_html(retrieval_report)}</div>"
         if retrieval_report is not None
         else "<span class='warn'>No retrieval evaluation report generated yet.</span>"
+    )
+    text_quality_report_link = (
+        f"<a href='/ui/reports/text-quality'>Latest text quality audit</a><div class='path'>{_html(text_quality_report)}</div>"
+        if text_quality_report is not None
+        else "<span class='warn'>No text quality report generated yet.</span>"
     )
     article_count = session.scalar(select(func.count()).select_from(Article)) or 0
     page_count = session.scalar(select(func.count()).select_from(Page)) or 0
@@ -182,6 +198,7 @@ def dashboard(session: SessionDep) -> HTMLResponse:
     source_rows = _counter_rows(source_types)
     text_layer_rows = _counter_rows(text_layers)
     eval_command = "python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10"
+    text_quality_command = "python -m app.ingestion.cli text-quality-report"
     selected_panel = (
         '<section class="panel"><h2>Selected Page Layers</h2>'
         f'<table><tr><th>Layer</th><th class="num">Pages</th></tr>{selected_rows}</table></section>'
@@ -202,6 +219,7 @@ def dashboard(session: SessionDep) -> HTMLResponse:
       {source_panel}
       {text_layer_panel}
       <section class="panel"><h2>Retrieval Evaluation</h2>{retrieval_report_link}{_command_hint(eval_command)}</section>
+      <section class="panel"><h2>Text Quality</h2>{text_quality_report_link}{_command_hint(text_quality_command)}</section>
     </div>
     <h2>Quick Search</h2>
     <form method="get" action="/ui/search">
@@ -217,6 +235,123 @@ def dashboard(session: SessionDep) -> HTMLResponse:
     </form>
     """
     return _layout("Dashboard", body)
+
+
+def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
+    status_class = "ok" if payload.get("status") == "answered" else "warn"
+    answer = payload.get("answer")
+    metadata = payload.get("metadata", {})
+    adequacy = metadata.get("evidence_adequacy") if isinstance(metadata, dict) else None
+    adequacy_row = ""
+    if isinstance(adequacy, dict):
+        adequacy_row = (
+            f"<p><strong>Evidence:</strong> {_html(adequacy.get('reason'))} "
+            f"<span class='muted'>coverage={_html(adequacy.get('coverage'))}, top={_html(adequacy.get('top_coverage'))}</span></p>"
+        )
+    claim_rows = []
+    claims = payload.get("claims", [])
+    if isinstance(claims, list):
+        for claim in claims:
+            if not isinstance(claim, dict):
+                continue
+            claim_rows.append(
+                "<tr>"
+                f"<td>{_html(claim.get('text'))}</td>"
+                f"<td>{_html(', '.join(str(item) for item in claim.get('citation_ids', [])))}</td>"
+                "</tr>"
+            )
+    citation_rows = []
+    citations = payload.get("citations", [])
+    if isinstance(citations, list):
+        for citation in citations:
+            if not isinstance(citation, dict):
+                continue
+            article_id = citation.get("article_id")
+            chunk_id = citation.get("chunk_id")
+            page_start = citation.get("page_start") if isinstance(citation.get("page_start"), int) else None
+            page_end = citation.get("page_end") if isinstance(citation.get("page_end"), int) else None
+            links = []
+            if article_id and chunk_id:
+                links.append(_context_link(str(article_id), str(chunk_id), question))
+            if article_id:
+                links.append(_pdf_link(str(article_id), page_start))
+            title = _html(citation.get("title"))
+            article_cell = f"<a href='/ui/articles/{_html(article_id)}'>{title}</a>" if article_id else title
+            citation_rows.append(
+                "<tr>"
+                f"<td>{_html(citation.get('citation_id'))}</td>"
+                f"<td>{article_cell}"
+                f"<div class='muted'>{_html(citation.get('doi'))}</div></td>"
+                f"<td class='num'>{_html(_page_range(page_start, page_end))}</td>"
+                f"<td class='num'>{_html(citation.get('score'))}</td>"
+                f"<td>{_html(_truncate(str(citation.get('text') or ''), 360))}</td>"
+                f"<td class='actions'>{' '.join(links)}</td>"
+                "</tr>"
+            )
+    answer_block = (
+        f"<pre class='context'>{_html(str(answer))}</pre>"
+        if answer
+        else "<p class='warn'>No answer: evidence was insufficient or generation failed validation.</p>"
+    )
+    claim_rows_html = "".join(claim_rows) or "<tr><td colspan='2'>No claims</td></tr>"
+    citation_rows_html = "".join(citation_rows) or "<tr><td colspan='6'>No citations</td></tr>"
+    return (
+        "<section class='panel'>"
+        f"<p><strong>Status:</strong> <span class='{status_class}'>{_html(payload.get('status'))}</span> "
+        f"<strong>Retrieval:</strong> {_html(payload.get('retrieval_method'))} "
+        f"<strong>Provider:</strong> {_html(payload.get('generation_provider'))}</p>"
+        f"{adequacy_row}"
+        f"{answer_block}"
+        "</section>"
+        "<h2>Claims</h2><table><tr><th>Claim</th><th>Citations</th></tr>"
+        f"{claim_rows_html}</table>"
+        "<h2>Citations</h2><table><tr><th>ID</th><th>Article</th><th class='num'>Pages</th>"
+        f"<th class='num'>Score</th><th>Evidence text</th><th>Links</th></tr>{citation_rows_html}</table>"
+    )
+
+
+def _answer_body(question: str = "", collection: str = "literature", top_k: int = 5, method: str = "hybrid", result: str = "") -> str:
+    method_options = "".join(
+        f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>" for value in ("exact", "semantic", "hybrid")
+    )
+    return f"""
+    <h1>Answer</h1>
+    <form class="stack" method="post" action="/ui/answer">
+      <label>Question<br><textarea name="question" rows="4">{_html(question)}</textarea></label>
+      <div class="actions">
+        <label>Collection<br><input name="collection" value="{_html(collection)}"></label>
+        <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
+        <label>Method<br><select name="method">{method_options}</select></label>
+        <button type="submit">Answer</button>
+      </div>
+    </form>
+    {result}
+    """
+
+
+@router.get("/ui/answer", response_class=HTMLResponse)
+def answer_page() -> HTMLResponse:
+    return _layout("Answer", _answer_body())
+
+
+@router.post("/ui/answer", response_class=HTMLResponse)
+def answer_action(
+    session: SessionDep,
+    question: Annotated[str, Form()],
+    collection: Annotated[str, Form()] = "literature",
+    top_k: Annotated[int, Form()] = 5,
+    method: Annotated[str, Form()] = "hybrid",
+) -> HTMLResponse:
+    if top_k <= 0:
+        result = "<section class='panel'><p class='warn'>top_k must be positive.</p></section>"
+        return _layout("Answer", _answer_body(question, collection, top_k, method, result))
+    try:
+        response = answer_question(session, get_settings(), question, collection=collection, top_k=top_k, method=method)
+        payload = answer_response_to_dict(response)
+        result = _answer_payload_panel(payload, question)
+    except (GenerationUnavailableError, GenerationOutputError, VectorIndexUnavailableError, ValueError) as exc:
+        result = f"<section class='panel'><p class='warn'>{_html(exc)}</p></section>"
+    return _layout("Answer", _answer_body(question, collection, top_k, method, result))
 
 
 @router.get("/ui/vector-indexes", response_class=HTMLResponse)
@@ -753,6 +888,54 @@ def _result_rows(results: list[object]) -> str:
     return "".join(rows) or "<tr><td colspan='5'>No results</td></tr>"
 
 
+def _counter_rows_from_mapping(value: object) -> str:
+    if not isinstance(value, dict):
+        return _counter_rows(Counter())
+    return _counter_rows(Counter({str(key): int(count) for key, count in value.items() if isinstance(count, int)}))
+
+
+def _mapping_rows(value: object) -> str:
+    if not isinstance(value, dict) or not value:
+        return "<tr><td colspan='2'>No data</td></tr>"
+    return "".join(f"<tr><td>{_html(key)}</td><td>{_html(item)}</td></tr>" for key, item in sorted(value.items()))
+
+
+def _text_quality_page_rows(pages: object, query: str = "") -> str:
+    if not isinstance(pages, list):
+        return "<tr><td colspan='6'>No data</td></tr>"
+    rows = []
+    for page in pages[:100]:
+        if not isinstance(page, dict):
+            continue
+        article_id = page.get("article_id")
+        page_number = page.get("page_number")
+        page_int = page_number if isinstance(page_number, int) else None
+        reasons = page.get("reasons", [])
+        reason_text = ", ".join(str(reason) for reason in reasons) if isinstance(reasons, list) else ""
+        links = []
+        if article_id and page_int is not None:
+            highlight = f"&highlight_query={_html(query)}" if query else ""
+            links.append(
+                f"<a href='/ui/articles/{_html(article_id)}/pages/context?page_start={page_int}&page_end={page_int}&layer=selected"
+                f"{highlight}'>Page text</a>"
+            )
+            links.append(_pdf_link(str(article_id), page_int))
+        title = _html(page.get("title"))
+        article_cell = f"<a href='/ui/articles/{_html(article_id)}'>{title}</a>" if article_id else title
+        rows.append(
+            "<tr>"
+            f"<td>{article_cell}"
+            f"<div class='muted'>{_html(page.get('doi'))}</div></td>"
+            f"<td class='num'>{_html(page_number)}</td>"
+            f"<td>{_html(reason_text)}</td>"
+            f"<td>{_html(page.get('selected_text_layer'))}</td>"
+            f"<td class='num'>{_html(page.get('selected_char_count'))}</td>"
+            f"<td class='actions'>{' '.join(links)}</td>"
+            "</tr>"
+        )
+    return "".join(rows) or "<tr><td colspan='6'>No pages</td></tr>"
+
+
 @router.get("/ui/reports/retrieval", response_class=HTMLResponse)
 def retrieval_report_page() -> HTMLResponse:
     settings = get_settings()
@@ -808,6 +991,82 @@ def retrieval_report_page() -> HTMLResponse:
     {"".join(question_sections) or '<p class="warn">Report has no readable questions.</p>'}
     """
     return _layout("Retrieval Evaluation Report", body)
+
+
+@router.get("/ui/reports/text-quality", response_class=HTMLResponse)
+def text_quality_report_page() -> HTMLResponse:
+    settings = get_settings()
+    report_path = _latest_report(settings.data_root, "text_quality_report_*.json")
+    if report_path is None:
+        body = (
+            "<h1>Text Quality Report</h1><p class='warn'>No text quality report generated yet.</p>"
+            f"{_command_hint('python -m app.ingestion.cli text-quality-report')}"
+        )
+        return _layout("Text Quality Report", body)
+
+    payload: dict[str, Any] = json.loads(report_path.read_text(encoding="utf-8"))
+    suspicious_pages = payload.get("suspicious_pages", [])
+    reason_counter = Counter[str]()
+    if isinstance(suspicious_pages, list):
+        for page in suspicious_pages:
+            if isinstance(page, dict) and isinstance(page.get("reasons"), list):
+                reason_counter.update(str(reason) for reason in page["reasons"])
+    ocr = payload.get("ocr_diagnostics", {})
+    ocr_rows = _mapping_rows(ocr)
+    summary_rows = (
+        f"<tr><td>Articles</td><td class='num'>{_html(payload.get('article_count'))}</td></tr>"
+        f"<tr><td>Pages</td><td class='num'>{_html(payload.get('page_count'))}</td></tr>"
+        f"<tr><td>Empty original pages</td><td class='num'>{_html(payload.get('empty_original_page_count'))}</td></tr>"
+        f"<tr><td>Short original pages</td><td class='num'>{_html(payload.get('short_original_page_count'))}</td></tr>"
+        f"<tr><td>Suspicious pages</td><td class='num'>{_html(payload.get('suspicious_page_count'))}</td></tr>"
+        f"<tr><td>OCR used pages</td><td class='num'>{_html(payload.get('ocr_used_pages'))}</td></tr>"
+        f"<tr><td>OCR available pages</td><td class='num'>{_html(payload.get('ocr_available_pages'))}</td></tr>"
+    )
+    reasons_panel = (
+        '<section class="panel"><h2>Suspicious Reasons</h2><table>'
+        '<tr><th>Reason</th><th class="num">Pages</th></tr>'
+        f"{_counter_rows(reason_counter)}</table></section>"
+    )
+    source_panel = (
+        '<section class="panel"><h2>Chunk Source Types</h2><table>'
+        '<tr><th>Type</th><th class="num">Chunks</th></tr>'
+        f"{_counter_rows_from_mapping(payload.get('source_type_distribution'))}</table></section>"
+    )
+    text_layer_panel = (
+        '<section class="panel"><h2>Chunk Text Layers</h2><table>'
+        '<tr><th>Layer</th><th class="num">Chunks</th></tr>'
+        f"{_counter_rows_from_mapping(payload.get('text_layer_distribution'))}</table></section>"
+    )
+    selected_layer_panel = (
+        '<section class="panel"><h2>Selected Page Layers</h2><table>'
+        '<tr><th>Layer</th><th class="num">Pages</th></tr>'
+        f"{_counter_rows_from_mapping(payload.get('selected_text_layer_distribution'))}</table></section>"
+    )
+    ocr_panel = (
+        '<section class="panel"><h2>OCR Diagnostics</h2><table>'
+        f"<tr><th>Field</th><th>Value</th></tr>{ocr_rows}</table></section>"
+    )
+    suspicious_rows = _text_quality_page_rows(suspicious_pages)
+    body = f"""
+    <h1>Text Quality Report</h1>
+    <section class="panel">
+      <p><strong>Path:</strong> <span class="path">{_html(report_path)}</span></p>
+      <p><strong>Created:</strong> {_html(payload.get("created_at"))} &nbsp;
+      <strong>Collection:</strong> {_html(payload.get("collection"))}</p>
+      <table><tr><th>Metric</th><th class="num">Value</th></tr>{summary_rows}</table>
+    </section>
+    <div class="grid">
+      {reasons_panel}
+      {source_panel}
+      {text_layer_panel}
+      {selected_layer_panel}
+      {ocr_panel}
+    </div>
+    <h2>Suspicious Pages</h2>
+    <table><tr><th>Article</th><th class="num">Page</th><th>Reasons</th><th>Selected layer</th>
+    <th class="num">Chars</th><th>Links</th></tr>{suspicious_rows}</table>
+    """
+    return _layout("Text Quality Report", body)
 
 
 @router.get("/ui/reports/classification", response_class=HTMLResponse)

@@ -15,6 +15,8 @@ from app.documents.context import ChunkContext, ChunkContextItem
 from app.retrieval.search import SearchFilters
 from app.ui import (
     _truncate,
+    answer_action,
+    answer_page,
     article_detail,
     article_text_layers,
     chunk_context_page,
@@ -22,6 +24,7 @@ from app.ui import (
     ingestion_page,
     retrieval_report_page,
     search_page,
+    text_quality_report_page,
 )
 
 ARTICLE_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -233,6 +236,71 @@ def test_search_page_returns_results(monkeypatch) -> None:
     assert "value='hybrid' selected" in body
 
 
+def test_answer_page_renders_form() -> None:
+    response = answer_page()
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "Question" in body
+    assert "/ui/answer" in body
+    assert "hybrid" in body
+
+
+def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
+    def fake_answer_question(
+        session: object,
+        settings: object,
+        question: str,
+        *,
+        collection: str | None = None,
+        top_k: int | None = None,
+        method: str | None = None,
+    ) -> object:
+        assert question == "What is Li-Nafion conductivity?"
+        assert collection == "literature"
+        assert top_k == 5
+        assert method == "hybrid"
+        return SimpleNamespace()
+
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+    monkeypatch.setattr("app.ui.answer_question", fake_answer_question)
+    monkeypatch.setattr(
+        "app.ui.answer_response_to_dict",
+        lambda response: {
+            "query": "What is Li-Nafion conductivity?",
+            "status": "answered",
+            "answer": "Li-Nafion conductivity was measured. [E1]",
+            "claims": [{"text": "Li-Nafion conductivity was measured.", "citation_ids": ["E1"]}],
+            "citations": [
+                {
+                    "citation_id": "E1",
+                    "article_id": str(ARTICLE_ID),
+                    "chunk_id": "22222222-2222-2222-2222-222222222222",
+                    "title": "Li-Nafion evidence paper",
+                    "doi": "10.1000/example",
+                    "page_start": 1,
+                    "page_end": 1,
+                    "text": "Nafion conductivity evidence.",
+                    "score": 2.5,
+                }
+            ],
+            "retrieval_method": "hybrid",
+            "generation_provider": "extractive",
+            "generation_model": None,
+            "metadata": {"evidence_adequacy": {"reason": "ok", "coverage": 1.0, "top_coverage": 1.0}},
+        },
+    )
+
+    response = answer_action(_override_session(), "What is Li-Nafion conductivity?", "literature", 5, "hybrid")  # type: ignore[arg-type]
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "Li-Nafion conductivity was measured" in body
+    assert "Nafion conductivity evidence" in body
+    assert f"/ui/articles/{ARTICLE_ID}/chunks/22222222-2222-2222-2222-222222222222/context" in body
+    assert f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1" in body
+
+
 def test_chunk_context_page_renders_context(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.ui.get_chunk_context",
@@ -368,3 +436,52 @@ def test_retrieval_report_page_renders_latest_report(monkeypatch, tmp_path) -> N
     assert "exact_ilike" in body
     assert "Li-Nafion conductivity evidence" in body
     assert "NMP" in body
+
+
+def test_text_quality_report_page_renders_latest_report(monkeypatch, tmp_path) -> None:
+    export_dir = tmp_path / "exports"
+    export_dir.mkdir()
+    report_path = export_dir / "text_quality_report_20260702T000000Z.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "created_at": "2026-07-02T00:00:00+00:00",
+                "collection": "literature",
+                "article_count": 1,
+                "page_count": 2,
+                "empty_original_page_count": 1,
+                "short_original_page_count": 0,
+                "suspicious_page_count": 1,
+                "ocr_used_pages": 1,
+                "ocr_available_pages": 1,
+                "source_type_distribution": {"main_text": 3},
+                "text_layer_distribution": {"ocr": 2, "original": 1},
+                "selected_text_layer_distribution": {"ocr": 1, "original": 1},
+                "ocr_diagnostics": {"enabled": True, "version_status": "ok"},
+                "suspicious_pages": [
+                    {
+                        "article_id": str(ARTICLE_ID),
+                        "title": "Li-Nafion evidence paper",
+                        "doi": "10.1000/example",
+                        "page_number": 1,
+                        "reasons": ["empty_original_text"],
+                        "selected_text_layer": "ocr",
+                        "selected_char_count": 450,
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace(data_root=tmp_path))
+
+    response = text_quality_report_page()
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "Text Quality Report" in body
+    assert "empty_original_text" in body
+    assert "version_status" in body
+    assert f"/ui/articles/{ARTICLE_ID}/pages/context?page_start=1&page_end=1&layer=selected" in body
+    assert f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1" in body
