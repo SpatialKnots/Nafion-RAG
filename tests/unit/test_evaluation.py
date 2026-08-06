@@ -200,6 +200,7 @@ def test_retrieval_evaluation_reports_failures_and_top_result(monkeypatch, tmp_p
 
     monkeypatch.setattr("app.evaluation.retrieval.search_chunks", fake_search_chunks)
     monkeypatch.setattr("app.evaluation.retrieval._article_checksums_for_results", lambda session, result_payload: {})
+    monkeypatch.setattr("app.evaluation.retrieval._chunk_texts_for_results", lambda session, result_payload: {})
 
     report = run_retrieval_evaluation(
         object(),  # type: ignore[arg-type]
@@ -352,6 +353,7 @@ def test_retrieval_evaluation_records_semantic_metadata(monkeypatch, tmp_path) -
 
     monkeypatch.setattr("app.evaluation.retrieval.search_chunks", fake_search_chunks)
     monkeypatch.setattr("app.evaluation.retrieval._article_checksums_for_results", lambda session, result_payload: {})
+    monkeypatch.setattr("app.evaluation.retrieval._chunk_texts_for_results", lambda session, result_payload: {})
     report = run_retrieval_evaluation(
         object(),  # type: ignore[arg-type]
         SimpleNamespace(default_top_k=10),  # type: ignore[arg-type]
@@ -398,6 +400,7 @@ def test_retrieval_evaluation_records_hybrid_component_diagnostics(monkeypatch, 
 
     monkeypatch.setattr("app.evaluation.retrieval.search_chunks", fake_search_chunks)
     monkeypatch.setattr("app.evaluation.retrieval._article_checksums_for_results", lambda session, result_payload: {})
+    monkeypatch.setattr("app.evaluation.retrieval._chunk_texts_for_results", lambda session, result_payload: {})
     report = run_retrieval_evaluation(
         object(),  # type: ignore[arg-type]
         SimpleNamespace(default_top_k=10),  # type: ignore[arg-type]
@@ -452,6 +455,43 @@ def test_retrieval_evaluation_supports_title_and_checksum_targets(tmp_path) -> N
     assert payload["missing_article_dois"] == []
     assert payload["missing_article_titles"] == []
     assert payload["missing_article_checksums"] == []
+
+
+def test_retrieval_evaluation_matches_keywords_in_full_chunk_text(tmp_path) -> None:
+    article_id = str(uuid.uuid4())
+    chunk_id = str(uuid.uuid4())
+    question = load_questions_from_text(
+        tmp_path,
+        "- id: q01\n"
+        "  query: table evidence\n"
+        "  expected_article_dois:\n"
+        "    - 10.1000/expected\n"
+        "  expected_keywords:\n"
+        "    - ionic aggregation\n",
+    )[0]
+    response = SearchResponse(
+        query="table evidence",
+        results=[
+            SearchResult(
+                article_id=article_id,
+                chunk_id=chunk_id,
+                title="Expected paper",
+                doi="10.1000/expected",
+                page_start=5,
+                page_end=6,
+                source_type="table",
+                snippet="short table snippet",
+                score=10.0,
+                retrieval_method="exact_ilike",
+            )
+        ],
+    )
+
+    payload = _evaluate_question(question, response, {}, {chunk_id: "full table text with ionic aggregation evidence"})
+
+    assert payload["passed"] is True
+    assert payload["top_1_passed"] is True
+    assert payload["missing_keywords"] == []
 
 
 def test_retrieval_evaluation_reports_missing_targets_separately(tmp_path) -> None:
@@ -623,6 +663,7 @@ def test_run_extended_retrieval_evaluation_summarizes_metrics(monkeypatch, tmp_p
 
     monkeypatch.setattr("app.evaluation.retrieval.search_chunks", fake_search_chunks)
     monkeypatch.setattr("app.evaluation.retrieval._article_checksums_for_results", lambda session, result_payload: {})
+    monkeypatch.setattr("app.evaluation.retrieval._chunk_texts_for_results", lambda session, result_payload: {})
     monkeypatch.setattr("app.evaluation.retrieval._git_commit", lambda: "abc")
     monkeypatch.setattr("app.evaluation.retrieval._corpus_manifest_sha256", lambda: "def")
 

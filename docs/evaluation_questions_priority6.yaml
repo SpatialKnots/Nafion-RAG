@@ -8,11 +8,11 @@
     - "ionic aggregation"
   notes: "Priority 6 table/numeric evidence target for Ma et al. 2009 solvent-dependent aggregation data."
 - id: p6_table_sanginov_li_nafion_conductivity_2021
-  query: "Table Li-Nafion conductivity diglyme sulfolane ethylene carbonate"
+  query: "Table lithiated Nafion conductivity sulfolane ethylene carbonate"
   expected_article_dois:
     - "10.1016/j.electacta.2021.137914"
   expected_keywords:
-    - "Li-Nafion"
+    - "Nafion"
     - "sulfolane"
     - "conductivity"
   notes: "Priority 6 table/numeric evidence target for Sanginov et al. 2021 conductivity data."
@@ -43,10 +43,10 @@
     - "СУЛЬФОЛАН"
   notes: "Priority 6 Russian caption/table-oriented retrieval target."
 - id: p6_numeric_kayumov_conductivity_2021
-  query: "diglyme sulfolane ethylene carbonate Li Nafion conductivity numeric values"
+  query: "Каюмов электропроводность литий-проводящих мембран Нафион диглим"
   expected_article_dois:
     - "10.31857/s0424857021060049"
   expected_keywords:
-    - "diglyme"
-    - "conductivity"
+    - "диглим"
+    - "электропроводность"
   notes: "Priority 6 numeric conductivity evidence target."

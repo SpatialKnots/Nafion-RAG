@@ -107,7 +107,7 @@ class FakeSession:
 
 def test_text_quality_report_collects_diagnostics_without_mutation(monkeypatch) -> None:
     session = FakeSession()
-    monkeypatch.setattr("app.extraction.text_quality_report.shutil.which", lambda command: None)
+    monkeypatch.setattr("app.extraction.text_quality_report._resolve_command", lambda command: None)
 
     report = build_text_quality_report(session, _settings(), "literature")  # type: ignore[arg-type]
 
@@ -125,7 +125,6 @@ def test_text_quality_report_collects_diagnostics_without_mutation(monkeypatch) 
 
 def test_reprocess_text_quality_dry_run_reports_candidate_actions_without_mutation(monkeypatch) -> None:
     session = FakeSession()
-    monkeypatch.setattr("app.extraction.text_quality_report.shutil.which", lambda command: None)
 
     report = build_reprocess_text_quality_dry_run(session, _settings(), session.article)  # type: ignore[arg-type]
 

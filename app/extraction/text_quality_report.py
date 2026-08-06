@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 import subprocess
 from collections import Counter, defaultdict
 from collections.abc import Sequence
@@ -12,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.db.models import Article, Chunk, Collection, Page, PageTextLayer
+from app.extraction.ocr import _ocr_env, _resolve_command
 from app.extraction.text_quality import detect_caption_lines, detect_formula_like_lines, text_quality_signals
 
 
@@ -285,7 +285,7 @@ def _count_chunks(session: Session, column: Any, article_ids: Sequence[object]) 
 
 
 def _ocr_diagnostics(settings: Settings) -> dict[str, object]:
-    resolved = shutil.which(settings.ocr_command)
+    resolved = _resolve_command(settings.ocr_command)
     payload: dict[str, object] = {
         "enabled": settings.ocr_enabled,
         "command": settings.ocr_command,
@@ -297,7 +297,7 @@ def _ocr_diagnostics(settings: Settings) -> dict[str, object]:
         payload["version_status"] = "command_not_found"
         return payload
     try:
-        completed = subprocess.run([resolved, "--version"], check=False, capture_output=True, text=True, timeout=30)
+        completed = subprocess.run([resolved, "--version"], check=False, capture_output=True, env=_ocr_env(), text=True, timeout=30)
     except Exception as exc:
         payload["version_status"] = "failed"
         payload["version_error_type"] = type(exc).__name__

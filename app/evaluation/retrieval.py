@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.db.models import Article
+from app.db.models import Article, Chunk
 from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.retrieval.search import (
     SearchFilters,
@@ -330,6 +330,23 @@ def _article_checksums_for_results(session: Session, result_payload: list[dict[s
     return {str(article_id): checksum.lower() for article_id, checksum in rows}
 
 
+def _chunk_texts_for_results(session: Session, result_payload: list[dict[str, object]]) -> dict[str, str]:
+    chunk_ids = [UUID(str(result["chunk_id"])) for result in result_payload if result.get("chunk_id")]
+    if not chunk_ids:
+        return {}
+    rows = session.execute(select(Chunk.id, Chunk.text).where(Chunk.id.in_(chunk_ids))).all()
+    return {str(chunk_id): text for chunk_id, text in rows}
+
+
+def _evaluation_text_for_result(result: dict[str, object], chunk_texts: dict[str, str] | None = None) -> str:
+    parts = [str(result.get("snippet", ""))]
+    if chunk_texts is not None:
+        chunk_text = chunk_texts.get(str(result.get("chunk_id")))
+        if chunk_text:
+            parts.append(chunk_text)
+    return "\n".join(parts).lower()
+
+
 def _result_matches_expected_article(
     result: dict[str, object],
     question: EvaluationQuestion,
@@ -372,6 +389,7 @@ def _result_matches_extended_chunk(
     result: dict[str, object],
     expected: ExtendedExpectedChunk,
     article_checksums: dict[str, str],
+    chunk_texts: dict[str, str] | None = None,
 ) -> bool:
     article_target = ExtendedExpectedArticle(
         doi=expected.article_doi,
@@ -395,8 +413,8 @@ def _result_matches_extended_chunk(
     if expected.chunk_id and str(result.get("chunk_id")) != expected.chunk_id:
         return False
     if expected.text_contains:
-        snippet = str(result.get("snippet", "")).lower()
-        if not all(fragment.lower() in snippet for fragment in expected.text_contains):
+        text = _evaluation_text_for_result(result, chunk_texts)
+        if not all(fragment.lower() in text for fragment in expected.text_contains):
             return False
     return True
 
@@ -405,13 +423,14 @@ def _relevance_for_result(
     result: dict[str, object],
     question: ExtendedEvaluationQuestion,
     article_checksums: dict[str, str],
+    chunk_texts: dict[str, str] | None = None,
 ) -> int:
     relevance = 0
     for expected_article in question.expected_articles:
         if _result_matches_extended_article(result, expected_article, article_checksums):
             relevance = max(relevance, expected_article.relevance)
     for expected_chunk in question.expected_chunks:
-        if _result_matches_extended_chunk(result, expected_chunk, article_checksums):
+        if _result_matches_extended_chunk(result, expected_chunk, article_checksums, chunk_texts):
             relevance = max(relevance, expected_chunk.relevance)
     return relevance
 
@@ -420,6 +439,7 @@ def _unique_expected_relevances_for_results(
     result_payload: list[dict[str, object]],
     question: ExtendedEvaluationQuestion,
     article_checksums: dict[str, str],
+    chunk_texts: dict[str, str] | None = None,
 ) -> list[int]:
     used_articles: set[int] = set()
     used_chunks: set[int] = set()
@@ -431,7 +451,7 @@ def _unique_expected_relevances_for_results(
                 relevance = max(relevance, expected_article.relevance)
                 used_articles.add(index)
         for index, expected_chunk in enumerate(question.expected_chunks):
-            if index not in used_chunks and _result_matches_extended_chunk(result, expected_chunk, article_checksums):
+            if index not in used_chunks and _result_matches_extended_chunk(result, expected_chunk, article_checksums, chunk_texts):
                 relevance = max(relevance, expected_chunk.relevance)
                 used_chunks.add(index)
         relevances.append(relevance)
@@ -487,12 +507,17 @@ def _result_payloads_from_response(response: SearchResponse) -> list[dict[str, o
     return grouped_results
 
 
-def _evaluate_question(question: EvaluationQuestion, response: SearchResponse, article_checksums: dict[str, str]) -> dict[str, Any]:
+def _evaluate_question(
+    question: EvaluationQuestion,
+    response: SearchResponse,
+    article_checksums: dict[str, str],
+    chunk_texts: dict[str, str] | None = None,
+) -> dict[str, Any]:
     result_payload = _result_payloads_from_response(response)
     result_dois = {str(result["doi"]).lower() for result in result_payload if result["doi"]}
     result_titles = {_normalize_title(str(result["title"])) for result in result_payload if result["title"]}
     result_checksums = {checksum for result in result_payload if (checksum := article_checksums.get(str(result["article_id"])))}
-    result_text = "\n".join(str(result["snippet"]) for result in result_payload).lower()
+    result_text = "\n".join(_evaluation_text_for_result(result, chunk_texts) for result in result_payload)
     missing_dois = [doi for doi in question.expected_article_dois if doi not in result_dois]
     missing_titles = [title for title in question.expected_article_titles if title not in result_titles]
     missing_checksums = [checksum for checksum in question.expected_article_checksums if checksum not in result_checksums]
@@ -560,7 +585,14 @@ def run_retrieval_evaluation(
                 raise ValueError("retrieval metadata changed during evaluation")
             retrieval_metadata = response.metadata
         result_payload = _result_payloads_from_response(response)
-        evaluated.append(_evaluate_question(question, response, _article_checksums_for_results(session, result_payload)))
+        evaluated.append(
+            _evaluate_question(
+                question,
+                response,
+                _article_checksums_for_results(session, result_payload),
+                _chunk_texts_for_results(session, result_payload),
+            )
+        )
     failures = [item for item in evaluated if not item["passed"]]
     ranks = [item["rank_of_expected"] for item in evaluated if isinstance(item["rank_of_expected"], int)]
     return {
@@ -618,6 +650,7 @@ def _evaluate_extended_question(
     question: ExtendedEvaluationQuestion,
     response: SearchResponse,
     article_checksums: dict[str, str],
+    chunk_texts: dict[str, str] | None = None,
     *,
     elapsed_ms: float,
     top_k: int,
@@ -634,8 +667,8 @@ def _evaluate_extended_question(
         "coverage": adequacy.coverage,
         "top_coverage": adequacy.top_coverage,
     }
-    relevances = [_relevance_for_result(result, question, article_checksums) for result in result_payload]
-    unique_relevances = _unique_expected_relevances_for_results(result_payload, question, article_checksums)
+    relevances = [_relevance_for_result(result, question, article_checksums, chunk_texts) for result in result_payload]
+    unique_relevances = _unique_expected_relevances_for_results(result_payload, question, article_checksums, chunk_texts)
     first_rank = _first_relevant_rank(relevances)
     relevant_result_count = sum(1 for relevance in relevances if relevance > 0)
     expected_article_hits = [
@@ -643,7 +676,7 @@ def _evaluate_extended_question(
         for expected in question.expected_articles
     ]
     expected_chunk_hits = [
-        any(_result_matches_extended_chunk(result, expected, article_checksums) for result in result_payload)
+        any(_result_matches_extended_chunk(result, expected, article_checksums, chunk_texts) for result in result_payload)
         for expected in question.expected_chunks
     ]
     expected_relevances = [expected.relevance for expected in question.expected_articles]
@@ -732,6 +765,7 @@ def run_extended_retrieval_evaluation(
                 question,
                 response,
                 _article_checksums_for_results(session, result_payload),
+                _chunk_texts_for_results(session, result_payload),
                 elapsed_ms=elapsed_ms,
                 top_k=top_k,
             )

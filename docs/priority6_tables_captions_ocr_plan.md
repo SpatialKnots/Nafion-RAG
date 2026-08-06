@@ -2,8 +2,23 @@
 
 ## Статус документа
 
-Это подробный технический план для согласования. Описанные изменения extraction,
-OCR audit, source types и evaluation ещё не считаются реализованными.
+Этап реализован как audit-first Priority 6 без отдельной таблицы extracted
+evidence и без изменения оригинальных PDF. Реализованы text-quality audit,
+reprocess dry-run diagnostics, table/caption/formula source-type detection,
+OCR diagnostics и отдельный Priority 6 retrieval evaluation set.
+
+Acceptance smoke на текущем локальном корпусе:
+
+- `python -m app.evaluation.cli retrieval docs\evaluation_questions_priority6.yaml --top-k 10 --method exact`
+  - 6/6 PASS, Recall@10 1.0.
+- `python -m app.evaluation.cli retrieval docs\evaluation_questions_priority6.yaml --top-k 10 --method semantic`
+  - 6/6 PASS, Recall@10 1.0.
+- `python -m app.evaluation.cli retrieval docs\evaluation_questions_priority6.yaml --top-k 10 --method hybrid`
+  - 6/6 PASS, Recall@10 1.0.
+
+Изменения extraction/chunking, новая storage schema для extracted evidence,
+bbox extraction и symbolic formula parsing не выполнялись и остаются отдельными
+будущими решениями.
 
 Этот этап научно рискованнее предыдущих: он может изменить состав chunks и
 retrieval evidence. Поэтому любые изменения extraction/chunking должны иметь

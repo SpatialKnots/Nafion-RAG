@@ -358,3 +358,23 @@ The extended schema supports:
 Unanswerable controls are not expected to return an empty retrieval list. They
 pass when retrieved snippets fail the shared evidence-adequacy policy and would
 therefore be treated as `insufficient_evidence` by the answer layer.
+
+## Priority 6 Text Quality And Table/Caption Evaluation
+
+Run the read-only text quality audit:
+
+```powershell
+python -m app.ingestion.cli text-quality-report --collection literature
+```
+
+Run the Priority 6 targeted table/caption/formula/numeric retrieval set:
+
+```powershell
+python -m app.evaluation.cli retrieval docs\evaluation_questions_priority6.yaml --top-k 10 --method exact
+python -m app.evaluation.cli retrieval docs\evaluation_questions_priority6.yaml --top-k 10 --method semantic
+python -m app.evaluation.cli retrieval docs\evaluation_questions_priority6.yaml --top-k 10 --method hybrid
+```
+
+These checks inspect stored chunk evidence for expected fragments, not only the
+short UI snippet. The Priority 6 implementation does not modify original PDFs
+and does not introduce separate extracted table storage.
