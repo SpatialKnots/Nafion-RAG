@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.generation.providers import (
+    SCIENTIFIC_ANSWER_SYSTEM_PROMPT,
     DeepSeekAnswerProvider,
     ExtractiveAnswerProvider,
     GeneratedClaim,
@@ -43,6 +44,50 @@ def test_answer_question_returns_source_linked_extractive_claims(monkeypatch) ->
     assert payload["citations"][0]["chunk_id"] == search_result.chunk_id  # type: ignore[index]
     assert payload["citations"][0]["page_start"] == 2  # type: ignore[index]
     assert payload["citations"][0]["method_ranks"] == {"exact_ilike": 1, "semantic_cosine": 2}  # type: ignore[index]
+
+
+def test_answer_question_uses_full_text_as_generation_evidence(monkeypatch) -> None:
+    search_result = _search_result()
+    search_result = SearchResult(
+        article_id=search_result.article_id,
+        chunk_id=search_result.chunk_id,
+        title=search_result.title,
+        doi=search_result.doi,
+        page_start=search_result.page_start,
+        page_end=search_result.page_end,
+        source_type="table",
+        snippet="Truncated table row with DMF.",
+        full_text="Full table text: DMF row separates temperature range and conductivity at 25 C.",
+        score=search_result.score,
+        retrieval_method=search_result.retrieval_method,
+    )
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="Nafion conductivity in DMF",
+            results=[search_result],
+            metadata={"fusion": "reciprocal_rank_fusion"},
+        ),
+    )
+
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="The full table separates these values.", citation_ids=["E1"])],
+            provider="test",
+            model="test-model",
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Nafion conductivity in DMF",
+        provider=provider,
+    )
+
+    assert provider.evidence_texts == ["Full table text: DMF row separates temperature range and conductivity at 25 C."]
+    assert response.citations[0].text == "Truncated table row with DMF."
 
 
 def test_answer_question_refuses_when_retrieval_returns_no_evidence(monkeypatch) -> None:
@@ -250,6 +295,13 @@ def test_openai_provider_parses_structured_claims() -> None:
     assert result.model == "gpt-4.1-mini"
 
 
+def test_provider_system_prompt_preserves_table_semantics() -> None:
+    assert "preserve row and column meaning" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
+    assert "Do not merge a temperature range" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
+    assert "at-25-C conductivity columns" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
+    assert "same cited row" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
+
+
 def test_build_answer_provider_accepts_openai() -> None:
     settings = _settings()
     settings.rag_provider = "openai"
@@ -295,6 +347,16 @@ class StaticProvider:
         self.result = result
 
     def generate(self, question: str, evidence: list[object]) -> ProviderResult:
+        return self.result
+
+
+class CapturingProvider:
+    def __init__(self, result: ProviderResult) -> None:
+        self.result = result
+        self.evidence_texts: list[str] = []
+
+    def generate(self, question: str, evidence: list[object]) -> ProviderResult:
+        self.evidence_texts = [item.text for item in evidence]  # type: ignore[attr-defined]
         return self.result
 
 

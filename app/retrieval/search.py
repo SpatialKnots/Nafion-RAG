@@ -121,6 +121,7 @@ class SearchResult:
     snippet: str
     score: float
     retrieval_method: str
+    full_text: str | None = None
     text_layer: str = "original"
     year: int | None = None
     journal: str | None = None
@@ -290,6 +291,7 @@ def _result_from_chunk_article(
         source_type=chunk.source_type,
         text_layer=chunk.text_layer,
         snippet=make_snippet(chunk.text, query),
+        full_text=chunk.text,
         score=score,
         retrieval_method=retrieval_method,
         method_scores=method_scores or {},
@@ -551,6 +553,7 @@ def hybrid_search(
                 source_type=evidence.source_type,
                 text_layer=evidence.text_layer,
                 snippet=evidence.snippet,
+                full_text=evidence.full_text,
                 score=fused_score,
                 retrieval_method="hybrid_rrf",
                 method_scores=method_scores,

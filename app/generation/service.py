@@ -62,7 +62,7 @@ def build_answer_provider(settings: Settings) -> AnswerProvider:
     raise ValueError(f"Unsupported RAG provider: {settings.rag_provider}. Supported providers: extractive, ollama, openai, deepseek")
 
 
-def _evidence_from_response(response: SearchResponse) -> list[Evidence]:
+def _evidence_from_response(response: SearchResponse, *, use_full_text: bool = False) -> list[Evidence]:
     return [
         Evidence(
             citation_id=f"E{index}",
@@ -73,7 +73,7 @@ def _evidence_from_response(response: SearchResponse) -> list[Evidence]:
             page_start=result.page_start,
             page_end=result.page_end,
             source_type=result.source_type,
-            text=result.snippet,
+            text=(result.full_text or result.snippet) if use_full_text else result.snippet,
             score=result.score,
             retrieval_method=result.retrieval_method,
             method_scores=result.method_scores,
@@ -124,7 +124,8 @@ def answer_question(
         method=active_method,
         settings=settings,
     )
-    evidence = _evidence_from_response(retrieval)
+    evidence = _evidence_from_response(retrieval, use_full_text=True)
+    display_evidence = _evidence_from_response(retrieval)
     adequacy = assess_evidence_adequacy(normalized_question, evidence)
     adequacy_metadata = {
         "adequate": adequacy.adequate,
@@ -163,7 +164,7 @@ def answer_question(
         )
     _validate_claims(generated.claims, evidence)
     used_ids = {citation_id for claim in generated.claims for citation_id in claim.citation_ids}
-    used_evidence = [item for item in evidence if item.citation_id in used_ids]
+    used_evidence = [item for item in display_evidence if item.citation_id in used_ids]
     answer = "\n\n".join(f"{claim.text} {' '.join(f'[{citation_id}]' for citation_id in claim.citation_ids)}" for claim in generated.claims)
     return AnswerResponse(
         query=normalized_question,
