@@ -19,6 +19,25 @@ from app.retrieval.vector_index import LoadedVectorIndex, embed_query_with_faste
 
 STOPWORDS = {"and", "in", "or", "the", "using", "vs", "with"}
 LIGATURES = str.maketrans({"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl"})
+MANDATORY_SCIENTIFIC_TERMS = {
+    "ACN",
+    "DEC",
+    "DMA",
+    "DMAC",
+    "DMF",
+    "DME",
+    "DMSO",
+    "EC",
+    "EMC",
+    "GBL",
+    "IPA",
+    "MeOH",
+    "NMP",
+    "PC",
+    "PFSA",
+    "SL",
+    "THF",
+}
 RetrievalMethod = Literal["exact", "semantic", "hybrid"]
 SUPPORTED_RETRIEVAL_METHODS: tuple[RetrievalMethod, ...] = ("exact", "semantic", "hybrid")
 CONCRETE_RETRIEVAL_METHODS: dict[RetrievalMethod, str] = {
@@ -176,13 +195,35 @@ def _query_terms(query: str) -> list[str]:
     return [term for term in terms if len(term) >= 2 and term.lower() not in STOPWORDS]
 
 
+def _mandatory_query_terms(query: str) -> list[str]:
+    required: list[str] = []
+    for term in _query_terms(query):
+        normalized = term.upper()
+        if normalized in {item.upper() for item in MANDATORY_SCIENTIFIC_TERMS} and normalized not in required:
+            required.append(normalized)
+    return required
+
+
+def _text_contains_mandatory_terms(text: str, terms: list[str]) -> bool:
+    if not terms:
+        return True
+    normalized_text = text.translate(LIGATURES)
+    return all(re.search(rf"(?<![A-Za-z0-9]){re.escape(term)}(?![A-Za-z0-9])", normalized_text, flags=re.IGNORECASE) for term in terms)
+
+
+def _candidate_limit_for_mandatory_terms(top_k: int, mandatory_terms: list[str]) -> int:
+    if not mandatory_terms:
+        return top_k
+    return top_k * 20
+
+
 def make_snippet(text: str, query: str, radius: int = 140) -> str:
     normalized = re.sub(r"\s+", " ", text.translate(LIGATURES)).strip()
     if not normalized:
         return ""
     match = re.search(re.escape(query), normalized, flags=re.IGNORECASE)
     if match is None:
-        for term in _query_terms(query):
+        for term in [*_mandatory_query_terms(query), *_query_terms(query)]:
             match = re.search(re.escape(term), normalized, flags=re.IGNORECASE)
             if match is not None:
                 break
@@ -322,9 +363,14 @@ def exact_search(
     if collection is None:
         raise ValueError(f"Unknown collection: {collection_name}")
 
-    rows = session.execute(_search_statement(normalized_query, collection, top_k, normalized_filters)).all()
+    mandatory_terms = _mandatory_query_terms(normalized_query)
+    rows = session.execute(
+        _search_statement(normalized_query, collection, _candidate_limit_for_mandatory_terms(top_k, mandatory_terms), normalized_filters)
+    ).all()
     results: list[SearchResult] = []
     for chunk, article, score in rows:
+        if not _text_contains_mandatory_terms(chunk.text, mandatory_terms):
+            continue
         results.append(
             _result_from_chunk_article(
                 chunk,
@@ -334,7 +380,9 @@ def exact_search(
                 retrieval_method="exact_ilike",
             )
         )
-    metadata = _metadata(normalized_filters)
+        if len(results) >= top_k:
+            break
+    metadata = _metadata(normalized_filters, {"mandatory_terms": mandatory_terms} if mandatory_terms else None)
     if normalized_group_by == "article":
         groups = group_results_by_article(results, chunks_per_article=chunks_per_article)
         metadata.update(
@@ -402,12 +450,15 @@ def semantic_search(
     normalized_vector = query_vector / query_norm
     scores = index.embeddings @ normalized_vector
     db_filtered_chunk_ids = _semantic_filtered_chunk_ids(session, collection_name, normalized_filters)
+    mandatory_terms = _mandatory_query_terms(normalized_query)
 
     candidates = []
     for position, chunk_id in enumerate(index.chunk_ids):
         chunk, _article = index.rows_by_chunk_id[chunk_id]
-        if (db_filtered_chunk_ids is None or chunk_id in db_filtered_chunk_ids) and _index_row_matches_filters(
-            chunk, _article, normalized_filters
+        if (
+            (db_filtered_chunk_ids is None or chunk_id in db_filtered_chunk_ids)
+            and _index_row_matches_filters(chunk, _article, normalized_filters)
+            and _text_contains_mandatory_terms(chunk.text, mandatory_terms)
         ):
             candidates.append((float(scores[position]), chunk_id))
     candidates.sort(key=lambda item: (-item[0], item[1]))
@@ -424,6 +475,8 @@ def semantic_search(
         "chunk_count": index.manifest["chunk_count"],
         "similarity": "cosine",
     }
+    if mandatory_terms:
+        metadata["mandatory_terms"] = mandatory_terms
     metadata = _metadata(normalized_filters, metadata)
     if normalized_group_by == "article":
         groups = group_results_by_article(results, chunks_per_article=chunks_per_article)

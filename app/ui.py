@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter, defaultdict
 from html import escape
 from pathlib import Path
 from typing import Annotated, Any, cast
+from urllib.parse import urlencode
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query
@@ -74,9 +76,43 @@ def _group_metadata(doi: str | None, year: int | None, journal: str | None) -> s
     return " ".join(_html(value) for value in (doi, year, journal) if value)
 
 
-def _context_link(article_id: UUID | str, chunk_id: UUID | str, query: str, label: str = "Context") -> str:
-    query_part = f"&highlight_query={_html(query)}" if query.strip() else ""
-    return f"<a href='/ui/articles/{_html(article_id)}/chunks/{_html(chunk_id)}/context?before=1&after=1{query_part}'>{_html(label)}</a>"
+def _context_url(article_id: UUID | str, chunk_id: UUID | str, highlight_query: str = "", highlight_mode: str = "terms") -> str:
+    params: dict[str, object] = {"before": 1, "after": 1}
+    if highlight_query.strip():
+        params["highlight_query"] = highlight_query
+        if highlight_mode != "terms":
+            params["highlight_mode"] = highlight_mode
+    return f"/ui/articles/{article_id}/chunks/{chunk_id}/context?{urlencode(params)}"
+
+
+def _context_link(article_id: UUID | str, chunk_id: UUID | str, query: str, label: str = "Context", highlight_mode: str = "terms") -> str:
+    return f"<a href='{_html(_context_url(article_id, chunk_id, query, highlight_mode))}'>{_html(label)}</a>"
+
+
+def _linked_answer_text(answer: str, citations: list[dict[str, object]]) -> str:
+    by_id: dict[str, str] = {}
+    for citation in citations:
+        citation_id = citation.get("citation_id")
+        article_id = citation.get("article_id")
+        chunk_id = citation.get("chunk_id")
+        evidence_text = str(citation.get("text") or "")
+        if citation_id and article_id and chunk_id:
+            by_id[str(citation_id)] = _context_url(str(article_id), str(chunk_id), evidence_text, "phrase")
+    if not by_id:
+        return _html(answer)
+
+    parts: list[str] = []
+    cursor = 0
+    for match in re.finditer(r"\[([A-Za-z]\d+)\]", answer):
+        citation_id = match.group(1)
+        href = by_id.get(citation_id)
+        if href is None:
+            continue
+        parts.append(_html(answer[cursor : match.start()]))
+        parts.append(f"<a href='{_html(href)}'>{_html(match.group(0))}</a>")
+        cursor = match.end()
+    parts.append(_html(answer[cursor:]))
+    return "".join(parts)
 
 
 def _highlighted_text(text: str, highlights: object) -> str:
@@ -261,17 +297,21 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
                 "</tr>"
             )
     citation_rows = []
+    citation_dicts: list[dict[str, object]] = []
     citations = payload.get("citations", [])
     if isinstance(citations, list):
         for citation in citations:
             if not isinstance(citation, dict):
                 continue
+            citation_dicts.append(citation)
             article_id = citation.get("article_id")
             chunk_id = citation.get("chunk_id")
             page_start = citation.get("page_start") if isinstance(citation.get("page_start"), int) else None
             page_end = citation.get("page_end") if isinstance(citation.get("page_end"), int) else None
+            evidence_text = str(citation.get("text") or "")
             links = []
             if article_id and chunk_id:
+                links.append(_context_link(str(article_id), str(chunk_id), evidence_text, "Evidence", "phrase"))
                 links.append(_context_link(str(article_id), str(chunk_id), question))
             if article_id:
                 links.append(_pdf_link(str(article_id), page_start))
@@ -289,7 +329,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
                 "</tr>"
             )
     answer_block = (
-        f"<pre class='context'>{_html(str(answer))}</pre>"
+        f"<pre class='context'>{_linked_answer_text(str(answer), citation_dicts)}</pre>"
         if answer
         else "<p class='warn'>No answer: evidence was insufficient or generation failed validation.</p>"
     )
@@ -548,9 +588,12 @@ def chunk_context_page(
     before: int = Query(default=1, ge=0),
     after: int = Query(default=1, ge=0),
     highlight_query: str = "",
+    highlight_mode: str = "terms",
     max_chars: int | None = Query(default=None, ge=1),
 ) -> HTMLResponse:
     article = _get_article_or_404(session, article_id)
+    if highlight_mode not in {"terms", "phrase"}:
+        raise HTTPException(status_code=400, detail="highlight_mode must be one of: terms, phrase")
     try:
         context = get_chunk_context(
             session,
@@ -560,6 +603,7 @@ def chunk_context_page(
             before=before,
             after=after,
             highlight_query=highlight_query,
+            highlight_mode=cast(Any, highlight_mode),
             max_chars=max_chars,
         )
     except ContextNotFoundError as exc:
@@ -569,18 +613,18 @@ def chunk_context_page(
 
     rows = []
     for chunk in context.chunks:
-        page_context = (
-            f"/ui/articles/{_html(context.article_id)}/pages/context?page_start={chunk.page_start}"
-            f"&page_end={chunk.page_end}&layer=selected"
-        )
+        page_params: dict[str, object] = {"page_start": chunk.page_start, "page_end": chunk.page_end, "layer": "selected"}
         if highlight_query.strip():
-            page_context += f"&highlight_query={_html(highlight_query)}"
+            page_params["highlight_query"] = highlight_query
+            if highlight_mode != "terms":
+                page_params["highlight_mode"] = highlight_mode
+        page_context = f"/ui/articles/{context.article_id}/pages/context?{urlencode(page_params)}"
         rows.append(
             "<section class='panel'>"
             f"<p><strong>{_html(chunk.role)}</strong> chunk {chunk.chunk_index} &nbsp; "
             f"pages {_html(_page_range(chunk.page_start, chunk.page_end))} &nbsp; "
             f"{_html(chunk.source_type)} / {_html(chunk.text_layer)} &nbsp; "
-            f"<a href='{page_context}'>Page text</a> {_pdf_link(context.article_id, chunk.page_start)}</p>"
+            f"<a href='{_html(page_context)}'>Page text</a> {_pdf_link(context.article_id, chunk.page_start)}</p>"
             f"<pre class='context'>{_highlighted_text(chunk.text, chunk.highlights)}</pre>"
             "</section>"
         )
@@ -605,11 +649,14 @@ def page_context_page(
     page_end: int = Query(..., ge=1),
     layer: str = "selected",
     highlight_query: str = "",
+    highlight_mode: str = "terms",
     max_chars: int | None = Query(default=None, ge=1),
 ) -> HTMLResponse:
     article = _get_article_or_404(session, article_id)
     if layer not in {"selected", "original", "ocr"}:
         raise HTTPException(status_code=400, detail="layer must be one of: selected, original, ocr")
+    if highlight_mode not in {"terms", "phrase"}:
+        raise HTTPException(status_code=400, detail="highlight_mode must be one of: terms, phrase")
     try:
         context = get_page_range_context(
             session,
@@ -619,6 +666,7 @@ def page_context_page(
             page_end=page_end,
             layer=cast(Any, layer),
             highlight_query=highlight_query,
+            highlight_mode=cast(Any, highlight_mode),
             max_chars=max_chars,
         )
     except PageEvidenceNotFoundError as exc:

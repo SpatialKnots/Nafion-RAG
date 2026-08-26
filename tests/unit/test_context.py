@@ -126,7 +126,33 @@ def test_find_highlights_does_not_mutate_text() -> None:
     highlights = find_highlights(text, "Nafion conductivity", 12)
 
     assert text == "Li-Nafion conductivity."
-    assert [highlight.term for highlight in highlights] == ["Nafion", "conductivity"]
+    assert [(highlight.start, highlight.end, highlight.term) for highlight in highlights] == [(3, 22, "Nafion conductivity")]
+
+
+def test_find_highlights_matches_evidence_across_whitespace() -> None:
+    text = "Nafion conductivity\nin NMP was measured."
+
+    highlights = find_highlights(text, "conductivity in NMP", 12)
+
+    assert len(highlights) == 1
+    assert text[highlights[0].start : highlights[0].end] == "conductivity\nin NMP"
+
+
+def test_find_highlights_phrase_mode_does_not_fallback_to_terms() -> None:
+    text = "Thermogravimetric analysis was performed."
+
+    highlights = find_highlights(text, "swelling degree in DMF", 12, mode="phrase")
+
+    assert highlights == []
+
+
+def test_find_highlights_phrase_mode_ignores_snippet_ellipses() -> None:
+    text = "The degree of swelling in DMF was measured after drying."
+
+    highlights = find_highlights(text, "...degree of swelling in DMF was measured...", 12, mode="phrase")
+
+    assert len(highlights) == 1
+    assert text[highlights[0].start : highlights[0].end] == "degree of swelling in DMF was measured"
 
 
 def test_chunk_context_serializes_bounded_payload() -> None:

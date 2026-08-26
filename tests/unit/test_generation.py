@@ -6,11 +6,13 @@ from types import SimpleNamespace
 import pytest
 
 from app.generation.providers import (
+    DeepSeekAnswerProvider,
     ExtractiveAnswerProvider,
     GeneratedClaim,
     GenerationOutputError,
     GenerationUnavailableError,
     OllamaAnswerProvider,
+    OpenAIAnswerProvider,
     ProviderResult,
 )
 from app.generation.service import answer_question, answer_response_to_dict, build_answer_provider
@@ -95,6 +97,75 @@ def test_answer_question_refuses_when_evidence_lacks_distinctive_terms(monkeypat
     assert response.metadata["evidence_adequacy"]["adequate"] is False  # type: ignore[index]
 
 
+def test_answer_question_refuses_when_short_scientific_term_is_missing(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="Nafion conductivity in DMF",
+            results=[
+                SearchResult(
+                    article_id=str(uuid.UUID(int=1)),
+                    chunk_id=str(uuid.UUID(int=2)),
+                    title="Water-cast Nafion paper",
+                    doi=None,
+                    page_start=1,
+                    page_end=1,
+                    source_type="body",
+                    snippet="Recast Nafion-117 thin film from water solution shows thermogravimetric decomposition.",
+                    score=1.0,
+                    retrieval_method="hybrid_rrf",
+                )
+            ],
+        ),
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Nafion conductivity in DMF",
+        provider=ExtractiveAnswerProvider(max_claims=3),
+    )
+
+    assert response.status == "insufficient_evidence"
+    assert response.claims == []
+    assert response.metadata["evidence_adequacy"]["distinctive_terms"] == ["nafion", "conductivity", "dmf"]  # type: ignore[index]
+    assert response.metadata["evidence_adequacy"]["matched_terms"] == ["nafion"]  # type: ignore[index]
+
+
+def test_answer_question_refuses_when_only_solvent_matches(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="Nafion conductivity in DMF",
+            results=[
+                SearchResult(
+                    article_id=str(uuid.UUID(int=1)),
+                    chunk_id=str(uuid.UUID(int=2)),
+                    title="DMF morphology paper",
+                    doi=None,
+                    page_start=1,
+                    page_end=1,
+                    source_type="table",
+                    snippet="Aggregation radii were measured for membranes prepared from DMAc, DMF, and NMF solvents.",
+                    score=1.0,
+                    retrieval_method="hybrid_rrf",
+                )
+            ],
+        ),
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Nafion conductivity in DMF",
+        provider=ExtractiveAnswerProvider(max_claims=3),
+    )
+
+    assert response.status == "insufficient_evidence"
+    assert response.metadata["evidence_adequacy"]["distinctive_terms"] == ["nafion", "conductivity", "dmf"]  # type: ignore[index]
+    assert response.metadata["evidence_adequacy"]["matched_terms"] == ["dmf"]  # type: ignore[index]
+
+
 def test_answer_question_rejects_unknown_generated_citation(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.generation.service.search_chunks",
@@ -149,6 +220,76 @@ def test_ollama_provider_parses_structured_claims() -> None:
     assert result.model == "test-model"
 
 
+def test_openai_provider_requires_api_key() -> None:
+    with pytest.raises(GenerationUnavailableError, match="RAG_OPENAI_API_KEY"):
+        OpenAIAnswerProvider(
+            base_url="https://api.openai.com/v1",
+            api_key="",
+            model="gpt-4.1-mini",
+            timeout_seconds=10,
+            max_tokens=100,
+        )
+
+
+def test_openai_provider_parses_structured_claims() -> None:
+    provider = OpenAIAnswerProvider(
+        base_url="https://api.openai.com/v1",
+        api_key="test-key",
+        model="gpt-4.1-mini",
+        timeout_seconds=10,
+        max_tokens=100,
+    )
+
+    result = provider._parse_response(  # noqa: SLF001 - direct parser unit test
+        {"choices": [{"message": {"content": '{"answerable":true,"claims":[{"text":"Supported","citation_ids":["E1"]}]}'}}]}
+    )
+
+    assert result.answerable is True
+    assert result.claims == [GeneratedClaim(text="Supported", citation_ids=["E1"])]
+    assert result.provider == "openai"
+    assert result.model == "gpt-4.1-mini"
+
+
+def test_build_answer_provider_accepts_openai() -> None:
+    settings = _settings()
+    settings.rag_provider = "openai"
+    settings.rag_openai_api_key = "test-key"
+
+    provider = build_answer_provider(settings)  # type: ignore[arg-type]
+
+    assert isinstance(provider, OpenAIAnswerProvider)
+
+
+def test_deepseek_provider_requires_api_key() -> None:
+    with pytest.raises(GenerationUnavailableError, match="DEEPSEEK_API_KEY"):
+        DeepSeekAnswerProvider(
+            base_url="https://api.deepseek.com",
+            api_key="",
+            model="deepseek-v4-flash",
+            timeout_seconds=10,
+            max_tokens=100,
+        )
+
+
+def test_deepseek_provider_parses_structured_claims() -> None:
+    provider = DeepSeekAnswerProvider(
+        base_url="https://api.deepseek.com",
+        api_key="test-key",
+        model="deepseek-v4-flash",
+        timeout_seconds=10,
+        max_tokens=100,
+    )
+
+    result = provider._parse_response(  # noqa: SLF001 - direct parser unit test
+        {"choices": [{"message": {"content": '{"answerable":true,"claims":[{"text":"Supported","citation_ids":["E1"]}]}'}}]}
+    )
+
+    assert result.answerable is True
+    assert result.claims == [GeneratedClaim(text="Supported", citation_ids=["E1"])]
+    assert result.provider == "deepseek"
+    assert result.model == "deepseek-v4-flash"
+
+
 class StaticProvider:
     def __init__(self, result: ProviderResult) -> None:
         self.result = result
@@ -165,6 +306,14 @@ def _settings() -> SimpleNamespace:
         rag_provider="extractive",
         rag_max_claims=5,
         rag_ollama_url="http://127.0.0.1:11434",
+        rag_openai_base_url="https://api.openai.com/v1",
+        rag_openai_api_key="",
+        rag_openai_model="gpt-4.1-mini",
+        rag_openai_max_tokens=1200,
+        rag_deepseek_url="https://api.deepseek.com",
+        rag_deepseek_api_key="",
+        rag_deepseek_model="deepseek-v4-flash",
+        rag_deepseek_max_tokens=1200,
         rag_model="",
         rag_timeout_seconds=120,
     )

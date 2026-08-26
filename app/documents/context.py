@@ -19,6 +19,7 @@ from app.documents.service import (
 from app.retrieval.search import LIGATURES, _query_terms
 
 ChunkRole = Literal["previous", "requested", "next"]
+HighlightMode = Literal["terms", "phrase"]
 
 
 class ContextNotFoundError(Exception):
@@ -90,6 +91,7 @@ def get_chunk_context(
     before: int = 1,
     after: int = 1,
     highlight_query: str | None = None,
+    highlight_mode: HighlightMode = "terms",
     max_chars: int | None = None,
 ) -> ChunkContext:
     _validate_neighbor_count(before, settings.context_max_neighbor_chunks, "before")
@@ -121,7 +123,7 @@ def get_chunk_context(
             source_type=chunk.source_type,
             text_layer=chunk.text_layer,
             text=text,
-            highlights=find_highlights(text, highlight_query, settings.context_highlight_max_terms),
+            highlights=find_highlights(text, highlight_query, settings.context_highlight_max_terms, mode=highlight_mode),
         )
         for chunk, text in selected_chunks
     ]
@@ -147,6 +149,7 @@ def get_page_range_context(
     page_end: int,
     layer: PageLayer = "selected",
     highlight_query: str | None = None,
+    highlight_mode: HighlightMode = "terms",
     max_chars: int | None = None,
 ) -> PageRangeContext:
     if page_start < 1:
@@ -166,7 +169,7 @@ def get_page_range_context(
             resolved_layer=evidence.resolved_layer,
             has_usable_text=evidence.has_usable_text,
             text=evidence.text,
-            highlights=find_highlights(evidence.text, highlight_query, settings.context_highlight_max_terms),
+            highlights=find_highlights(evidence.text, highlight_query, settings.context_highlight_max_terms, mode=highlight_mode),
         )
         for evidence in selected_pages
     ]
@@ -183,8 +186,15 @@ def get_page_range_context(
     )
 
 
-def find_highlights(text: str, query: str | None, max_terms: int) -> list[Highlight]:
+def find_highlights(text: str, query: str | None, max_terms: int, *, mode: HighlightMode = "terms") -> list[Highlight]:
     if not query or not query.strip():
+        return []
+    phrase = query.strip()[:1200]
+    for candidate in _phrase_candidates(phrase):
+        phrase_highlight = _find_phrase_highlight(text, candidate)
+        if phrase_highlight is not None:
+            return [phrase_highlight]
+    if mode == "phrase":
         return []
     terms = _query_terms(query)[:max_terms]
     if not terms:
@@ -200,6 +210,53 @@ def find_highlights(text: str, query: str | None, max_terms: int) -> list[Highli
             break
     highlights.sort(key=lambda item: (item.start, item.end, item.term.lower()))
     return highlights
+
+
+def _phrase_candidates(phrase: str) -> list[str]:
+    normalized = phrase.strip()
+    if not normalized:
+        return []
+    candidates = [normalized]
+    candidates.extend(part.strip(" .\t\r\n") for part in re.split(r"\.{3,}", normalized) if part.strip(" .\t\r\n"))
+    deduplicated: list[str] = []
+    for candidate in candidates:
+        if len(candidate) < 3 or candidate in deduplicated:
+            continue
+        deduplicated.append(candidate)
+    return deduplicated
+
+
+def _find_phrase_highlight(text: str, phrase: str) -> Highlight | None:
+    if len(phrase) < 3:
+        return None
+    direct_match = re.search(re.escape(phrase), text, flags=re.IGNORECASE)
+    if direct_match is not None:
+        return Highlight(start=direct_match.start(), end=direct_match.end(), term=phrase)
+
+    normalized_phrase = " ".join(phrase.split()).lower()
+    if len(normalized_phrase) < 3:
+        return None
+    collapsed_chars: list[str] = []
+    source_indexes: list[int] = []
+    previous_was_space = False
+    for index, char in enumerate(text):
+        if char.isspace():
+            if collapsed_chars and not previous_was_space:
+                collapsed_chars.append(" ")
+                source_indexes.append(index)
+            previous_was_space = True
+            continue
+        collapsed_chars.append(char.lower())
+        source_indexes.append(index)
+        previous_was_space = False
+    collapsed_text = "".join(collapsed_chars).strip()
+    start = collapsed_text.find(normalized_phrase)
+    if start < 0:
+        return None
+    end = start + len(normalized_phrase)
+    if start >= len(source_indexes) or end - 1 >= len(source_indexes):
+        return None
+    return Highlight(start=source_indexes[start], end=source_indexes[end - 1] + 1, term=phrase)
 
 
 def chunk_context_to_dict(context: ChunkContext) -> dict[str, object]:

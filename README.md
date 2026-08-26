@@ -17,7 +17,7 @@ The implemented system includes:
 - Optional hybrid retrieval using reciprocal rank fusion over exact and semantic ranks.
 - Retrieval evaluation with exact/semantic/hybrid comparison reports.
 - Evidence-grounded `/answer` responses with claim-level article, chunk, and page citations.
-- A local extractive answer provider and an optional configurable Ollama provider.
+- A local extractive answer provider and optional configurable Ollama/OpenAI/DeepSeek providers.
 - Backend PDF access for immutable original/OCR copies and stored page text evidence.
 - Multipart PDF uploads with durable PostgreSQL-backed ingestion jobs and a local worker.
 
@@ -173,7 +173,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/answer `
   -Body '{"question":"How was Nafion conductivity measured?","method":"hybrid","top_k":5}'
 ```
 
-The default `extractive` provider returns source excerpts rather than synthesized prose. To use a locally operated Ollama model, set `RAG_PROVIDER=ollama` and configure `RAG_MODEL`; this repository does not install or download a model automatically.
+The default `extractive` provider returns source excerpts rather than synthesized prose. To use a locally operated Ollama model, set `RAG_PROVIDER=ollama` and configure `RAG_MODEL`; this repository does not install or download a model automatically. To use OpenAI synthesis over retrieved evidence, set `RAG_PROVIDER=openai`, `RAG_OPENAI_API_KEY`, and optionally `RAG_OPENAI_MODEL`. To temporarily try DeepSeek synthesis, set `RAG_PROVIDER=deepseek`, `RAG_DEEPSEEK_API_KEY`, and optionally `RAG_DEEPSEEK_MODEL`; generated claims are still rejected when they omit or invent citation IDs.
 
 Run retrieval evaluation:
 

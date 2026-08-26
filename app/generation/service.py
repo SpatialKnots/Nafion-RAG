@@ -9,11 +9,13 @@ from app.core.config import Settings
 from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.generation.providers import (
     AnswerProvider,
+    DeepSeekAnswerProvider,
     Evidence,
     ExtractiveAnswerProvider,
     GeneratedClaim,
     GenerationOutputError,
     OllamaAnswerProvider,
+    OpenAIAnswerProvider,
 )
 from app.retrieval.search import SearchResponse, search_chunks
 
@@ -41,7 +43,23 @@ def build_answer_provider(settings: Settings) -> AnswerProvider:
             model=settings.rag_model,
             timeout_seconds=settings.rag_timeout_seconds,
         )
-    raise ValueError(f"Unsupported RAG provider: {settings.rag_provider}. Supported providers: extractive, ollama")
+    if provider == "openai":
+        return OpenAIAnswerProvider(
+            base_url=settings.rag_openai_base_url,
+            api_key=settings.rag_openai_api_key,
+            model=settings.rag_model or settings.rag_openai_model,
+            timeout_seconds=settings.rag_timeout_seconds,
+            max_tokens=settings.rag_openai_max_tokens,
+        )
+    if provider == "deepseek":
+        return DeepSeekAnswerProvider(
+            base_url=settings.rag_deepseek_url,
+            api_key=settings.rag_deepseek_api_key,
+            model=settings.rag_model or settings.rag_deepseek_model,
+            timeout_seconds=settings.rag_timeout_seconds,
+            max_tokens=settings.rag_deepseek_max_tokens,
+        )
+    raise ValueError(f"Unsupported RAG provider: {settings.rag_provider}. Supported providers: extractive, ollama, openai, deepseek")
 
 
 def _evidence_from_response(response: SearchResponse) -> list[Evidence]:

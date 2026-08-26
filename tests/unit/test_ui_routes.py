@@ -297,6 +297,10 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
     assert response.status_code == 200
     assert "Li-Nafion conductivity was measured" in body
     assert "Nafion conductivity evidence" in body
+    assert ">[E1]</a>" in body
+    assert ">Evidence</a>" in body
+    assert "highlight_query=Nafion+conductivity+evidence." in body
+    assert "highlight_mode=phrase" in body
     assert f"/ui/articles/{ARTICLE_ID}/chunks/22222222-2222-2222-2222-222222222222/context" in body
     assert f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1" in body
 

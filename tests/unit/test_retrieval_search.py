@@ -66,6 +66,38 @@ def test_exact_search_returns_source_linked_chunks() -> None:
     assert "Li-Nafion" in result.snippet
 
 
+def test_exact_search_requires_short_scientific_terms() -> None:
+    collection = SimpleNamespace(id=uuid.uuid4(), name="literature")
+    article = SimpleNamespace(id=uuid.uuid4(), title="Solvent paper", doi="10.1000/solvent")
+    irrelevant = SimpleNamespace(
+        id=uuid.uuid4(),
+        article_id=article.id,
+        page_start=1,
+        page_end=1,
+        source_type="body",
+        text_layer="original",
+        text="Nafion conductivity was measured after water casting.",
+        chunk_index=0,
+    )
+    relevant = SimpleNamespace(
+        id=uuid.uuid4(),
+        article_id=article.id,
+        page_start=2,
+        page_end=2,
+        source_type="body",
+        text_layer="original",
+        text="Nafion conductivity in DMF was measured by impedance spectroscopy.",
+        chunk_index=1,
+    )
+    session = FakeSession(collection)
+    session.rows = [(irrelevant, article, 100), (relevant, article, 10)]
+
+    response = exact_search(session, "Nafion conductivity in DMF", "literature", 5)  # type: ignore[arg-type]
+
+    assert [result.chunk_id for result in response.results] == [str(relevant.id)]
+    assert response.metadata["mandatory_terms"] == ["DMF"]
+
+
 def test_search_chunks_dispatches_exact_method() -> None:
     collection = SimpleNamespace(id=uuid.uuid4(), name="literature")
     article = SimpleNamespace(id=uuid.uuid4(), title="Li-Nafion paper", doi="10.1000/example")
@@ -304,6 +336,50 @@ def test_semantic_search_filters_source_type_before_top_k() -> None:
     assert [result.chunk_id for result in response.results] == [str(chunks[1].id)]
 
 
+def test_semantic_search_requires_short_scientific_terms() -> None:
+    article = SimpleNamespace(id=uuid.uuid4(), title="Semantic solvent paper", doi="10.1000/semantic-solvent")
+    irrelevant = SimpleNamespace(
+        id=uuid.UUID(int=11),
+        article_id=article.id,
+        page_start=1,
+        page_end=1,
+        source_type="body",
+        text_layer="original",
+        text="Nafion conductivity was measured after water casting.",
+        chunk_index=0,
+    )
+    relevant = SimpleNamespace(
+        id=uuid.UUID(int=12),
+        article_id=article.id,
+        page_start=2,
+        page_end=2,
+        source_type="body",
+        text_layer="original",
+        text="Nafion conductivity in DMF was measured by impedance spectroscopy.",
+        chunk_index=1,
+    )
+    chunk_ids = [str(irrelevant.id), str(relevant.id)]
+    index = LoadedVectorIndex(
+        embeddings=np.asarray([[1.0, 0.0], [0.8, 0.2]], dtype=np.float32),
+        chunk_ids=chunk_ids,
+        rows_by_chunk_id={chunk_ids[0]: (irrelevant, article), chunk_ids[1]: (relevant, article)},  # type: ignore[dict-item]
+        manifest={"backend": "local_vector_index", "embedding_model": "test/model", "embedding_dimension": 2, "chunk_count": 2},
+        manifest_sha256="manifest-checksum",
+    )
+
+    response = semantic_search(
+        FakeSession(),  # type: ignore[arg-type]
+        "Nafion conductivity in DMF",
+        top_k=2,
+        settings=SimpleNamespace(embedding_model="test/model", data_root=None),  # type: ignore[arg-type]
+        loaded_index=index,
+        query_embedder=lambda query, model: [1.0, 0.0],
+    )
+
+    assert [result.chunk_id for result in response.results] == [str(relevant.id)]
+    assert response.metadata["mandatory_terms"] == ["DMF"]
+
+
 def test_semantic_search_filters_doi_before_top_k() -> None:
     index, chunks = _semantic_index()
 
@@ -394,6 +470,17 @@ def test_make_snippet_falls_back_to_query_terms() -> None:
 
     assert "Li-Nafion" in snippet
     assert "conductivity" in snippet
+
+
+def test_make_snippet_prefers_mandatory_scientific_terms() -> None:
+    snippet = make_snippet(
+        "Nafion appears in the introduction. Later, conductivity in DMF was measured by impedance spectroscopy.",
+        "Nafion conductivity in DMF",
+        radius=28,
+    )
+
+    assert "DMF" in snippet
+    assert "impedance" in snippet
 
 
 def test_query_terms_preserve_scientific_hyphenated_terms() -> None:

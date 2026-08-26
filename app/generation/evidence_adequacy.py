@@ -13,15 +13,14 @@ COMMON_QUERY_TERMS = {
     "application",
     "battery",
     "cell",
-    "conductivity",
     "electrochemical",
     "electrolyte",
     "fuel",
+    "how",
     "ionomer",
     "lithium",
     "membrane",
     "membranes",
-    "nafion",
     "perfluorosulfonic",
     "polymer",
     "properties",
@@ -34,7 +33,9 @@ COMMON_QUERY_TERMS = {
     "the",
     "what",
     "using",
+    "was",
     "water",
+    "were",
     "with",
     "водные",
     "водой",
@@ -73,7 +74,7 @@ def assess_evidence_adequacy(question: str, evidence: Sequence[EvidenceText]) ->
     if not evidence:
         return EvidenceAdequacy(False, query_terms, distinctive_terms, [], [], 0.0, 0.0, "no_evidence")
     if not distinctive_terms:
-        return EvidenceAdequacy(True, query_terms, distinctive_terms, [], [], 1.0, 1.0, "no_distinctive_query_terms")
+        return EvidenceAdequacy(False, query_terms, distinctive_terms, [], [], 0.0, 0.0, "no_distinctive_query_terms")
 
     all_text = "\n".join(item.text for item in evidence).lower().translate(LIGATURES)
     top_text = evidence[0].text.lower().translate(LIGATURES)
@@ -104,4 +105,4 @@ def assess_evidence_adequacy(question: str, evidence: Sequence[EvidenceText]) ->
 
 def _query_terms(question: str) -> list[str]:
     raw_terms = re.findall(r"[\w-]+", question.lower().translate(LIGATURES), flags=re.UNICODE)
-    return [term.strip("-") for term in raw_terms if len(term.strip("-")) >= 4]
+    return [term.strip("-") for term in raw_terms if len(term.strip("-")) >= 3]
