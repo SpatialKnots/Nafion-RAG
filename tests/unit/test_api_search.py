@@ -278,10 +278,11 @@ def test_page_range_context_endpoint_returns_pages(monkeypatch) -> None:
 
 
 def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:
-    monkeypatch.setattr(
-        main,
-        "answer_question",
-        lambda *args, **kwargs: AnswerResponse(
+    captured_kwargs = {}
+
+    def fake_answer_question(*args: object, **kwargs: object) -> AnswerResponse:
+        captured_kwargs.update(kwargs)
+        return AnswerResponse(
             query="question",
             status="insufficient_evidence",
             answer=None,
@@ -291,13 +292,19 @@ def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:
             generation_provider="extractive",
             generation_model=None,
             metadata={},
-        ),
+        )
+
+    monkeypatch.setattr(
+        main,
+        "answer_question",
+        fake_answer_question,
     )
 
-    payload = main.answer(object(), main.AnswerRequest(question="question"))
+    payload = main.answer(object(), main.AnswerRequest(question="question", answer_style="mini_review"))
 
     assert payload["status"] == "insufficient_evidence"
     assert payload["retrieval_method"] == "hybrid"
+    assert captured_kwargs["answer_style"] == "mini_review"
 
 
 @pytest.mark.parametrize(

@@ -255,11 +255,13 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
         collection: str | None = None,
         top_k: int | None = None,
         method: str | None = None,
+        answer_style: str = "claims",
     ) -> object:
         assert question == "What is Li-Nafion conductivity?"
         assert collection == "literature"
         assert top_k == 5
         assert method == "hybrid"
+        assert answer_style == "mini_review"
         return SimpleNamespace()
 
     monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
@@ -291,7 +293,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
         },
     )
 
-    response = answer_action(_override_session(), "What is Li-Nafion conductivity?", "literature", 5, "hybrid")  # type: ignore[arg-type]
+    response = answer_action(_override_session(), "What is Li-Nafion conductivity?", "literature", 5, "hybrid", "mini_review")  # type: ignore[arg-type]
     body = response.body.decode()
 
     assert response.status_code == 200
@@ -301,6 +303,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
     assert ">Evidence</a>" in body
     assert "highlight_query=Nafion+conductivity+evidence." in body
     assert "highlight_mode=phrase" in body
+    assert "Mini-review by article" in body
     assert f"/ui/articles/{ARTICLE_ID}/chunks/22222222-2222-2222-2222-222222222222/context" in body
     assert f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1" in body
 

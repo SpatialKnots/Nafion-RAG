@@ -16,7 +16,7 @@ from app.generation.providers import (
     OpenAIAnswerProvider,
     ProviderResult,
 )
-from app.generation.service import answer_question, answer_response_to_dict, build_answer_provider
+from app.generation.service import answer_question, answer_response_to_dict, build_answer_provider, normalize_answer_style
 from app.retrieval.search import SearchResponse, SearchResult
 
 
@@ -88,6 +88,38 @@ def test_answer_question_uses_full_text_as_generation_evidence(monkeypatch) -> N
 
     assert provider.evidence_texts == ["Full table text: DMF row separates temperature range and conductivity at 25 C."]
     assert response.citations[0].text == "Truncated table row with DMF."
+
+
+def test_answer_question_passes_mini_review_style_to_provider(monkeypatch) -> None:
+    search_result = _search_result()
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(query="Nafion conductivity", results=[search_result]),
+    )
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="Evidence paper reports conductivity.", citation_ids=["E1"])],
+            provider="test",
+            model="test-model",
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Nafion conductivity",
+        answer_style="mini_review",
+        provider=provider,
+    )
+
+    assert provider.answer_style == "mini_review"
+    assert response.metadata["answer_style"] == "mini_review"
+
+
+def test_normalize_answer_style_rejects_unknown_style() -> None:
+    with pytest.raises(ValueError, match="answer_style"):
+        normalize_answer_style("narrative")
 
 
 def test_answer_question_refuses_when_retrieval_returns_no_evidence(monkeypatch) -> None:
@@ -346,7 +378,7 @@ class StaticProvider:
     def __init__(self, result: ProviderResult) -> None:
         self.result = result
 
-    def generate(self, question: str, evidence: list[object]) -> ProviderResult:
+    def generate(self, question: str, evidence: list[object], *, answer_style: str = "claims") -> ProviderResult:
         return self.result
 
 
@@ -354,9 +386,11 @@ class CapturingProvider:
     def __init__(self, result: ProviderResult) -> None:
         self.result = result
         self.evidence_texts: list[str] = []
+        self.answer_style = "claims"
 
-    def generate(self, question: str, evidence: list[object]) -> ProviderResult:
+    def generate(self, question: str, evidence: list[object], *, answer_style: str = "claims") -> ProviderResult:
         self.evidence_texts = [item.text for item in evidence]  # type: ignore[attr-defined]
+        self.answer_style = answer_style
         return self.result
 
 

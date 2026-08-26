@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,7 @@ from app.core.config import Settings
 from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.generation.providers import (
     AnswerProvider,
+    AnswerStyle,
     DeepSeekAnswerProvider,
     Evidence,
     ExtractiveAnswerProvider,
@@ -31,6 +32,13 @@ class AnswerResponse:
     generation_provider: str
     generation_model: str | None
     metadata: dict[str, object]
+
+
+def normalize_answer_style(answer_style: str) -> AnswerStyle:
+    normalized = answer_style.strip().lower()
+    if normalized in {"claims", "mini_review"}:
+        return cast(AnswerStyle, normalized)
+    raise ValueError("answer_style must be one of: claims, mini_review")
 
 
 def build_answer_provider(settings: Settings) -> AnswerProvider:
@@ -106,6 +114,7 @@ def answer_question(
     collection: str | None = None,
     top_k: int | None = None,
     method: str | None = None,
+    answer_style: str = "claims",
     provider: AnswerProvider | None = None,
 ) -> AnswerResponse:
     normalized_question = question.strip()
@@ -116,6 +125,7 @@ def answer_question(
     if active_top_k <= 0:
         raise ValueError("top_k must be positive")
     active_method = method or settings.rag_retrieval_method
+    active_answer_style = normalize_answer_style(answer_style)
     retrieval = search_chunks(
         session,
         normalized_question,
@@ -146,10 +156,15 @@ def answer_question(
             retrieval_method=active_method,
             generation_provider=settings.rag_provider,
             generation_model=settings.rag_model or None,
-            metadata={"retrieval": retrieval.metadata, "retrieved_count": len(retrieval.results), "evidence_adequacy": adequacy_metadata},
+            metadata={
+                "retrieval": retrieval.metadata,
+                "retrieved_count": len(retrieval.results),
+                "evidence_adequacy": adequacy_metadata,
+                "answer_style": active_answer_style,
+            },
         )
     active_provider = provider or build_answer_provider(settings)
-    generated = active_provider.generate(normalized_question, evidence)
+    generated = active_provider.generate(normalized_question, evidence, answer_style=active_answer_style)
     if not evidence or not generated.answerable:
         return AnswerResponse(
             query=normalized_question,
@@ -160,7 +175,12 @@ def answer_question(
             retrieval_method=active_method,
             generation_provider=generated.provider,
             generation_model=generated.model,
-            metadata={"retrieval": retrieval.metadata, "retrieved_count": len(retrieval.results), "evidence_adequacy": adequacy_metadata},
+            metadata={
+                "retrieval": retrieval.metadata,
+                "retrieved_count": len(retrieval.results),
+                "evidence_adequacy": adequacy_metadata,
+                "answer_style": active_answer_style,
+            },
         )
     _validate_claims(generated.claims, evidence)
     used_ids = {citation_id for claim in generated.claims for citation_id in claim.citation_ids}
@@ -175,7 +195,12 @@ def answer_question(
         retrieval_method=active_method,
         generation_provider=generated.provider,
         generation_model=generated.model,
-        metadata={"retrieval": retrieval.metadata, "retrieved_count": len(retrieval.results), "evidence_adequacy": adequacy_metadata},
+        metadata={
+            "retrieval": retrieval.metadata,
+            "retrieved_count": len(retrieval.results),
+            "evidence_adequacy": adequacy_metadata,
+            "answer_style": active_answer_style,
+        },
     )
 
 

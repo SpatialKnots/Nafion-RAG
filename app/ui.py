@@ -350,9 +350,20 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
     )
 
 
-def _answer_body(question: str = "", collection: str = "literature", top_k: int = 5, method: str = "hybrid", result: str = "") -> str:
+def _answer_body(
+    question: str = "",
+    collection: str = "literature",
+    top_k: int = 5,
+    method: str = "hybrid",
+    answer_style: str = "claims",
+    result: str = "",
+) -> str:
     method_options = "".join(
         f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>" for value in ("exact", "semantic", "hybrid")
+    )
+    style_options = "".join(
+        f"<option value='{value}' {'selected' if answer_style == value else ''}>{label}</option>"
+        for value, label in (("claims", "Claims"), ("mini_review", "Mini-review by article"))
     )
     return f"""
     <h1>Answer</h1>
@@ -362,6 +373,7 @@ def _answer_body(question: str = "", collection: str = "literature", top_k: int 
         <label>Collection<br><input name="collection" value="{_html(collection)}"></label>
         <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
         <label>Method<br><select name="method">{method_options}</select></label>
+        <label>Style<br><select name="answer_style">{style_options}</select></label>
         <button type="submit">Answer</button>
       </div>
     </form>
@@ -381,17 +393,26 @@ def answer_action(
     collection: Annotated[str, Form()] = "literature",
     top_k: Annotated[int, Form()] = 5,
     method: Annotated[str, Form()] = "hybrid",
+    answer_style: Annotated[str, Form()] = "claims",
 ) -> HTMLResponse:
     if top_k <= 0:
         result = "<section class='panel'><p class='warn'>top_k must be positive.</p></section>"
-        return _layout("Answer", _answer_body(question, collection, top_k, method, result))
+        return _layout("Answer", _answer_body(question, collection, top_k, method, answer_style, result))
     try:
-        response = answer_question(session, get_settings(), question, collection=collection, top_k=top_k, method=method)
+        response = answer_question(
+            session,
+            get_settings(),
+            question,
+            collection=collection,
+            top_k=top_k,
+            method=method,
+            answer_style=answer_style,
+        )
         payload = answer_response_to_dict(response)
         result = _answer_payload_panel(payload, question)
     except (GenerationUnavailableError, GenerationOutputError, VectorIndexUnavailableError, ValueError) as exc:
         result = f"<section class='panel'><p class='warn'>{_html(exc)}</p></section>"
-    return _layout("Answer", _answer_body(question, collection, top_k, method, result))
+    return _layout("Answer", _answer_body(question, collection, top_k, method, answer_style, result))
 
 
 @router.get("/ui/vector-indexes", response_class=HTMLResponse)

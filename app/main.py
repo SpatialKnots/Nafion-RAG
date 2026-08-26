@@ -55,6 +55,7 @@ class AnswerRequest(BaseModel):
     collection: str = "literature"
     top_k: int = Field(default=5, ge=1)
     method: str = "hybrid"
+    answer_style: str = "claims"
 
 
 def _get_article_or_404(session: Session, article_id: UUID) -> Article:
@@ -323,6 +324,7 @@ def answer(session: SessionDep, request: AnswerRequest) -> dict[str, object]:
             collection=request.collection,
             top_k=request.top_k,
             method=request.method,
+            answer_style=request.answer_style,
         )
         return answer_response_to_dict(response)
     except GenerationUnavailableError as exc:
