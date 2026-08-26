@@ -18,6 +18,7 @@ from app.generation.providers import (
     OllamaAnswerProvider,
     OpenAIAnswerProvider,
 )
+from app.generation.query_assist import query_assistance_to_dict, suggest_query_corrections
 from app.retrieval.search import SearchResponse, search_chunks
 
 
@@ -146,6 +147,15 @@ def answer_question(
         "coverage": adequacy.coverage,
         "top_coverage": adequacy.top_coverage,
     }
+    query_assistance = suggest_query_corrections(normalized_question, adequacy.distinctive_terms, adequacy.matched_terms)
+    base_metadata = {
+        "retrieval": retrieval.metadata,
+        "retrieved_count": len(retrieval.results),
+        "evidence_adequacy": adequacy_metadata,
+        "answer_style": active_answer_style,
+    }
+    if query_assistance is not None:
+        base_metadata["query_assistance"] = query_assistance_to_dict(query_assistance)
     if not adequacy.adequate:
         return AnswerResponse(
             query=normalized_question,
@@ -156,12 +166,7 @@ def answer_question(
             retrieval_method=active_method,
             generation_provider=settings.rag_provider,
             generation_model=settings.rag_model or None,
-            metadata={
-                "retrieval": retrieval.metadata,
-                "retrieved_count": len(retrieval.results),
-                "evidence_adequacy": adequacy_metadata,
-                "answer_style": active_answer_style,
-            },
+            metadata=base_metadata,
         )
     active_provider = provider or build_answer_provider(settings)
     generated = active_provider.generate(normalized_question, evidence, answer_style=active_answer_style)
@@ -175,12 +180,7 @@ def answer_question(
             retrieval_method=active_method,
             generation_provider=generated.provider,
             generation_model=generated.model,
-            metadata={
-                "retrieval": retrieval.metadata,
-                "retrieved_count": len(retrieval.results),
-                "evidence_adequacy": adequacy_metadata,
-                "answer_style": active_answer_style,
-            },
+            metadata=base_metadata,
         )
     _validate_claims(generated.claims, evidence)
     used_ids = {citation_id for claim in generated.claims for citation_id in claim.citation_ids}
@@ -195,12 +195,7 @@ def answer_question(
         retrieval_method=active_method,
         generation_provider=generated.provider,
         generation_model=generated.model,
-        metadata={
-            "retrieval": retrieval.metadata,
-            "retrieved_count": len(retrieval.results),
-            "evidence_adequacy": adequacy_metadata,
-            "answer_style": active_answer_style,
-        },
+        metadata=base_metadata,
     )
 
 

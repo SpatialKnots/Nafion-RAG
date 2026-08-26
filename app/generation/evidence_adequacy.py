@@ -6,6 +6,10 @@ from dataclasses import dataclass
 from typing import Protocol
 
 LIGATURES = str.maketrans({"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl"})
+DOMAIN_TERM_SYNONYMS = {
+    "lithiation": ["li-nafion", "lithiated nafion", "lithium form", "converted to the lithium form"],
+    "protocol": ["experimental", "prepared", "preparation", "procedure", "method"],
+}
 
 COMMON_QUERY_TERMS = {
     "and",
@@ -78,8 +82,8 @@ def assess_evidence_adequacy(question: str, evidence: Sequence[EvidenceText]) ->
 
     all_text = "\n".join(item.text for item in evidence).lower().translate(LIGATURES)
     top_text = evidence[0].text.lower().translate(LIGATURES)
-    matched_terms = [term for term in distinctive_terms if term in all_text]
-    top_matched_terms = [term for term in distinctive_terms if term in top_text]
+    matched_terms = [term for term in distinctive_terms if _term_matches_text(term, all_text)]
+    top_matched_terms = [term for term in distinctive_terms if _term_matches_text(term, top_text)]
     coverage = len(matched_terms) / len(distinctive_terms)
     top_coverage = len(top_matched_terms) / len(distinctive_terms)
     if len(distinctive_terms) <= 2:
@@ -106,3 +110,9 @@ def assess_evidence_adequacy(question: str, evidence: Sequence[EvidenceText]) ->
 def _query_terms(question: str) -> list[str]:
     raw_terms = re.findall(r"[\w-]+", question.lower().translate(LIGATURES), flags=re.UNICODE)
     return [term.strip("-") for term in raw_terms if len(term.strip("-")) >= 3]
+
+
+def _term_matches_text(term: str, text: str) -> bool:
+    if term in text:
+        return True
+    return any(synonym in text for synonym in DOMAIN_TERM_SYNONYMS.get(term, []))

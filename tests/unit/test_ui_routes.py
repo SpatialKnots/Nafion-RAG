@@ -17,6 +17,7 @@ from app.ui import (
     _truncate,
     answer_action,
     answer_page,
+    answer_result_action,
     article_detail,
     article_text_layers,
     chunk_context_page,
@@ -243,6 +244,13 @@ def test_answer_page_renders_form() -> None:
     assert response.status_code == 200
     assert "Question" in body
     assert "/ui/answer" in body
+    assert 'data-async-result="/ui/answer/result"' in body
+    assert 'id="answer-result"' in body
+    assert "progress-steps" in body
+    assert "Prepare request parameters" in body
+    assert "Wait for retrieval, evidence check, and generation" in body
+    assert "Render answer and citations" in body
+    assert "form.requestSubmit()" in body
     assert "hybrid" in body
 
 
@@ -289,7 +297,21 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
             "retrieval_method": "hybrid",
             "generation_provider": "extractive",
             "generation_model": None,
-            "metadata": {"evidence_adequacy": {"reason": "ok", "coverage": 1.0, "top_coverage": 1.0}},
+            "metadata": {
+                "retrieved_count": 1,
+                "evidence_adequacy": {
+                    "reason": "ok",
+                    "coverage": 1.0,
+                    "top_coverage": 1.0,
+                    "distinctive_terms": ["nafion", "conductivity"],
+                    "matched_terms": ["nafion", "conductivity"],
+                },
+                "query_assistance": {
+                    "corrected_query": "What protocol of Nafion lithiation?",
+                    "corrections": [{"original": "litation", "suggestion": "lithiation", "reason": "edit_distance_2"}],
+                    "mode": "suggest_only",
+                },
+            },
         },
     )
 
@@ -297,6 +319,10 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
     body = response.body.decode()
 
     assert response.status_code == 200
+    assert "<strong>Query:</strong> What is Li-Nafion conductivity?" in body
+    assert "<strong>Retrieved:</strong> 1" in body
+    assert "matched=nafion, conductivity" in body
+    assert "missing=none" in body
     assert "Li-Nafion conductivity was measured" in body
     assert "Nafion conductivity evidence" in body
     assert ">[E1]</a>" in body
@@ -304,8 +330,50 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
     assert "highlight_query=Nafion+conductivity+evidence." in body
     assert "highlight_mode=phrase" in body
     assert "Mini-review by article" in body
+    assert "Possible query typo" in body
+    assert "litation -&gt; lithiation" in body
+    assert "data-suggested-query='What protocol of Nafion lithiation?'" in body
     assert f"/ui/articles/{ARTICLE_ID}/chunks/22222222-2222-2222-2222-222222222222/context" in body
     assert f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1" in body
+
+
+def test_answer_result_action_returns_fragment_only(monkeypatch) -> None:
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+    monkeypatch.setattr("app.ui.answer_question", lambda *args, **kwargs: SimpleNamespace())
+    monkeypatch.setattr(
+        "app.ui.answer_response_to_dict",
+        lambda response: {
+            "query": "What is Li-Nafion conductivity?",
+            "status": "answered",
+            "answer": "Li-Nafion conductivity was measured. [E1]",
+            "claims": [{"text": "Li-Nafion conductivity was measured.", "citation_ids": ["E1"]}],
+            "citations": [
+                {
+                    "citation_id": "E1",
+                    "article_id": str(ARTICLE_ID),
+                    "chunk_id": "22222222-2222-2222-2222-222222222222",
+                    "title": "Li-Nafion evidence paper",
+                    "doi": "10.1000/example",
+                    "page_start": 1,
+                    "page_end": 1,
+                    "text": "Nafion conductivity evidence.",
+                    "score": 2.5,
+                }
+            ],
+            "retrieval_method": "hybrid",
+            "generation_provider": "extractive",
+            "generation_model": None,
+            "metadata": {},
+        },
+    )
+
+    response = answer_result_action(_override_session(), "What is Li-Nafion conductivity?", "literature", 5, "hybrid", "claims")  # type: ignore[arg-type]
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "<!doctype html>" not in body
+    assert "Li-Nafion conductivity was measured" in body
+    assert "Nafion conductivity evidence" in body
 
 
 def test_chunk_context_page_renders_context(monkeypatch) -> None:

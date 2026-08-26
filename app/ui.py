@@ -162,6 +162,19 @@ def _layout(title: str, body: str) -> HTMLResponse:
     .actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .ok { color:#126b36; font-weight:600; }
     .warn { color:#9b5a00; font-weight:600; }
+    .progress-steps { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+    .progress-step { display:flex; gap:9px; align-items:center; color:var(--muted); }
+    .progress-step .marker { width:18px; height:18px; border:1px solid #b9c4d2; border-radius:50%; display:inline-grid;
+      place-items:center; flex:0 0 auto; font-size:12px; line-height:1; }
+    .progress-step.running { color:var(--ink); font-weight:600; }
+    .progress-step.done { color:#126b36; }
+    .progress-step.done .marker { background:#126b36; border-color:#126b36; color:#fff; }
+    .progress-step.error { color:#9b5a00; font-weight:600; }
+    .progress-step.error .marker { background:#9b5a00; border-color:#9b5a00; color:#fff; }
+    .progress-step.running .marker { border:2px solid #c7d0dd; border-top-color:var(--accent);
+      animation: spin .8s linear infinite; }
+    button[disabled] { opacity:.65; cursor:wait; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     mark { background:#fff1a8; padding:0 1px; }
     pre.context { white-space: pre-wrap; font-family: Consolas, monospace; font-size: 13px; margin: 6px 0 0; }
     input, select, button { font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:4px; background:#fff; }
@@ -280,10 +293,40 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
     adequacy = metadata.get("evidence_adequacy") if isinstance(metadata, dict) else None
     adequacy_row = ""
     if isinstance(adequacy, dict):
+        distinctive_terms = [str(term) for term in adequacy.get("distinctive_terms", [])] if isinstance(adequacy.get("distinctive_terms"), list) else []
+        matched_terms = [str(term) for term in adequacy.get("matched_terms", [])] if isinstance(adequacy.get("matched_terms"), list) else []
+        missing_terms = [term for term in distinctive_terms if term not in set(matched_terms)]
+        term_diagnostics = ""
+        if distinctive_terms:
+            term_diagnostics = (
+                f"<br><span class='muted'>matched={_html(', '.join(matched_terms) or 'none')}; "
+                f"missing={_html(', '.join(missing_terms) or 'none')}</span>"
+            )
         adequacy_row = (
             f"<p><strong>Evidence:</strong> {_html(adequacy.get('reason'))} "
-            f"<span class='muted'>coverage={_html(adequacy.get('coverage'))}, top={_html(adequacy.get('top_coverage'))}</span></p>"
+            f"<span class='muted'>coverage={_html(adequacy.get('coverage'))}, top={_html(adequacy.get('top_coverage'))}</span>"
+            f"{term_diagnostics}</p>"
         )
+    query_assistance = metadata.get("query_assistance") if isinstance(metadata, dict) else None
+    query_assistance_row = ""
+    if isinstance(query_assistance, dict):
+        corrected_query = str(query_assistance.get("corrected_query") or "")
+        corrections = query_assistance.get("corrections")
+        correction_text = ""
+        if isinstance(corrections, list):
+            correction_text = ", ".join(
+                f"{item.get('original')} -> {item.get('suggestion')}"
+                for item in corrections
+                if isinstance(item, dict) and item.get("original") and item.get("suggestion")
+            )
+        if corrected_query:
+            query_assistance_row = (
+                "<section class='panel'>"
+                f"<p><strong>Possible query typo:</strong> {_html(correction_text or corrected_query)}</p>"
+                f"<p><strong>Suggested query:</strong> {_html(corrected_query)}</p>"
+                f"<button type='button' data-suggested-query='{_html(corrected_query)}'>Use suggested query</button>"
+                "</section>"
+            )
     claim_rows = []
     claims = payload.get("claims", [])
     if isinstance(claims, list):
@@ -337,12 +380,15 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
     citation_rows_html = "".join(citation_rows) or "<tr><td colspan='6'>No citations</td></tr>"
     return (
         "<section class='panel'>"
+        f"<p><strong>Query:</strong> {_html(payload.get('query') or question)}</p>"
         f"<p><strong>Status:</strong> <span class='{status_class}'>{_html(payload.get('status'))}</span> "
         f"<strong>Retrieval:</strong> {_html(payload.get('retrieval_method'))} "
-        f"<strong>Provider:</strong> {_html(payload.get('generation_provider'))}</p>"
+        f"<strong>Provider:</strong> {_html(payload.get('generation_provider'))} "
+        f"<strong>Retrieved:</strong> {_html(metadata.get('retrieved_count') if isinstance(metadata, dict) else '')}</p>"
         f"{adequacy_row}"
         f"{answer_block}"
         "</section>"
+        f"{query_assistance_row}"
         "<h2>Claims</h2><table><tr><th>Claim</th><th>Citations</th></tr>"
         f"{claim_rows_html}</table>"
         "<h2>Citations</h2><table><tr><th>ID</th><th>Article</th><th class='num'>Pages</th>"
@@ -367,7 +413,7 @@ def _answer_body(
     )
     return f"""
     <h1>Answer</h1>
-    <form class="stack" method="post" action="/ui/answer">
+    <form class="stack" method="post" action="/ui/answer" data-async-result="/ui/answer/result">
       <label>Question<br><textarea name="question" rows="4">{_html(question)}</textarea></label>
       <div class="actions">
         <label>Collection<br><input name="collection" value="{_html(collection)}"></label>
@@ -377,7 +423,92 @@ def _answer_body(
         <button type="submit">Answer</button>
       </div>
     </form>
-    {result}
+    <div id="answer-result" aria-live="polite">{result}</div>
+    <script>
+    (() => {{
+      const form = document.querySelector('form[data-async-result]');
+      const result = document.getElementById('answer-result');
+      if (!form || !result || !window.fetch) return;
+      const steps = [
+        ['prepare', 'Prepare request parameters'],
+        ['send', 'Send request to backend'],
+        ['wait', 'Wait for retrieval, evidence check, and generation'],
+        ['receive', 'Receive answer payload'],
+        ['render', 'Render answer and citations']
+      ];
+      const progressHtml = () => '<section class="panel"><ol class="progress-steps">' +
+        steps.map(([key, label]) => '<li class="progress-step" data-step="' + key + '"><span class="marker"></span><span>' + label + '</span></li>').join('') +
+        '</ol></section>';
+      const setStep = (activeKey, doneKeys = [], errorKey = null) => {{
+        for (const item of result.querySelectorAll('.progress-step')) {{
+          const marker = item.querySelector('.marker');
+          const key = item.dataset.step;
+          item.classList.remove('running', 'done', 'error');
+          if (doneKeys.includes(key)) {{
+            item.classList.add('done');
+            if (marker) marker.textContent = '✓';
+          }} else if (errorKey === key) {{
+            item.classList.add('error');
+            if (marker) marker.textContent = '!';
+          }} else if (activeKey === key) {{
+            item.classList.add('running');
+            if (marker) marker.textContent = '';
+          }} else if (marker) {{
+            marker.textContent = '';
+          }}
+        }}
+      }};
+      form.addEventListener('submit', async (event) => {{
+        event.preventDefault();
+        const button = form.querySelector('button[type="submit"]');
+        const originalText = button ? button.textContent : '';
+        if (button) {{
+          button.disabled = true;
+          button.textContent = 'Loading...';
+        }}
+        result.innerHTML = progressHtml();
+        setStep('prepare');
+        try {{
+          setStep('send', ['prepare']);
+          const responsePromise = fetch(form.dataset.asyncResult, {{
+            method: 'POST',
+            body: new FormData(form),
+            headers: {{'X-Requested-With': 'fetch'}}
+          }});
+          setStep('wait', ['prepare', 'send']);
+          const response = await responsePromise;
+          setStep('wait', ['prepare', 'send']);
+          const body = await response.text();
+          setStep('receive', ['prepare', 'send', 'wait']);
+          if (!response.ok) {{
+            setStep(null, ['prepare', 'send', 'wait'], 'receive');
+            result.insertAdjacentHTML('beforeend', '<section class="panel"><p class="warn">' + body + '</p></section>');
+            return;
+          }}
+          setStep('render', ['prepare', 'send', 'wait', 'receive']);
+          setStep(null, ['prepare', 'send', 'wait', 'receive', 'render']);
+          result.insertAdjacentHTML('beforeend', body);
+        }} catch (error) {{
+          setStep(null, ['prepare'], 'send');
+          result.insertAdjacentHTML('beforeend', '<section class="panel"><p class="warn">Request failed before the answer was returned.</p></section>');
+        }} finally {{
+          if (button) {{
+            button.disabled = false;
+            button.textContent = originalText;
+          }}
+        }}
+      }});
+      result.addEventListener('click', (event) => {{
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.dataset.suggestedQuery) return;
+        const question = form.querySelector('textarea[name="question"]');
+        if (question) {{
+          question.value = target.dataset.suggestedQuery;
+          form.requestSubmit();
+        }}
+      }});
+    }})();
+    </script>
     """
 
 
@@ -386,18 +517,16 @@ def answer_page() -> HTMLResponse:
     return _layout("Answer", _answer_body())
 
 
-@router.post("/ui/answer", response_class=HTMLResponse)
-def answer_action(
-    session: SessionDep,
-    question: Annotated[str, Form()],
-    collection: Annotated[str, Form()] = "literature",
-    top_k: Annotated[int, Form()] = 5,
-    method: Annotated[str, Form()] = "hybrid",
-    answer_style: Annotated[str, Form()] = "claims",
-) -> HTMLResponse:
+def _answer_result_fragment(
+    session: Session,
+    question: str,
+    collection: str,
+    top_k: int,
+    method: str,
+    answer_style: str,
+) -> str:
     if top_k <= 0:
-        result = "<section class='panel'><p class='warn'>top_k must be positive.</p></section>"
-        return _layout("Answer", _answer_body(question, collection, top_k, method, answer_style, result))
+        return "<section class='panel'><p class='warn'>top_k must be positive.</p></section>"
     try:
         response = answer_question(
             session,
@@ -409,10 +538,34 @@ def answer_action(
             answer_style=answer_style,
         )
         payload = answer_response_to_dict(response)
-        result = _answer_payload_panel(payload, question)
+        return _answer_payload_panel(payload, question)
     except (GenerationUnavailableError, GenerationOutputError, VectorIndexUnavailableError, ValueError) as exc:
-        result = f"<section class='panel'><p class='warn'>{_html(exc)}</p></section>"
+        return f"<section class='panel'><p class='warn'>{_html(exc)}</p></section>"
+
+
+@router.post("/ui/answer", response_class=HTMLResponse)
+def answer_action(
+    session: SessionDep,
+    question: Annotated[str, Form()],
+    collection: Annotated[str, Form()] = "literature",
+    top_k: Annotated[int, Form()] = 5,
+    method: Annotated[str, Form()] = "hybrid",
+    answer_style: Annotated[str, Form()] = "claims",
+) -> HTMLResponse:
+    result = _answer_result_fragment(session, question, collection, top_k, method, answer_style)
     return _layout("Answer", _answer_body(question, collection, top_k, method, answer_style, result))
+
+
+@router.post("/ui/answer/result", response_class=HTMLResponse)
+def answer_result_action(
+    session: SessionDep,
+    question: Annotated[str, Form()],
+    collection: Annotated[str, Form()] = "literature",
+    top_k: Annotated[int, Form()] = 5,
+    method: Annotated[str, Form()] = "hybrid",
+    answer_style: Annotated[str, Form()] = "claims",
+) -> HTMLResponse:
+    return HTMLResponse(_answer_result_fragment(session, question, collection, top_k, method, answer_style))
 
 
 @router.get("/ui/vector-indexes", response_class=HTMLResponse)

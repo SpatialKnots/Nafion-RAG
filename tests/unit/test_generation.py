@@ -209,6 +209,124 @@ def test_answer_question_refuses_when_short_scientific_term_is_missing(monkeypat
     assert response.metadata["evidence_adequacy"]["matched_terms"] == ["nafion"]  # type: ignore[index]
 
 
+def test_answer_question_suggests_domain_typo_correction(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="What protocol of Nafion litation",
+            results=[
+                SearchResult(
+                    article_id=str(uuid.UUID(int=1)),
+                    chunk_id=str(uuid.UUID(int=2)),
+                    title="Li-Nafion protocol paper",
+                    doi=None,
+                    page_start=1,
+                    page_end=1,
+                    source_type="body",
+                    snippet="Nafion membranes were converted to the lithium form before conductivity measurements.",
+                    full_text="Nafion membranes were converted to the lithium form before conductivity measurements.",
+                    score=1.0,
+                    retrieval_method="hybrid_rrf",
+                )
+            ],
+        ),
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "What protocol of Nafion litation",
+        provider=ExtractiveAnswerProvider(max_claims=3),
+    )
+
+    assistance = response.metadata["query_assistance"]  # type: ignore[index]
+    assert response.status == "insufficient_evidence"
+    assert assistance["corrected_query"] == "What protocol of Nafion lithiation"  # type: ignore[index]
+    assert assistance["corrections"][0]["original"] == "litation"  # type: ignore[index]
+    assert assistance["corrections"][0]["suggestion"] == "lithiation"  # type: ignore[index]
+
+
+def test_answer_question_suggests_hyphenated_domain_typo_correction(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="Li-Nafeon membrane litation pratocole",
+            results=[
+                SearchResult(
+                    article_id=str(uuid.UUID(int=1)),
+                    chunk_id=str(uuid.UUID(int=2)),
+                    title="Li-Nafion protocol paper",
+                    doi=None,
+                    page_start=1,
+                    page_end=1,
+                    source_type="body",
+                    snippet="Li-Nafion lithiation protocol evidence.",
+                    full_text="Li-Nafion lithiation protocol evidence.",
+                    score=1.0,
+                    retrieval_method="hybrid_rrf",
+                )
+            ],
+        ),
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Li-Nafeon membrane litation pratocole",
+        provider=ExtractiveAnswerProvider(max_claims=3),
+    )
+
+    assistance = response.metadata["query_assistance"]  # type: ignore[index]
+    assert assistance["corrected_query"] == "Li-Nafion membrane lithiation protocol"  # type: ignore[index]
+    assert {item["original"]: item["suggestion"] for item in assistance["corrections"]} == {  # type: ignore[index]
+        "nafeon": "Nafion",
+        "litation": "lithiation",
+        "pratocole": "protocol",
+    }
+
+
+def test_answer_question_allows_domain_synonyms_for_lithiation_protocol(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="Li-Nafion membrane lithiation protocol",
+            results=[
+                SearchResult(
+                    article_id=str(uuid.UUID(int=1)),
+                    chunk_id=str(uuid.UUID(int=2)),
+                    title="Sanginov 2021",
+                    doi="10.1016/j.electacta.2021.137914",
+                    page_start=3,
+                    page_end=3,
+                    source_type="method",
+                    snippet="Experimental section reports Li-Nafion membranes swelled with EC/SL mixtures.",
+                    full_text="2. Experimental. A commercial Nafion membrane was prepared as Li-Nafion and swelled with EC/SL mixtures.",
+                    score=1.0,
+                    retrieval_method="hybrid_rrf",
+                )
+            ],
+        ),
+    )
+    provider = StaticProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="The evidence describes Li-Nafion preparation in the experimental section.", citation_ids=["E1"])],
+            provider="test",
+            model=None,
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Li-Nafion membrane lithiation protocol",
+        provider=provider,
+    )
+
+    assert response.status == "answered"
+    assert response.metadata["evidence_adequacy"]["matched_terms"] == ["li-nafion", "lithiation", "protocol"]  # type: ignore[index]
+
+
 def test_answer_question_refuses_when_only_solvent_matches(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.generation.service.search_chunks",
