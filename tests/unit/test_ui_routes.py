@@ -12,6 +12,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.documents.context import ChunkContext, ChunkContextItem
+from app.generation.providers import GenerationUnavailableError
 from app.retrieval.search import SearchFilters
 from app.ui import (
     _truncate,
@@ -249,6 +250,8 @@ def test_answer_page_renders_form() -> None:
     assert 'data-async-result="/ui/answer/result"' in body
     assert 'id="answer-result"' in body
     assert "progress-steps" in body
+    assert 'data-result-status="error"' in body
+    assert "result.querySelector('[data-result-status=\"error\"]')" in body
     assert "Prepare request parameters" in body
     assert "Wait for retrieval, evidence check, and generation" in body
     assert "Render answer and citations" in body
@@ -388,6 +391,25 @@ def test_answer_result_action_returns_fragment_only(monkeypatch) -> None:
     assert "<!doctype html>" not in body
     assert "Li-Nafion conductivity was measured" in body
     assert "Nafion conductivity evidence" in body
+
+
+def test_answer_result_action_renders_provider_error(monkeypatch) -> None:
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+
+    def fake_answer_question(*args, **kwargs) -> object:
+        raise GenerationUnavailableError("OpenAI request failed: socket blocked")
+
+    monkeypatch.setattr("app.ui.answer_question", fake_answer_question)
+
+    response = answer_result_action(_override_session(), "What is Li-Nafion conductivity?", "literature", 5, "hybrid", "claims", "auto")  # type: ignore[arg-type]
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "data-result-status='error'" in body
+    assert "Generation provider unavailable" in body
+    assert "GenerationUnavailableError" in body
+    assert "OpenAI request failed: socket blocked" in body
+    assert "Retrieval may have succeeded" in body
 
 
 def test_chunk_context_page_renders_context(monkeypatch) -> None:

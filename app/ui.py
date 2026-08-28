@@ -158,25 +158,55 @@ def _layout(title: str, body: str) -> HTMLResponse:
     }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; color: var(--ink); background: var(--bg); font-size: 14px; }
-    header {
-      background: var(--paper); border-bottom: 1px solid var(--line); padding: 12px 20px;
-      display:flex; gap:18px; align-items:center;
+    .app-shell {
+      min-height:100vh; display:grid; grid-template-columns:210px minmax(0, 1fr); gap:18px;
+      padding:12px; border:1px solid #C9DAE3; background:#F7FAFB;
     }
-    header strong { font-size: 16px; color:var(--graphite); letter-spacing:0; }
-    header strong .domain { color:var(--slate); font-weight:500; }
-    nav { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-    nav a { color: var(--accent); text-decoration: none; }
-    main { padding: 18px 20px 40px; max-width: 1500px; margin: 0 auto; }
-    h1 { font-size: 22px; margin: 0 0 14px; }
+    .sidebar {
+      min-height:calc(100vh - 24px); padding:20px 14px; border-radius:14px; background:#203B4A; color:#F7FBFC;
+      display:flex; flex-direction:column; gap:22px;
+    }
+    .brand-lockup { display:flex; gap:12px; align-items:center; font-weight:800; letter-spacing:.02em; font-size:18px; }
+    .ariadne-mark {
+      position:relative; width:58px; height:74px; flex:0 0 auto;
+    }
+    .ariadne-mark::before {
+      content:""; position:absolute; left:27px; top:10px; width:3px; height:52px; border-radius:999px;
+      background:#91DEDB; box-shadow:0 -8px 0 #E5664A;
+    }
+    .thread-line {
+      position:absolute; left:9px; width:38px; height:12px; border:5px solid #91DEDB; border-left-color:transparent;
+      border-right-color:transparent; border-radius:50%; transform:rotate(-24deg);
+    }
+    .thread-line:nth-child(1) { top:15px; opacity:.35; }
+    .thread-line:nth-child(2) { top:30px; transform:rotate(24deg); opacity:.65; }
+    .thread-line:nth-child(3) { top:45px; opacity:1; }
+    nav { display:grid; gap:8px; }
+    nav a {
+      color:#B8CBD5; text-decoration:none; min-height:34px; display:flex; gap:10px; align-items:center;
+      padding:8px 10px; border-radius:8px; font-weight:600;
+    }
+    nav a::before {
+      content:""; width:9px; height:9px; border:1px solid #91DEDB; border-radius:50%; flex:0 0 auto;
+    }
+    nav a.active { background:#365B6D; color:#fff; }
+    nav a.active::before { background:#5BD4D3; border-color:#5BD4D3; }
+    .sidebar-card {
+      margin-top:auto; border:1px solid rgba(145,222,219,.28); border-radius:8px; padding:12px; background:#173341;
+    }
+    .sidebar-card small { display:block; color:#5DE1DF; font-size:10px; font-weight:700; text-transform:uppercase; margin-bottom:8px; }
+    .sidebar-card strong { display:block; font-size:15px; font-weight:500; }
+    main { min-width:0; padding:16px 12px 40px; max-width: none; margin: 0; }
+    h1 { font-size: 28px; line-height:1.1; margin: 0 0 6px; color:#213846; }
     h2 { font-size: 17px; margin: 22px 0 8px; }
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
     .workbench-grid { display:grid; grid-template-columns:minmax(320px, 0.9fr) minmax(420px, 1.4fr); gap:14px; align-items:start; }
     .evidence-grid { display:grid; grid-template-columns:minmax(320px, 0.9fr) minmax(420px, 1.2fr); gap:14px; align-items:start; }
-    .panel { background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:12px; }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
     .panel.compact h2 { margin-top:0; }
     .workspace-band {
       background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
-      padding:14px; margin-bottom:14px;
+      padding:18px; margin-bottom:14px;
     }
     .status-strip { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:8px 0 0; }
     .status-pill, .citation-chip {
@@ -187,16 +217,26 @@ def _layout(title: str, body: str) -> HTMLResponse:
     .status-pill.warn { border-color:#E5C6B1; color:var(--warn); background:#FFF8F3; }
     .citation-chip { border-color:#B9DADC; background:#F2FBFB; color:#155E63; font-weight:600; }
     .claim-card {
-      border:1px solid var(--line); border-left:4px solid var(--aqua); border-radius:var(--radius);
-      padding:12px; background:var(--paper); margin-bottom:10px;
+      position:relative; border:0; border-radius:0; padding:0 0 18px 34px; background:transparent; margin:0;
     }
+    .claim-card::before {
+      content:""; position:absolute; left:8px; top:5px; width:12px; height:12px; border-radius:50%; background:#5BD4D3;
+      box-shadow:0 0 0 3px rgba(91,212,211,.18);
+    }
+    .claim-card::after {
+      content:""; position:absolute; left:13px; top:20px; bottom:-5px; width:3px; border-radius:999px; background:#5BD4D3;
+    }
+    .claim-card:last-child::after { display:none; }
     .claim-card.low-evidence { border-left-color:var(--coral); }
-    .claim-text { font-size:15px; line-height:1.45; margin:0 0 10px; }
-    .source-card { border:1px solid var(--line); border-radius:var(--radius); padding:10px; background:var(--paper); margin-bottom:10px; }
+    .claim-text { font-size:14px; line-height:1.45; margin:0 0 8px; }
+    .source-card { border:1px solid var(--line); border-radius:8px; padding:16px; background:var(--paper); margin-bottom:10px; }
     .source-card.table-derived { border-left:4px solid var(--coral); }
     .source-head { display:flex; justify-content:space-between; gap:12px; align-items:start; margin-bottom:6px; }
     .source-title { font-weight:600; color:var(--graphite); }
-    .source-fragment { border-left:3px solid var(--aqua); padding-left:10px; margin:8px 0; color:#24313A; }
+    .source-fragment {
+      border-left:6px solid var(--aqua); padding:14px 0 14px 18px; margin:14px 0;
+      color:#24313A; background:#fff; border-radius:8px;
+    }
     .empty-state { border:1px dashed var(--line); border-radius:var(--radius); padding:12px; background:#FBFCFD; }
     .muted { color: var(--muted); }
     .path { font-family: Consolas, monospace; font-size: 12px; word-break: break-all; }
@@ -225,30 +265,64 @@ def _layout(title: str, body: str) -> HTMLResponse:
     @keyframes spin { to { transform: rotate(360deg); } }
     mark { background:#fff1a8; padding:0 1px; }
     pre.context { white-space: pre-wrap; font-family: Consolas, monospace; font-size: 13px; margin: 6px 0 0; }
-    input, select, button { font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper); }
+    input, select, button {
+      max-width:100%; font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper);
+    }
     textarea { font: inherit; padding:7px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper);
       min-width: min(720px, 100%); }
-    button { background:var(--graphite); color:#fff; border-color:var(--graphite); }
+    button { background:#203B4A; color:#fff; border-color:#203B4A; font-weight:700; }
     form { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:14px; }
+    form[data-async-result] { display:block; }
+    form label { max-width:100%; min-width:0; }
     form.stack { display:block; }
     form.stack label { display:block; margin:0 0 10px; }
     form.stack .actions { margin-top:8px; }
+    .page-kicker { color:#668091; margin:0 0 16px; font-size:15px; }
+    .answer-search {
+      display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; align-items:center;
+      width:100%; padding:14px; border:1px solid var(--line); border-radius:14px; background:#fff; margin-bottom:14px;
+    }
+    .answer-search label { margin:0; }
+    .answer-search textarea {
+      min-height:42px; height:42px; resize:vertical; border:0; padding:10px 12px; font-size:15px; background:#fff;
+    }
+    .answer-search button { min-width:116px; min-height:42px; border-radius:9px; }
+    .answer-controls {
+      width:100%; display:grid; grid-template-columns:repeat(5, minmax(120px, 1fr)); gap:10px; margin:0 0 22px;
+    }
+    .answer-controls label { display:block; margin:0; color:#213846; }
+    .answer-controls input, .answer-controls select { width:100%; min-height:40px; background:#fff; }
+    .answer-surface {
+      display:grid; grid-template-columns:minmax(420px, 1.35fr) minmax(320px, .9fr); gap:24px; align-items:start;
+    }
+    .answer-card, .evidence-card {
+      border:1px solid #D1E0E7; border-radius:14px; background:#fff; padding:24px;
+    }
+    .answer-card > h2, .evidence-card > h2 { margin-top:0; }
+    .section-kicker { color:#486F88; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.02em; margin:0 0 12px; }
+    .answer-lede { font-size:20px; line-height:1.25; font-weight:800; margin:0 0 24px; color:#213846; white-space:pre-wrap; }
+    .citation-chip { border-radius:7px; }
     a { color: var(--accent); }
     @media (max-width: 900px) {
-      .workbench-grid, .evidence-grid { grid-template-columns:1fr; }
-      header { align-items:flex-start; flex-direction:column; gap:8px; }
+      .app-shell { grid-template-columns:1fr; padding:8px; }
+      .sidebar { min-height:auto; }
+      nav { grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); }
+      .sidebar-card { margin-top:0; }
+      .workbench-grid, .evidence-grid, .answer-surface { grid-template-columns:1fr; }
+      .answer-controls { grid-template-columns:1fr 1fr; }
+      .answer-search { grid-template-columns:1fr; }
     }
     """
-    nav = (
-        '<a href="/">Library</a>'
-        '<a href="/ui/search">Search</a>'
-        '<a href="/ui/answer">Answer</a>'
-        '<a href="/ui/articles">Documents</a>'
-        '<a href="/ui/ingestion">Ingestion</a>'
-        '<a href="/ui/vector-indexes">Settings</a>'
-        '<a href="/ui/reports/retrieval">Retrieval report</a>'
-        '<a href="/ui/reports/text-quality">Text quality</a>'
-        '<a href="/ui/reports/classification">Classification report</a>'
+    nav_items = (
+        ("Library", "/", {"Dashboard", "Articles", "Article", "Text Layers"}),
+        ("Search", "/ui/search", {"Search", "Answer"}),
+        ("Evidence", "/ui/reports/retrieval", {"Retrieval Evaluation Report", "Text Quality Report", "Classification Report"}),
+        ("Sessions", "/ui/ingestion", {"Ingestion", "Vector Indexes"}),
+        ("Settings", "/ui/vector-indexes", {"Vector Indexes"}),
+    )
+    nav = "".join(
+        f"<a class='{'active' if title in active_titles else ''}' href='{href}'>{label}</a>"
+        for label, href, active_titles in nav_items
     )
     html = f"""<!doctype html>
 <html lang="en">
@@ -259,8 +333,19 @@ def _layout(title: str, body: str) -> HTMLResponse:
 <style>{css}</style>
 </head>
 <body>
-<header><strong>ARIADNE <span class="domain">/ Nafion profile</span></strong><nav>{nav}</nav></header>
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="brand-lockup">
+    <div class="ariadne-mark" aria-hidden="true">
+      <span class="thread-line"></span><span class="thread-line"></span><span class="thread-line"></span>
+    </div>
+    <span>ARIADNE</span>
+  </div>
+  <nav>{nav}</nav>
+  <div class="sidebar-card"><small>Local collection</small><strong>Nafion profile</strong></div>
+</aside>
 <main>{body}</main>
+</div>
 </body></html>"""
     return HTMLResponse(html)
 
@@ -442,7 +527,8 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
             citation_chips_html = "".join(chips) or "<span class='muted'>No citation links</span>"
             claim_cards.append(
                 "<article class='claim-card'>"
-                f"<p class='claim-text'><strong>Claim {index}.</strong> {_html(claim.get('text'))}</p>"
+                f"<p class='section-kicker'>Claim {index:02d}</p>"
+                f"<p class='claim-text'>{_html(claim.get('text'))}</p>"
                 f"<div class='actions'>{citation_chips_html}</div>"
                 "</article>"
             )
@@ -494,7 +580,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
             "</tr>"
         )
     answer_block = (
-        f"<pre class='context'>{_linked_answer_text(str(answer), citation_dicts)}</pre>"
+        f"<div class='answer-lede'>{_linked_answer_text(str(answer), citation_dicts)}</div>"
         if answer
         else "<p class='warn'>No answer: evidence was insufficient or generation failed validation.</p>"
     )
@@ -516,16 +602,46 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
         f"{adequacy_row}"
         "</section>"
         f"{query_assistance_row}"
-        "<div class='evidence-grid'>"
-        "<section><h2>Answer</h2>"
-        f"<section class='panel compact'>{answer_block}</section>"
-        "<h2>Claims</h2>"
-        f"{claim_cards_html}</section>"
-        "<section><h2>Evidence</h2>"
+        "<div class='answer-surface'>"
+        "<section class='answer-card'>"
+        "<p class='section-kicker'>Evidence-based answer</p>"
+        f"{answer_block}"
+        f"<div class='claims-thread'>{claim_cards_html}</div></section>"
+        "<section class='evidence-card'>"
+        "<p class='section-kicker'>Source fragment</p>"
         f"{source_cards_html}</section>"
         "</div>"
         "<h2>Citations</h2><table><tr><th>ID</th><th>Article</th><th class='num'>Pages</th>"
         f"<th>Language</th><th class='num'>Score</th><th>Evidence text</th><th>Links</th></tr>{citation_rows_html}</table>"
+    )
+
+
+def _answer_error_panel(exc: Exception) -> str:
+    if isinstance(exc, GenerationUnavailableError):
+        title = "Generation provider unavailable"
+        hint = (
+            "Retrieval may have succeeded, but answer generation could not reach the configured provider. "
+            "Check RAG_PROVIDER, API keys, local network permissions, or intentionally switch provider."
+        )
+    elif isinstance(exc, GenerationOutputError):
+        title = "Generation output rejected"
+        hint = "The provider returned an answer that failed validation; claims and citations were not rendered."
+    elif isinstance(exc, VectorIndexUnavailableError):
+        title = "Vector index unavailable"
+        hint = "The selected retrieval method needs a ready vector index. Rebuild it or choose an exact retrieval method."
+    else:
+        title = "Answer request failed"
+        hint = "The request parameters or local service state need attention before an answer can be generated."
+    return (
+        "<section class='workspace-band' data-result-status='error'>"
+        "<div class='status-strip'>"
+        f"<span class='status-pill warn'><strong>Status:</strong> error</span>"
+        f"<span class='status-pill'><strong>Type:</strong> {_html(type(exc).__name__)}</span>"
+        "</div>"
+        f"<p><strong>{_html(title)}</strong></p>"
+        f"<p>{_html(hint)}</p>"
+        f"<p class='path'>{_html(exc)}</p>"
+        "</section>"
     )
 
 
@@ -551,16 +667,19 @@ def _answer_body(
         for value, label in (("auto", "Auto"), ("en", "English"), ("ru", "Russian"))
     )
     return f"""
-    <h1>Answer</h1>
-    <form class="stack" method="post" action="/ui/answer" data-async-result="/ui/answer/result">
-      <label>Question<br><textarea name="question" rows="4">{_html(question)}</textarea></label>
-      <div class="actions">
+    <h1>Search the literature</h1>
+    <p class="page-kicker">Every claim should lead back to a source fragment.</p>
+    <form method="post" action="/ui/answer" data-async-result="/ui/answer/result">
+      <div class="answer-search">
+        <label><span class="section-kicker">Question</span><br><textarea name="question" rows="1">{_html(question)}</textarea></label>
+        <button type="submit">Search</button>
+      </div>
+      <div class="answer-controls">
         <label>Collection<br><input name="collection" value="{_html(collection)}"></label>
         <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
         <label>Method<br><select name="method">{method_options}</select></label>
         <label>Style<br><select name="answer_style">{style_options}</select></label>
         <label>Answer language<br><select name="answer_language">{language_options}</select></label>
-        <button type="submit">Answer</button>
       </div>
     </form>
     <div id="answer-result" aria-live="polite">{result}</div>
@@ -629,8 +748,12 @@ def _answer_body(
             return;
           }}
           setStep('render', ['prepare', 'send', 'wait', 'receive']);
-          setStep(null, ['prepare', 'send', 'wait', 'receive', 'render']);
           result.insertAdjacentHTML('beforeend', body);
+          if (result.querySelector('[data-result-status="error"]')) {{
+            setStep(null, ['prepare', 'send', 'wait', 'receive'], 'render');
+          }} else {{
+            setStep(null, ['prepare', 'send', 'wait', 'receive', 'render']);
+          }}
         }} catch (error) {{
           setStep(null, ['prepare'], 'send');
           result.insertAdjacentHTML(
@@ -695,7 +818,7 @@ def _answer_result_fragment(
         payload = answer_response_to_dict(response)
         return _answer_payload_panel(payload, question)
     except (GenerationUnavailableError, GenerationOutputError, VectorIndexUnavailableError, ValueError) as exc:
-        return f"<section class='panel'><p class='warn'>{_html(exc)}</p></section>"
+        return _answer_error_panel(exc)
 
 
 @router.post("/ui/answer", response_class=HTMLResponse)
