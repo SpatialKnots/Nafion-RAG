@@ -11,7 +11,8 @@ This records the current M1 cross-lingual retrieval state after adding:
 - query feature extraction and protected scientific tokens;
 - Russian lexical normalization;
 - `semantic_multilingual`;
-- optional multilingual channel in `hybrid_cross_lingual_v2`;
+- optional multilingual channel in a rejected `hybrid_cross_lingual_v2`
+  experiment;
 - extended cross-lingual evaluation categories.
 - M2 phrase/title-aware reranking with a conditional expanded window for mixed
   and protected-token queries.
@@ -81,7 +82,7 @@ candidate-window / heavier title-reranking experiment was rejected because it
 kept top-10 recall but reduced MRR and top-1 behavior on both cross-lingual
 evaluation sets.
 
-`hybrid_cross_lingual_v2` on the same set:
+Rejected `hybrid_cross_lingual_v2` experiment on the same set:
 
 ```text
 data\exports\retrieval_eval_extended_hybrid_cross_lingual_v2_20260827T055319Z.json
@@ -120,11 +121,10 @@ Summary:
 
 ## Current Interpretation
 
-`hybrid_cross_lingual` currently has better recall than `hybrid_cross_lingual_v2`
-on the extended set.
-
-`hybrid_cross_lingual_v2` has slightly better MRR/top-1 behavior in this run,
-but lower recall, so it should remain experimental.
+`hybrid_cross_lingual` has better recall than `hybrid_cross_lingual_v2` on the
+extended set. The v2 path is no longer exposed as a public retrieval method or
+answer UI option; keep one supported cross-lingual method until a new candidate
+beats the current recall and ranking metrics.
 
 The targeted `water_interaction` and `casting_annealing` glossary refinements
 closed the two remaining top-10 misses. M2 then added phrase/title-aware

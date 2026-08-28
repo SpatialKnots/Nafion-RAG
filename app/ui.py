@@ -417,7 +417,7 @@ def _answer_body(
 ) -> str:
     method_options = "".join(
         f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>"
-        for value in ("exact", "semantic", "hybrid", "hybrid_cross_lingual", "hybrid_cross_lingual_v2")
+        for value in ("exact", "semantic", "hybrid", "hybrid_cross_lingual")
     )
     style_options = "".join(
         f"<option value='{value}' {'selected' if answer_style == value else ''}>{label}</option>"

@@ -8,7 +8,6 @@ from app.retrieval.search import (
     SearchResponse,
     SearchResult,
     hybrid_cross_lingual_search,
-    hybrid_cross_lingual_v2_search,
     normalize_retrieval_method,
 )
 
@@ -98,8 +97,13 @@ def test_normalize_retrieval_method_accepts_hybrid_cross_lingual() -> None:
     assert normalize_retrieval_method(" Hybrid_Cross_Lingual ") == "hybrid_cross_lingual"
 
 
-def test_normalize_retrieval_method_accepts_hybrid_cross_lingual_v2() -> None:
-    assert normalize_retrieval_method(" Hybrid_Cross_Lingual_V2 ") == "hybrid_cross_lingual_v2"
+def test_normalize_retrieval_method_rejects_hybrid_cross_lingual_v2() -> None:
+    try:
+        normalize_retrieval_method(" Hybrid_Cross_Lingual_V2 ")
+    except ValueError as exc:
+        assert "Unsupported retrieval method" in str(exc)
+    else:
+        raise AssertionError("hybrid_cross_lingual_v2 should not be a public retrieval method")
 
 
 def test_hybrid_cross_lingual_search_merges_original_and_glossary_results(monkeypatch) -> None:
@@ -129,79 +133,6 @@ def test_hybrid_cross_lingual_search_merges_original_and_glossary_results(monkey
     assert cross_lingual["query_language"] == "en"  # type: ignore[index]
     assert len(cross_lingual["variants"]) >= 2  # type: ignore[index]
     assert any(hit["result_count"] == 1 for hit in cross_lingual["variant_hits"][1:])  # type: ignore[index]
-
-
-def test_hybrid_cross_lingual_v2_adds_normalized_lexical_channel(monkeypatch) -> None:
-    original_result = _result(uuid.UUID(int=1), "Russian same-language paper", None, "hybrid_rrf")
-    normalized_result = _result(uuid.UUID(int=2), "Sanginov 2021", "10.1016/j.electacta.2021.137914", "exact_ilike")
-    exact_queries: list[str] = []
-
-    monkeypatch.setattr(
-        "app.retrieval.search.hybrid_search",
-        lambda *args, **kwargs: SearchResponse(query=args[1], results=[original_result], metadata={"retrieval_method": "hybrid_rrf"}),
-    )
-
-    def fake_exact(*args, **kwargs):
-        exact_queries.append(args[1])
-        if "ионн" in args[1] and "проводимост" in args[1]:
-            return SearchResponse(query=args[1], results=[normalized_result])
-        return SearchResponse(query=args[1], results=[])
-
-    monkeypatch.setattr("app.retrieval.search.exact_search", fake_exact)
-
-    response = hybrid_cross_lingual_v2_search(
-        object(),  # type: ignore[arg-type]
-        "Как EC и SL влияют на ионную проводимость Li-Nafion?",
-        top_k=5,
-        settings=SimpleNamespace(search_max_top_k=100, hybrid_rrf_k=60),
-    )
-
-    assert any("ионн" in query and "проводимост" in query for query in exact_queries)
-    assert {result.title for result in response.results} == {"Russian same-language paper", "Sanginov 2021"}
-    assert all(result.retrieval_method == "hybrid_cross_lingual_v2_rrf" for result in response.results)
-    cross_lingual = response.metadata["cross_lingual"]  # type: ignore[index]
-    assert cross_lingual["version"] == "v2"  # type: ignore[index]
-    query_metadata = cross_lingual["query"]  # type: ignore[index]
-    assert query_metadata["original"] == "Как EC и SL влияют на ионную проводимость Li-Nafion?"  # type: ignore[index]
-    assert "EC" in query_metadata["protected_tokens"]  # type: ignore[index]
-    channels = cross_lingual["channels"]  # type: ignore[index]
-    assert channels["lexical_normalized"]["result_count"] == 1  # type: ignore[index]
-
-
-def test_hybrid_cross_lingual_v2_can_add_multilingual_semantic_channel(monkeypatch) -> None:
-    original_result = _result(uuid.UUID(int=1), "Original channel", None, "hybrid_rrf")
-    semantic_result = _result(uuid.UUID(int=2), "Multilingual semantic channel", None, "semantic_multilingual_cosine")
-
-    monkeypatch.setattr(
-        "app.retrieval.search.hybrid_search",
-        lambda *args, **kwargs: SearchResponse(query=args[1], results=[original_result], metadata={"retrieval_method": "hybrid_rrf"}),
-    )
-    monkeypatch.setattr("app.retrieval.search.exact_search", lambda *args, **kwargs: SearchResponse(query=args[1], results=[]))
-    monkeypatch.setattr(
-        "app.retrieval.search.semantic_multilingual_search",
-        lambda *args, **kwargs: SearchResponse(
-            query=args[1],
-            results=[semantic_result],
-            metadata={"embedding_model": "test/multilingual", "semantic_role": "multilingual"},
-        ),
-    )
-
-    response = hybrid_cross_lingual_v2_search(
-        object(),  # type: ignore[arg-type]
-        "How does lithium substitution affect Nafion?",
-        top_k=5,
-        settings=SimpleNamespace(
-            search_max_top_k=100,
-            hybrid_rrf_k=60,
-            cross_lingual_multilingual_embeddings_enabled=True,
-        ),
-    )
-
-    assert {result.title for result in response.results} == {"Original channel", "Multilingual semantic channel"}
-    channels = response.metadata["cross_lingual"]["channels"]  # type: ignore[index]
-    assert channels["semantic_multilingual"]["enabled"] is True  # type: ignore[index]
-    assert channels["semantic_multilingual"]["result_count"] == 1  # type: ignore[index]
-    assert channels["semantic_multilingual"]["model"] == "test/multilingual"  # type: ignore[index]
 
 
 def _result(chunk_id: uuid.UUID, title: str, doi: str | None, method: str) -> SearchResult:

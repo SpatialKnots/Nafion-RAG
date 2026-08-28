@@ -252,7 +252,7 @@ def test_answer_page_renders_form() -> None:
     assert "Render answer and citations" in body
     assert "form.requestSubmit()" in body
     assert "value='hybrid_cross_lingual' selected" in body
-    assert "hybrid_cross_lingual_v2" in body
+    assert "hybrid_cross_lingual_v2" not in body
     assert "Answer language" in body
     assert "value='auto' selected" in body
 
