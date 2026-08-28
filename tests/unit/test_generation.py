@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.generation.evidence_adequacy import assess_evidence_adequacy
+from app.generation.evidence_selection import select_answer_evidence
 from app.generation.providers import (
     SCIENTIFIC_ANSWER_SYSTEM_PROMPT,
     DeepSeekAnswerProvider,
@@ -543,6 +544,101 @@ def test_answer_question_uses_cross_lingual_variant_terms_for_evidence_selection
     assert response.citations[0].title == "Диссертация Чернюк С.Д."
 
 
+def test_answer_question_prioritizes_swelling_comparison_table_for_generation() -> None:
+    generic = SearchResult(
+        article_id=str(uuid.UUID(int=20)),
+        chunk_id=str(uuid.UUID(int=21)),
+        title="Sanginov 2021",
+        doi=None,
+        page_start=3,
+        page_end=4,
+        source_type="method",
+        snippet="Li-Nafion membranes were swelled with EC/SL mixtures.",
+        full_text="Li-Nafion membranes were swelled with EC/SL mixtures.",
+        score=0.02,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    table = SearchResult(
+        article_id=str(uuid.UUID(int=22)),
+        chunk_id=str(uuid.UUID(int=23)),
+        title="Диссертация Чернюк С.Д.",
+        doi=None,
+        page_start=96,
+        page_end=97,
+        source_type="body",
+        snippet="Таблица 4.5 — Равновесная степень набухания H-Nafion and Li-Nafion.",
+        full_text=(
+            "Таблица 4.5 — Равновесная степень набухания H-Nafion and Li-Nafion. "
+            "Растворитель H-Nafion Li-Nafion αH αLi диметилсульфоксид 0.89 1.12 "
+            "N,N-диметилформамид 0.72 1.15 метанол 1.14 1.18 "
+            "N-метил-2-пирролидон 0.64 1.37"
+        ),
+        score=0.01,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    selection = select_answer_evidence(
+        "In what solvents Li-Nafion has more swelling degree than H-Nafion?",
+        [generic, table],
+        additional_queries=["степень набухания αH αLi H-Nafion Li-Nafion"],
+    )
+
+    assert selection.results[0].title == "Диссертация Чернюк С.Д."
+    assert selection.results[0].full_text.startswith("Таблица 4.5")
+    assert selection.metadata["numeric_comparison_intent"] is True
+    assert selection.metadata["numeric_table_result_count"] == 1
+
+
+def test_answer_question_adds_derived_swelling_comparison_evidence(monkeypatch) -> None:
+    table = SearchResult(
+        article_id=str(uuid.UUID(int=24)),
+        chunk_id=str(uuid.UUID(int=25)),
+        title="Диссертация Чернюк С.Д.",
+        doi=None,
+        page_start=96,
+        page_end=97,
+        source_type="body",
+        snippet="Таблица 4.5 — Равновесная степень набухания H-Nafion and Li-Nafion.",
+        full_text=(
+            "Таблица 4.5 — Равновесная степень набухания H-Nafion and Li-Nafion. "
+            "Растворитель H-Nafion Li-Nafion αH ΔH αLi ΔH ацетонитрил 0.14 -0.45 0.12 -0.92 "
+            "ацетон 0.38 -2.10 0.27 -1.67 вода 0.38 -0.24 0.35 -0.16 "
+            "изопропанол 0.83 -1.62 0.49 -1.81 диметилсульфоксид 0.89 -3.8 1.12 -4.60 "
+            "N,N-диметилформамид 0.72 -4.24 1.15 -4.36 метанол 1.14 -0.99 1.18 -1.29 "
+            "этанол 1.44 -1.73 1.33 -1.57 N-метил-2-пирролидон 0.64 -5.86 1.37 -6.44"
+        ),
+        score=0.01,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="In what solvents Li-Nafion has more swelling degree than H-Nafion?",
+            results=[table],
+            metadata={"cross_lingual": {"matched_concepts": ["swelling_degree_comparison"], "variants": []}},
+        ),
+    )
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="Derived table comparison is available.", citation_ids=["E1"])],
+            provider="test",
+            model=None,
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "In what solvents Li-Nafion has more swelling degree than H-Nafion?",
+        provider=provider,
+    )
+
+    assert provider.evidence_texts[0].startswith("Deterministic row comparison extracted from Table 4.5")
+    assert "methanol: alphaLi=1.18 > alphaH=1.14" in provider.evidence_texts[0]
+    assert response.citations[0].source_type == "table_derived"
+    assert response.metadata["derived_evidence"]["matching_row_count"] == 4  # type: ignore[index]
+
+
 def test_answer_question_refuses_when_only_solvent_matches(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.generation.service.search_chunks",
@@ -663,6 +759,8 @@ def test_openai_provider_parses_structured_claims() -> None:
 
 def test_provider_system_prompt_preserves_table_semantics() -> None:
     assert "preserve row and column meaning" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
+    assert "enumerate all supported matching rows" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
+    assert "Compare numeric table cells arithmetically" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
     assert "Do not merge a temperature range" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
     assert "at-25-C conductivity columns" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
     assert "same cited row" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT

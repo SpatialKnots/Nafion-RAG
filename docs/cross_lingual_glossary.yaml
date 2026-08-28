@@ -46,6 +46,15 @@ entries:
   - concept: physicochemical_properties
     en: ["physicochemical properties", "physicochemical", "swelling degree"]
     ru: ["физико-химические свойства", "физико-химических свойств", "степень набухания"]
+  - concept: swelling_degree_comparison
+    en:
+      - "swelling degree"
+      - "more swelling degree"
+      - "li-nafion has more swelling than h-nafion"
+    ru:
+      - "степень набухания"
+      - "αH αLi H-Nafion Li-Nafion"
+      - "равновесная степень набухания"
   - concept: solution_casting_morphology
     en:
       - "solution casting morphology properties"

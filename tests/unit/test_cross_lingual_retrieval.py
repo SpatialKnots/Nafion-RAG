@@ -93,6 +93,13 @@ def test_query_bundle_maps_istomina_temperature_property_terms() -> None:
     assert any(variant.language == "en" and "physicochemical properties" in variant.text for variant in bundle.variants)
 
 
+def test_query_bundle_maps_swelling_degree_comparison_to_alpha_columns() -> None:
+    bundle = build_query_bundle("In what solvents Li-Nafion has more swelling degree than H-Nafion?")
+
+    assert "swelling_degree_comparison" in bundle.matched_concepts
+    assert any(variant.language == "ru" and "αH αLi H-Nafion Li-Nafion" in variant.text for variant in bundle.variants)
+
+
 def test_normalize_retrieval_method_accepts_hybrid_cross_lingual() -> None:
     assert normalize_retrieval_method(" Hybrid_Cross_Lingual ") == "hybrid_cross_lingual"
 

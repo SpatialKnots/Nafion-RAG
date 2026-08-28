@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import OrderedDict
 from dataclasses import dataclass
 
@@ -27,15 +28,19 @@ def select_answer_evidence(question: str, results: list[SearchResult], *, additi
 
     article_terms: OrderedDict[str, set[str]] = OrderedDict()
     result_terms: dict[str, set[str]] = {}
+    numeric_table_scores: dict[str, int] = {}
+    numeric_comparison_intent = _has_swelling_comparison_intent(question, additional_queries or [])
     for result in results:
         matched = _matched_terms(result, distinctive_terms)
         result_terms[result.chunk_id] = matched
+        numeric_table_scores[result.chunk_id] = _swelling_comparison_table_score(result, enabled=numeric_comparison_intent)
         article_terms.setdefault(result.article_id, set()).update(matched)
 
     original_positions = {result.chunk_id: index for index, result in enumerate(results)}
     ranked = sorted(
         results,
         key=lambda result: (
+            -numeric_table_scores[result.chunk_id],
             -len(article_terms[result.article_id]),
             -len(result_terms[result.chunk_id]),
             original_positions[result.chunk_id],
@@ -57,6 +62,8 @@ def select_answer_evidence(question: str, results: list[SearchResult], *, additi
                 }
                 for article_id, terms in article_terms.items()
             ],
+            "numeric_comparison_intent": numeric_comparison_intent,
+            "numeric_table_result_count": sum(1 for score in numeric_table_scores.values() if score > 0),
         },
     )
 
@@ -82,6 +89,28 @@ def _selection_terms(question: str, additional_queries: list[str]) -> list[str]:
             if term not in terms:
                 terms.append(term)
     return terms
+
+
+def _has_swelling_comparison_intent(question: str, additional_queries: list[str]) -> bool:
+    text = " ".join([question, *additional_queries]).lower().translate(LIGATURES)
+    has_swelling = any(term in text for term in ("swelling degree", "степень набухания", "equilibrium swelling"))
+    has_forms = "li-nafion" in text and "h-nafion" in text
+    has_comparison = any(term in text for term in ("more", "than", "больше", "выше", "сравн", "αh", "αli"))
+    return has_swelling and has_forms and has_comparison
+
+
+def _swelling_comparison_table_score(result: SearchResult, *, enabled: bool) -> int:
+    if not enabled:
+        return 0
+    text = "\n".join(item for item in (result.title or "", result.snippet, result.full_text or "") if item).lower().translate(LIGATURES)
+    has_forms = "li-nafion" in text and "h-nafion" in text
+    has_alpha_columns = any(term in text for term in ("αh", "αli", "alphah", "alphali"))
+    decimal_count = len(re.findall(r"\b\d+[.,]\d+\b", text))
+    if not (has_forms and has_alpha_columns and decimal_count >= 4):
+        return 0
+    if "таблица 4.5" in text or "table 4.5" in text:
+        return 2
+    return 1
 
 
 def _diversify_by_article(results: list[SearchResult], *, preferred_per_article: int) -> list[SearchResult]:

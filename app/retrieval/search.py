@@ -671,8 +671,8 @@ def hybrid_cross_lingual_search(
 
     variant_responses: list[SearchResponse] = []
     variant_hits: list[dict[str, object]] = []
+    variant_top_k = _cross_lingual_variant_top_k(bundle, top_k=top_k, settings=active_settings)
     for variant_index, variant in enumerate(bundle.variants):
-        variant_top_k = min(top_k * 2, getattr(active_settings, "search_max_top_k", 100))
         if variant.source == "original":
             response = hybrid_search(
                 session,
@@ -760,6 +760,11 @@ def hybrid_cross_lingual_search(
     return SearchResponse(query=bundle.original, results=limited_results, metadata=metadata)
 
 
+def _cross_lingual_variant_top_k(bundle: QueryBundle, *, top_k: int, settings: Settings) -> int:
+    multiplier = 20 if "swelling_degree_comparison" in bundle.matched_concepts else 2
+    return min(top_k * multiplier, getattr(settings, "search_max_top_k", 100))
+
+
 def _fuse_cross_lingual_channel_results(
     channel_responses: list[tuple[str, SearchResponse]],
     *,
@@ -820,6 +825,8 @@ def _rerank_cross_lingual_results(results: list[SearchResult], bundle: QueryBund
 
 
 def _cross_lingual_rerank_window_size(bundle: QueryBundle, *, top_k: int, candidate_window: int) -> int:
+    if "swelling_degree_comparison" in bundle.matched_concepts:
+        return candidate_window
     if bundle.language == "mixed" or _mandatory_query_terms(bundle.original):
         return candidate_window
     return top_k

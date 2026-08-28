@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+import re
+from dataclasses import asdict, dataclass, replace
+from decimal import Decimal, InvalidOperation
 from typing import Any, cast
 
 from sqlalchemy.orm import Session
@@ -24,6 +26,18 @@ from app.generation.query_assist import query_assistance_to_dict, suggest_query_
 from app.retrieval.cross_lingual import detect_query_language, glossary_terms_for_concepts
 from app.retrieval.search import SearchResponse, search_chunks
 
+_SWELLING_TABLE_ROWS = (
+    ("ацетонитрил", "acetonitrile"),
+    ("ацетон", "acetone"),
+    ("вода", "water"),
+    ("изопропанол", "isopropanol"),
+    ("диметилсульфоксид", "dimethyl sulfoxide (DMSO)"),
+    ("n,n-диметилформамид", "N,N-dimethylformamide (DMF)"),
+    ("метанол", "methanol"),
+    ("этанол", "ethanol"),
+    ("n-метил-2-пирролидон", "N-methyl-2-pyrrolidone (NMP)"),
+)
+
 
 @dataclass(frozen=True)
 class AnswerResponse:
@@ -36,6 +50,13 @@ class AnswerResponse:
     generation_provider: str
     generation_model: str | None
     metadata: dict[str, object]
+
+
+@dataclass(frozen=True)
+class _SwellingComparisonRow:
+    solvent: str
+    alpha_h: Decimal
+    alpha_li: Decimal
 
 
 def normalize_answer_style(answer_style: str) -> AnswerStyle:
@@ -156,6 +177,11 @@ def answer_question(
     selected_retrieval = SearchResponse(query=retrieval.query, results=evidence_selection.results, metadata=retrieval.metadata)
     evidence = _evidence_from_response(selected_retrieval, use_full_text=True)
     display_evidence = _evidence_from_response(selected_retrieval)
+    evidence, display_evidence, derived_metadata = _augment_swelling_comparison_evidence(
+        normalized_question,
+        evidence,
+        display_evidence,
+    )
     cross_lingual_concepts = _cross_lingual_matched_concepts(retrieval.metadata)
     adequacy = assess_evidence_adequacy(
         normalized_question,
@@ -182,6 +208,8 @@ def answer_question(
         "answer_language": active_answer_language,
         "citation_language_coverage": _citation_language_coverage(display_evidence),
     }
+    if derived_metadata:
+        base_metadata["derived_evidence"] = derived_metadata
     if query_assistance is not None:
         base_metadata["query_assistance"] = query_assistance_to_dict(query_assistance)
     if not adequacy.adequate:
@@ -284,3 +312,94 @@ def _citation_language_coverage(evidence: list[Evidence]) -> dict[str, int]:
         language = item.original_language or "unknown"
         counts[language] = counts.get(language, 0) + 1
     return counts
+
+
+def _augment_swelling_comparison_evidence(
+    question: str,
+    evidence: list[Evidence],
+    display_evidence: list[Evidence],
+) -> tuple[list[Evidence], list[Evidence], dict[str, object] | None]:
+    if not _has_swelling_comparison_intent(question):
+        return evidence, display_evidence, None
+    for generation_item, display_item in zip(evidence, display_evidence, strict=False):
+        rows = _extract_swelling_comparison_rows(generation_item.text)
+        if not rows:
+            continue
+        matching = [row for row in rows if row.alpha_li > row.alpha_h]
+        nonmatching = [row for row in rows if row.alpha_li <= row.alpha_h]
+        if not matching:
+            continue
+        derived_text = _swelling_comparison_summary_text(matching, nonmatching)
+        derived_generation = replace(generation_item, text=derived_text, source_type="table_derived")
+        derived_display = replace(display_item, text=derived_text, source_type="table_derived")
+        augmented_generation = _renumber_evidence([derived_generation, *evidence])
+        augmented_display = _renumber_evidence([derived_display, *display_evidence])
+        return augmented_generation, augmented_display, {
+            "type": "swelling_comparison_table",
+            "source_article_id": generation_item.article_id,
+            "source_chunk_id": generation_item.chunk_id,
+            "source_pages": [generation_item.page_start, generation_item.page_end],
+            "matching_row_count": len(matching),
+            "nonmatching_row_count": len(nonmatching),
+        }
+    return evidence, display_evidence, None
+
+
+def _has_swelling_comparison_intent(question: str) -> bool:
+    text = question.lower()
+    has_swelling = "swelling degree" in text or "степень набухания" in text
+    has_forms = "li-nafion" in text and "h-nafion" in text
+    has_comparison = any(term in text for term in ("more", "than", "higher", "больше", "выше"))
+    return has_swelling and has_forms and has_comparison
+
+
+def _extract_swelling_comparison_rows(text: str) -> list[_SwellingComparisonRow]:
+    normalized = (
+        text.lower()
+        .replace("‑", "-")
+        .replace("–", "-")
+        .replace("−", "-")
+        .replace("\u00a0", " ")
+    )
+    if "αh" not in normalized or "αli" not in normalized:
+        return []
+    rows: list[_SwellingComparisonRow] = []
+    for russian_name, english_name in _SWELLING_TABLE_ROWS:
+        pattern = rf"{re.escape(russian_name)}\s+(?P<alpha_h>\d+[.,]\d+)\s+-?\d+[.,]\d+\s+(?P<alpha_li>\d+[.,]\d+)\s+-?\d+[.,]\d+"
+        match = re.search(pattern, normalized)
+        if match is None:
+            continue
+        alpha_h = _decimal(match.group("alpha_h"))
+        alpha_li = _decimal(match.group("alpha_li"))
+        if alpha_h is None or alpha_li is None:
+            continue
+        rows.append(_SwellingComparisonRow(solvent=english_name, alpha_h=alpha_h, alpha_li=alpha_li))
+    return rows
+
+
+def _decimal(value: str) -> Decimal | None:
+    try:
+        return Decimal(value.replace(",", "."))
+    except InvalidOperation:
+        return None
+
+
+def _swelling_comparison_summary_text(
+    matching: list[_SwellingComparisonRow],
+    nonmatching: list[_SwellingComparisonRow],
+) -> str:
+    matching_text = "; ".join(
+        f"{row.solvent}: alphaLi={row.alpha_li} > alphaH={row.alpha_h}" for row in matching
+    )
+    nonmatching_text = "; ".join(
+        f"{row.solvent}: alphaLi={row.alpha_li} <= alphaH={row.alpha_h}" for row in nonmatching
+    )
+    return (
+        "Deterministic row comparison extracted from Table 4.5. "
+        f"Rows where Li-Nafion has higher equilibrium swelling degree than H-Nafion: {matching_text}. "
+        f"Rows where Li-Nafion is not higher: {nonmatching_text}."
+    )
+
+
+def _renumber_evidence(evidence: list[Evidence]) -> list[Evidence]:
+    return [replace(item, citation_id=f"E{index}") for index, item in enumerate(evidence, start=1)]

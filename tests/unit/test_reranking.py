@@ -94,6 +94,36 @@ def test_rerank_prefers_title_phrase_match_over_loose_terms() -> None:
     assert reranked.metadata["top_features"][0]["title_phrase_matches"] >= 1  # type: ignore[index]
 
 
+def test_rerank_prefers_swelling_comparison_numeric_table() -> None:
+    generic = _result(
+        uuid.UUID(int=1),
+        "General swelling discussion",
+        "Li-Nafion and H-Nafion swelling degree is discussed in organic solvents.",
+        ranks={"glossary_ru_1": 1},
+    )
+    table = _result(
+        uuid.UUID(int=2),
+        "Диссертация Чернюк С.Д.",
+        (
+            "Таблица 4.5 — Равновесная степень набухания и энтальпия набухания "
+            "H-Nafion and Li-Nafion. Растворитель H-Nafion Li-Nafion αH αLi "
+            "диметилсульфоксид 0.89 1.12 N,N-диметилформамид 0.72 1.15 "
+            "N-метил-2-пирролидон 0.64 1.37"
+        ),
+        ranks={"glossary_ru_1": 5},
+    )
+
+    reranked = rerank_cross_lingual_results(
+        [generic, table],
+        original_query="In what solvents Li-Nafion has more swelling degree than H-Nafion?",
+        query_language="en",
+        query_variants=[("glossary", "степень набухания αH αLi H-Nafion Li-Nafion")],
+    )
+
+    assert reranked.results[0].title == "Диссертация Чернюк С.Д."
+    assert reranked.metadata["top_features"][0]["numeric_table_bonus"] == 2  # type: ignore[index]
+
+
 def _result(
     chunk_id: uuid.UUID,
     title: str,
