@@ -1,0 +1,110 @@
+version: 1
+entries:
+  - concept: swelling
+    en: ["swelling", "equilibrium swelling", "sorption"]
+    ru: ["набухание", "равновесное набухание", "сорбция"]
+  - concept: thermodynamic_interaction
+    en: ["thermodynamic", "thermodynamic interaction", "thermodynamic interactions", "mixing energetics"]
+    ru: ["термодинамическое взаимодействие", "термодинамика взаимодействия"]
+  - concept: mixing_thermodynamics
+    en: ["mixing enthalpy", "mixing entropy", "gibbs free energy of mixing", "mixing energetics"]
+    ru: ["энтальпия смешения", "энтропия смешения", "энергия гиббса смешения"]
+  - concept: water_interaction
+    en: ["water", "water sorption", "aqueous"]
+    ru: ["вода", "водой", "водные растворы", "сорбция воды"]
+  - concept: lithium_form
+    en: ["li-nafion", "lithium ions", "lithium form", "li-form", "lithiated nafion", "replacing h+", "replacing h"]
+    ru: ["ионы лития", "литиевая форма", "li-форма", "литированный nafion", "li-nafion", "замещение"]
+  - concept: solvent_parameters
+    en:
+      - "donor number"
+      - "acceptor number"
+      - "dielectric constant"
+      - "hansen solubility parameter"
+      - "hansen solubility parameters"
+      - "viscosity"
+      - "molar volume"
+    ru:
+      - "донорное число"
+      - "акцепторное число"
+      - "диэлектрическая проницаемость"
+      - "параметр растворимости хансена"
+      - "вязкость"
+      - "молярный объем"
+  - concept: ec_sl_solvents
+    en: ["ethylene carbonate", "sulfolane", "ec", "sl"]
+    ru: ["этиленкарбонат", "сульфолан", "ec", "sl"]
+  - concept: diglyme
+    en: ["diglyme", "diethylene glycol dimethyl ether"]
+    ru: ["диглим", "диэтиленгликольдиметиловый эфир"]
+  - concept: phase_diagram
+    en: ["phase diagram", "binary phase diagram"]
+    ru: ["фазовая диаграмма", "диаграмма плавкости"]
+  - concept: mixing_temperature
+    en: ["mixing temperature", "heating and cooling modes"]
+    ru: ["температура смешения", "температуры смешения", "нагрев и охлаждение"]
+  - concept: physicochemical_properties
+    en: ["physicochemical properties", "physicochemical", "swelling degree"]
+    ru: ["физико-химические свойства", "физико-химических свойств", "степень набухания"]
+  - concept: solution_casting_morphology
+    en:
+      - "solution casting morphology properties"
+      - "nafion membranes prepared by solution casting"
+      - "solvent casting morphology properties"
+      - "solution casting"
+      - "solvent casting"
+    ru: []
+  - concept: casting_annealing
+    en:
+      - "casting solvent annealing temperature"
+      - "recast nafion membranes"
+      - "casting solvent"
+      - "annealing temperature"
+      - "recast membranes"
+    ru: ["растворитель кастинга", "температура отжига", "растворителя кастинга", "температуры отжига"]
+  - concept: recast_solvent_list
+    en: ["dmf dmso nmp etoh dmac recast nafion", "casting solvents dmf dmso nmp etoh dmac"]
+    ru: ["dmf dmso nmp etoh dmac", "растворители recast nafion"]
+  - concept: ion_pairing
+    en: ["contact ion pair", "contact ion-pair", "ion-pair formation", "ion-pair dissociation", "dissociation"]
+    ru: ["контактная ионная пара", "образование ионных пар", "диссоциация ионных пар", "диссоциация"]
+  - concept: transport
+    en:
+      - "ionic conductivity"
+      - "electrical conductivity"
+      - "li+-conducting"
+      - "lithium-conducting"
+      - "lithium-ion transport"
+      - "single-ion conductor"
+      - "single-ion polymer electrolyte"
+    ru:
+      - "ионная проводимость"
+      - "ионную проводимость"
+      - "электропроводность"
+      - "электропроводности"
+      - "литий-проводящих"
+      - "литий-ионный транспорт"
+      - "одноионный проводник"
+      - "одноионный полимерный электролит"
+  - concept: morphology_dynamics
+    en:
+      - "ionic-domain"
+      - "ionic domain"
+      - "amorphous"
+      - "crystalline"
+      - "dielectric relaxation"
+      - "dielectric relaxations"
+      - "relaxation properties"
+      - "segmental dynamics"
+      - "thermal behavior"
+    ru:
+      - "релаксационные свойства"
+      - "диэлектрическая релаксация"
+      - "ионные домены"
+      - "аморфная"
+      - "кристаллическая"
+      - "сегментальная подвижность"
+      - "термическое поведение"
+  - concept: plasticizers
+    en: ["binary plasticiser", "binary plasticizer", "plasticizer", "plasticizers", "organic solvents", "functional additives"]
+    ru: ["бинарный пластификатор", "пластификатор", "пластификаторы", "органические растворители", "функциональные добавки"]

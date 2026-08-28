@@ -5,9 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.generation.providers import (
     SCIENTIFIC_ANSWER_SYSTEM_PROMPT,
     DeepSeekAnswerProvider,
+    Evidence,
     ExtractiveAnswerProvider,
     GeneratedClaim,
     GenerationOutputError,
@@ -16,7 +18,13 @@ from app.generation.providers import (
     OpenAIAnswerProvider,
     ProviderResult,
 )
-from app.generation.service import answer_question, answer_response_to_dict, build_answer_provider, normalize_answer_style
+from app.generation.service import (
+    answer_question,
+    answer_response_to_dict,
+    build_answer_provider,
+    normalize_answer_language,
+    normalize_answer_style,
+)
 from app.retrieval.search import SearchResponse, SearchResult
 
 
@@ -117,9 +125,56 @@ def test_answer_question_passes_mini_review_style_to_provider(monkeypatch) -> No
     assert response.metadata["answer_style"] == "mini_review"
 
 
+def test_answer_question_passes_answer_language_to_provider(monkeypatch) -> None:
+    search_result = _search_result()
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(query="Nafion conductivity", results=[search_result]),
+    )
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="Данные подтверждают проводимость.", citation_ids=["E1"])],
+            provider="test",
+            model="test-model",
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Nafion conductivity",
+        answer_language="ru",
+        provider=provider,
+    )
+
+    assert provider.answer_language == "ru"
+    assert response.metadata["answer_language"] == "ru"
+
+
 def test_normalize_answer_style_rejects_unknown_style() -> None:
     with pytest.raises(ValueError, match="answer_style"):
         normalize_answer_style("narrative")
+
+
+def test_normalize_answer_language_rejects_unknown_language() -> None:
+    with pytest.raises(ValueError, match="answer_language"):
+        normalize_answer_language("de")
+
+
+def test_evidence_adequacy_reports_concept_coverage() -> None:
+    adequacy = assess_evidence_adequacy(
+        "How does Li-Nafion swelling depend on water?",
+        [_evidence("Литированный Nafion показывает набухание; вода здесь не обсуждается как сорбция.")],
+        concept_terms={
+            "swelling": {"en": ["swelling"], "ru": ["набухание"]},
+            "water_interaction": {"en": ["water"], "ru": ["вода"]},
+        },
+    )
+
+    coverage = adequacy.concept_coverage
+    assert coverage["matched"] == ["swelling", "water_interaction"]
+    assert coverage["missing"] == []
 
 
 def test_answer_question_refuses_when_retrieval_returns_no_evidence(monkeypatch) -> None:
@@ -327,6 +382,167 @@ def test_answer_question_allows_domain_synonyms_for_lithiation_protocol(monkeypa
     assert response.metadata["evidence_adequacy"]["matched_terms"] == ["li-nafion", "lithiation", "protocol"]  # type: ignore[index]
 
 
+def test_answer_question_prioritizes_article_with_full_distinctive_term_coverage(monkeypatch) -> None:
+    ma_article = str(uuid.UUID(int=1))
+    dai_article = str(uuid.UUID(int=2))
+    sanginov_article = str(uuid.UUID(int=3))
+    retrieval_results = [
+        SearchResult(
+            article_id=ma_article,
+            chunk_id=str(uuid.UUID(int=11)),
+            title="Ma 2009 Nafion membranes prepared by solution casting",
+            doi=None,
+            page_start=1,
+            page_end=1,
+            source_type="method",
+            snippet="Nafion membranes were prepared by solution casting.",
+            full_text="Nafion membranes were prepared by solution casting.",
+            score=0.04,
+            retrieval_method="hybrid_rrf",
+        ),
+        SearchResult(
+            article_id=dai_article,
+            chunk_id=str(uuid.UUID(int=12)),
+            title="Dai 2017 recast Nafion membranes",
+            doi=None,
+            page_start=8,
+            page_end=8,
+            source_type="table",
+            snippet="Recast Nafion membranes prepared from DMF solvent showed selectivity.",
+            full_text="Recast Nafion membranes prepared from DMF solvent showed selectivity.",
+            score=0.03,
+            retrieval_method="hybrid_rrf",
+        ),
+        SearchResult(
+            article_id=sanginov_article,
+            chunk_id=str(uuid.UUID(int=13)),
+            title="Sanginov 2021",
+            doi="10.1016/j.electacta.2021.137914",
+            page_start=3,
+            page_end=3,
+            source_type="method",
+            snippet="Experimental section reports Li-Nafion membranes swelled with EC/SL mixtures.",
+            full_text="2. Experimental. A commercial Nafion membrane was prepared as Li-Nafion and swelled with EC/SL mixtures.",
+            score=0.02,
+            retrieval_method="hybrid_rrf",
+        ),
+        SearchResult(
+            article_id=sanginov_article,
+            chunk_id=str(uuid.UUID(int=14)),
+            title="Sanginov 2021",
+            doi="10.1016/j.electacta.2021.137914",
+            page_start=3,
+            page_end=3,
+            source_type="table",
+            snippet="Li-Nafion conductivity table.",
+            full_text="Li-Nafion membranes were converted to the lithium form before conductivity measurements.",
+            score=0.01,
+            retrieval_method="hybrid_rrf",
+        ),
+    ]
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="Li-Nafion membrane lithiation protocol",
+            results=retrieval_results,
+            metadata={"fusion": "reciprocal_rank_fusion"},
+        ),
+    )
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="Sanginov evidence describes Li-Nafion preparation.", citation_ids=["E1"])],
+            provider="test",
+            model=None,
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Li-Nafion membrane lithiation protocol",
+        provider=provider,
+    )
+
+    selection = response.metadata["answer_evidence_selection"]  # type: ignore[index]
+    assert response.status == "answered"
+    assert provider.evidence_texts[0].startswith("2. Experimental.")
+    assert response.citations[0].title == "Sanginov 2021"
+    assert selection["reordered"] is True  # type: ignore[index]
+    assert selection["article_term_coverage"][2]["matched_terms"] == ["li-nafion", "lithiation", "protocol"]  # type: ignore[index]
+
+
+def test_answer_question_uses_cross_lingual_variant_terms_for_evidence_selection(monkeypatch) -> None:
+    dissertation = SearchResult(
+        article_id=str(uuid.UUID(int=10)),
+        chunk_id=str(uuid.UUID(int=11)),
+        title="Диссертация Чернюк С.Д.",
+        doi=None,
+        page_start=48,
+        page_end=48,
+        source_type="method",
+        snippet="Рассмотрено влияние ионов лития на термодинамические и релаксационные свойства мембран Nafion.",
+        full_text="Рассмотрено влияние ионов лития на термодинамические и релаксационные свойства мембран Nafion.",
+        score=0.01,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    english_paper = SearchResult(
+        article_id=str(uuid.UUID(int=12)),
+        chunk_id=str(uuid.UUID(int=13)),
+        title="English Nafion paper",
+        doi="10.1000/english",
+        page_start=1,
+        page_end=1,
+        source_type="body",
+        snippet="Nafion membranes contain ions and thermodynamic relaxation evidence.",
+        full_text="Nafion membranes contain ions and thermodynamic relaxation evidence.",
+        score=0.02,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="How do lithium ions affect thermodynamic and relaxation properties of Nafion membranes?",
+            results=[english_paper, dissertation],
+            metadata={
+                "cross_lingual": {
+                    "variants": [
+                        {
+                            "text": "How do lithium ions affect thermodynamic and relaxation properties of Nafion membranes?",
+                            "language": "en",
+                            "source": "original",
+                        },
+                        {
+                            "text": "ионы лития термодинамические релаксационные свойства",
+                            "language": "ru",
+                            "source": "glossary",
+                        },
+                    ]
+                }
+            },
+        ),
+    )
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="The dissertation has the cross-lingual evidence.", citation_ids=["E1"])],
+            provider="test",
+            model=None,
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "How do lithium ions affect thermodynamic and relaxation properties of Nafion membranes?",
+        provider=provider,
+    )
+
+    assert response.status == "answered"
+    assert provider.evidence_texts[0].startswith("Рассмотрено влияние")
+    assert response.citations[0].title == "Диссертация Чернюк С.Д."
+
+
 def test_answer_question_refuses_when_only_solvent_matches(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.generation.service.search_chunks",
@@ -452,6 +668,52 @@ def test_provider_system_prompt_preserves_table_semantics() -> None:
     assert "same cited row" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
 
 
+def test_extractive_provider_collapses_pdf_line_breaks_in_answer_text() -> None:
+    provider = ExtractiveAnswerProvider(max_claims=1)
+    result = provider.generate(
+        "How large enthalpy of H-Nafion and Li-Nafion swelling in water?",
+        [
+            _evidence(
+                "СLi+,мембр =\n1000\nЭВ ∙൬\n1\nρмембр + αLi\nρр−ль൰\n,\n(4.15)\n"
+                "Таким образом,\nконцентрация носителей заряда\nвыше."
+            )
+        ],
+    )
+
+    assert result.answerable is True
+    assert result.claims == [
+        GeneratedClaim(
+            text="СLi+,мембр = 1000 ЭВ ∙൬ 1 ρмембр + αLi ρр−ль൰ , (4.15) Таким образом, концентрация носителей заряда выше.",
+            citation_ids=["E1"],
+        )
+    ]
+
+
+def test_llm_provider_prompts_collapse_pdf_line_breaks_in_evidence() -> None:
+    evidence = [_evidence("Подставляя для Li-Nafion\nв ДМФА\nЭВ = 1100 г/моль")]
+    openai_provider = OpenAIAnswerProvider(
+        base_url="https://api.openai.com/v1",
+        api_key="test-key",
+        model="gpt-4.1-mini",
+        timeout_seconds=10,
+        max_tokens=100,
+    )
+    deepseek_provider = DeepSeekAnswerProvider(
+        base_url="https://api.deepseek.com",
+        api_key="test-key",
+        model="deepseek-v4-flash",
+        timeout_seconds=10,
+        max_tokens=100,
+    )
+    ollama_provider = OllamaAnswerProvider(base_url="http://127.0.0.1:11434", model="test-model", timeout_seconds=10)
+
+    expected = "Подставляя для Li-Nafion в ДМФА ЭВ = 1100 г/моль"
+
+    assert expected in openai_provider._user_prompt("question", evidence)  # noqa: SLF001 - prompt normalization test
+    assert expected in deepseek_provider._user_prompt("question", evidence)  # noqa: SLF001 - prompt normalization test
+    assert expected in ollama_provider._user_prompt("question", evidence)  # noqa: SLF001 - prompt normalization test
+
+
 def test_build_answer_provider_accepts_openai() -> None:
     settings = _settings()
     settings.rag_provider = "openai"
@@ -496,7 +758,14 @@ class StaticProvider:
     def __init__(self, result: ProviderResult) -> None:
         self.result = result
 
-    def generate(self, question: str, evidence: list[object], *, answer_style: str = "claims") -> ProviderResult:
+    def generate(
+        self,
+        question: str,
+        evidence: list[object],
+        *,
+        answer_style: str = "claims",
+        answer_language: str = "auto",
+    ) -> ProviderResult:
         return self.result
 
 
@@ -505,10 +774,19 @@ class CapturingProvider:
         self.result = result
         self.evidence_texts: list[str] = []
         self.answer_style = "claims"
+        self.answer_language = "auto"
 
-    def generate(self, question: str, evidence: list[object], *, answer_style: str = "claims") -> ProviderResult:
+    def generate(
+        self,
+        question: str,
+        evidence: list[object],
+        *,
+        answer_style: str = "claims",
+        answer_language: str = "auto",
+    ) -> ProviderResult:
         self.evidence_texts = [item.text for item in evidence]  # type: ignore[attr-defined]
         self.answer_style = answer_style
+        self.answer_language = answer_language
         return self.result
 
 
@@ -547,4 +825,22 @@ def _search_result() -> SearchResult:
         retrieval_method="hybrid_rrf",
         method_scores={"exact_ilike": 100.0, "semantic_cosine": 0.8},
         method_ranks={"exact_ilike": 1, "semantic_cosine": 2},
+    )
+
+
+def _evidence(text: str) -> Evidence:
+    return Evidence(
+        citation_id="E1",
+        article_id=str(uuid.UUID(int=1)),
+        chunk_id=str(uuid.UUID(int=2)),
+        title="Диссертация Чернюк С.Д.",
+        doi=None,
+        page_start=116,
+        page_end=116,
+        source_type="body",
+        text=text,
+        score=0.03,
+        retrieval_method="hybrid_cross_lingual_rrf",
+        method_scores={},
+        method_ranks={},
     )

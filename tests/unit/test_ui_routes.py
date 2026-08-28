@@ -251,7 +251,10 @@ def test_answer_page_renders_form() -> None:
     assert "Wait for retrieval, evidence check, and generation" in body
     assert "Render answer and citations" in body
     assert "form.requestSubmit()" in body
-    assert "hybrid" in body
+    assert "value='hybrid_cross_lingual' selected" in body
+    assert "hybrid_cross_lingual_v2" in body
+    assert "Answer language" in body
+    assert "value='auto' selected" in body
 
 
 def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
@@ -264,12 +267,14 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
         top_k: int | None = None,
         method: str | None = None,
         answer_style: str = "claims",
+        answer_language: str = "auto",
     ) -> object:
         assert question == "What is Li-Nafion conductivity?"
         assert collection == "literature"
         assert top_k == 5
         assert method == "hybrid"
         assert answer_style == "mini_review"
+        assert answer_language == "ru"
         return SimpleNamespace()
 
     monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
@@ -292,6 +297,8 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
                     "page_end": 1,
                     "text": "Nafion conductivity evidence.",
                     "score": 2.5,
+                    "original_language": "en",
+                    "translation_status": "not_requested",
                 }
             ],
             "retrieval_method": "hybrid",
@@ -315,7 +322,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
         },
     )
 
-    response = answer_action(_override_session(), "What is Li-Nafion conductivity?", "literature", 5, "hybrid", "mini_review")  # type: ignore[arg-type]
+    response = answer_action(_override_session(), "What is Li-Nafion conductivity?", "literature", 5, "hybrid", "mini_review", "ru")  # type: ignore[arg-type]
     body = response.body.decode()
 
     assert response.status_code == 200
@@ -325,6 +332,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
     assert "missing=none" in body
     assert "Li-Nafion conductivity was measured" in body
     assert "Nafion conductivity evidence" in body
+    assert "translation=not_requested" in body
     assert ">[E1]</a>" in body
     assert ">Evidence</a>" in body
     assert "highlight_query=Nafion+conductivity+evidence." in body
@@ -358,6 +366,8 @@ def test_answer_result_action_returns_fragment_only(monkeypatch) -> None:
                     "page_end": 1,
                     "text": "Nafion conductivity evidence.",
                     "score": 2.5,
+                    "original_language": "en",
+                    "translation_status": "not_requested",
                 }
             ],
             "retrieval_method": "hybrid",
@@ -367,7 +377,7 @@ def test_answer_result_action_returns_fragment_only(monkeypatch) -> None:
         },
     )
 
-    response = answer_result_action(_override_session(), "What is Li-Nafion conductivity?", "literature", 5, "hybrid", "claims")  # type: ignore[arg-type]
+    response = answer_result_action(_override_session(), "What is Li-Nafion conductivity?", "literature", 5, "hybrid", "claims", "auto")  # type: ignore[arg-type]
     body = response.body.decode()
 
     assert response.status_code == 200

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 from urllib.error import HTTPError, URLError
@@ -30,6 +31,10 @@ class Evidence:
     retrieval_method: str
     method_scores: dict[str, float]
     method_ranks: dict[str, int]
+    original_language: str | None = None
+    translated_excerpt: str | None = None
+    translation_provider: str | None = None
+    translation_status: str = "not_requested"
 
 
 @dataclass(frozen=True)
@@ -47,10 +52,18 @@ class ProviderResult:
 
 
 AnswerStyle = Literal["claims", "mini_review"]
+AnswerLanguage = Literal["auto", "en", "ru"]
 
 
 class AnswerProvider(Protocol):
-    def generate(self, question: str, evidence: list[Evidence], *, answer_style: AnswerStyle = "claims") -> ProviderResult: ...
+    def generate(
+        self,
+        question: str,
+        evidence: list[Evidence],
+        *,
+        answer_style: AnswerStyle = "claims",
+        answer_language: AnswerLanguage = "auto",
+    ) -> ProviderResult: ...
 
 
 SCIENTIFIC_ANSWER_SYSTEM_PROMPT = (
@@ -67,7 +80,23 @@ SCIENTIFIC_ANSWER_SYSTEM_PROMPT = (
 )
 
 
-def _mini_review_user_prompt(question: str, evidence: list[Evidence]) -> str:
+def _clean_generation_evidence_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _evidence_text_for_generation(item: Evidence) -> str:
+    return _clean_generation_evidence_text(item.text)
+
+
+def _answer_language_instruction(answer_language: AnswerLanguage) -> str:
+    if answer_language == "en":
+        return "Answer language: English."
+    if answer_language == "ru":
+        return "Answer language: Russian."
+    return "Answer language: match the dominant language of the user question."
+
+
+def _mini_review_user_prompt(question: str, evidence: list[Evidence], *, answer_language: AnswerLanguage = "auto") -> str:
     grouped: dict[tuple[str | None, str | None], list[Evidence]] = {}
     for item in evidence:
         grouped.setdefault((item.title, item.doi), []).append(item)
@@ -77,7 +106,8 @@ def _mini_review_user_prompt(question: str, evidence: list[Evidence]) -> str:
         evidence_blocks = []
         for item in items:
             evidence_blocks.append(
-                f"[{item.citation_id}] pages={item.page_start}-{item.page_end}; source_type={item.source_type}\n{item.text}"
+                f"[{item.citation_id}] pages={item.page_start}-{item.page_end}; source_type={item.source_type}\n"
+                f"{_evidence_text_for_generation(item)}"
             )
         article_blocks.append(
             f"Article {article_index}: title={title!r}; doi={doi!r}\n" + "\n\n".join(evidence_blocks)
@@ -85,6 +115,7 @@ def _mini_review_user_prompt(question: str, evidence: list[Evidence]) -> str:
 
     instructions = (
         "Answer style: mini_review\n"
+        f"{_answer_language_instruction(answer_language)}\n"
         "Write a compact mini-review grouped by article/work. For each relevant article, name the work from its "
         "title/DOI metadata, state only what that article reports, include important conditions and numeric values, "
         "and cite the evidence IDs for that article. Do not merge different experimental systems into one value. "
@@ -99,9 +130,18 @@ class ExtractiveAnswerProvider:
             raise ValueError("max_claims must be positive")
         self.max_claims = max_claims
 
-    def generate(self, question: str, evidence: list[Evidence], *, answer_style: AnswerStyle = "claims") -> ProviderResult:
+    def generate(
+        self,
+        question: str,
+        evidence: list[Evidence],
+        *,
+        answer_style: AnswerStyle = "claims",
+        answer_language: AnswerLanguage = "auto",
+    ) -> ProviderResult:
         claims = [
-            GeneratedClaim(text=item.text, citation_ids=[item.citation_id]) for item in evidence[: self.max_claims] if item.text.strip()
+            GeneratedClaim(text=_evidence_text_for_generation(item), citation_ids=[item.citation_id])
+            for item in evidence[: self.max_claims]
+            if item.text.strip()
         ]
         return ProviderResult(answerable=bool(claims), claims=claims, provider="extractive", model=None)
 
@@ -116,7 +156,14 @@ class OllamaAnswerProvider:
         self.model = model.strip()
         self.timeout_seconds = timeout_seconds
 
-    def generate(self, question: str, evidence: list[Evidence], *, answer_style: AnswerStyle = "claims") -> ProviderResult:
+    def generate(
+        self,
+        question: str,
+        evidence: list[Evidence],
+        *,
+        answer_style: AnswerStyle = "claims",
+        answer_language: AnswerLanguage = "auto",
+    ) -> ProviderResult:
         if not evidence:
             return ProviderResult(answerable=False, claims=[], provider="ollama", model=self.model)
         payload = {
@@ -132,7 +179,10 @@ class OllamaAnswerProvider:
                         + " Return JSON with answerable:boolean and claims:[{text:string,citation_ids:[string]}]."
                     ),
                 },
-                {"role": "user", "content": self._user_prompt(question, evidence, answer_style=answer_style)},
+                {
+                    "role": "user",
+                    "content": self._user_prompt(question, evidence, answer_style=answer_style, answer_language=answer_language),
+                },
             ],
         }
         request = Request(
@@ -148,16 +198,23 @@ class OllamaAnswerProvider:
             raise GenerationUnavailableError(f"Ollama request failed: {exc}") from exc
         return self._parse_response(response_payload)
 
-    def _user_prompt(self, question: str, evidence: list[Evidence], *, answer_style: AnswerStyle = "claims") -> str:
+    def _user_prompt(
+        self,
+        question: str,
+        evidence: list[Evidence],
+        *,
+        answer_style: AnswerStyle = "claims",
+        answer_language: AnswerLanguage = "auto",
+    ) -> str:
         if answer_style == "mini_review":
-            return _mini_review_user_prompt(question, evidence)
+            return _mini_review_user_prompt(question, evidence, answer_language=answer_language)
         blocks = []
         for item in evidence:
             blocks.append(
                 f"[{item.citation_id}] title={item.title!r}; doi={item.doi!r}; "
-                f"pages={item.page_start}-{item.page_end}; source_type={item.source_type}\n{item.text}"
+                f"pages={item.page_start}-{item.page_end}; source_type={item.source_type}\n{_evidence_text_for_generation(item)}"
             )
-        return f"Question:\n{question}\n\nEvidence:\n\n" + "\n\n".join(blocks)
+        return f"{_answer_language_instruction(answer_language)}\n\nQuestion:\n{question}\n\nEvidence:\n\n" + "\n\n".join(blocks)
 
     def _parse_response(self, payload: Any) -> ProviderResult:
         if not isinstance(payload, dict):
@@ -210,7 +267,14 @@ class DeepSeekAnswerProvider:
         self.timeout_seconds = timeout_seconds
         self.max_tokens = max_tokens
 
-    def generate(self, question: str, evidence: list[Evidence], *, answer_style: AnswerStyle = "claims") -> ProviderResult:
+    def generate(
+        self,
+        question: str,
+        evidence: list[Evidence],
+        *,
+        answer_style: AnswerStyle = "claims",
+        answer_language: AnswerLanguage = "auto",
+    ) -> ProviderResult:
         if not evidence:
             return ProviderResult(answerable=False, claims=[], provider="deepseek", model=self.model)
         payload = {
@@ -229,7 +293,10 @@ class DeepSeekAnswerProvider:
                         '{"answerable": boolean, "claims": [{"text": string, "citation_ids": [string]}]}. '
                     ),
                 },
-                {"role": "user", "content": self._user_prompt(question, evidence, answer_style=answer_style)},
+                {
+                    "role": "user",
+                    "content": self._user_prompt(question, evidence, answer_style=answer_style, answer_language=answer_language),
+                },
             ],
         }
         request = Request(
@@ -247,16 +314,23 @@ class DeepSeekAnswerProvider:
             raise GenerationUnavailableError(f"DeepSeek request failed: {exc}") from exc
         return self._parse_response(response_payload)
 
-    def _user_prompt(self, question: str, evidence: list[Evidence], *, answer_style: AnswerStyle = "claims") -> str:
+    def _user_prompt(
+        self,
+        question: str,
+        evidence: list[Evidence],
+        *,
+        answer_style: AnswerStyle = "claims",
+        answer_language: AnswerLanguage = "auto",
+    ) -> str:
         if answer_style == "mini_review":
-            return _mini_review_user_prompt(question, evidence)
+            return _mini_review_user_prompt(question, evidence, answer_language=answer_language)
         blocks = []
         for item in evidence:
             blocks.append(
                 f"[{item.citation_id}] title={item.title!r}; doi={item.doi!r}; "
-                f"pages={item.page_start}-{item.page_end}; source_type={item.source_type}\n{item.text}"
+                f"pages={item.page_start}-{item.page_end}; source_type={item.source_type}\n{_evidence_text_for_generation(item)}"
             )
-        return f"Question:\n{question}\n\nEvidence:\n\n" + "\n\n".join(blocks)
+        return f"{_answer_language_instruction(answer_language)}\n\nQuestion:\n{question}\n\nEvidence:\n\n" + "\n\n".join(blocks)
 
     def _parse_response(self, payload: Any) -> ProviderResult:
         if not isinstance(payload, dict):
@@ -313,7 +387,14 @@ class OpenAIAnswerProvider:
         self.timeout_seconds = timeout_seconds
         self.max_tokens = max_tokens
 
-    def generate(self, question: str, evidence: list[Evidence], *, answer_style: AnswerStyle = "claims") -> ProviderResult:
+    def generate(
+        self,
+        question: str,
+        evidence: list[Evidence],
+        *,
+        answer_style: AnswerStyle = "claims",
+        answer_language: AnswerLanguage = "auto",
+    ) -> ProviderResult:
         if not evidence:
             return ProviderResult(answerable=False, claims=[], provider="openai", model=self.model)
         payload = {
@@ -352,7 +433,10 @@ class OpenAIAnswerProvider:
                     "role": "system",
                     "content": SCIENTIFIC_ANSWER_SYSTEM_PROMPT,
                 },
-                {"role": "user", "content": self._user_prompt(question, evidence, answer_style=answer_style)},
+                {
+                    "role": "user",
+                    "content": self._user_prompt(question, evidence, answer_style=answer_style, answer_language=answer_language),
+                },
             ],
         }
         request = Request(
@@ -370,16 +454,23 @@ class OpenAIAnswerProvider:
             raise GenerationUnavailableError(f"OpenAI request failed: {exc}") from exc
         return self._parse_response(response_payload)
 
-    def _user_prompt(self, question: str, evidence: list[Evidence], *, answer_style: AnswerStyle = "claims") -> str:
+    def _user_prompt(
+        self,
+        question: str,
+        evidence: list[Evidence],
+        *,
+        answer_style: AnswerStyle = "claims",
+        answer_language: AnswerLanguage = "auto",
+    ) -> str:
         if answer_style == "mini_review":
-            return _mini_review_user_prompt(question, evidence)
+            return _mini_review_user_prompt(question, evidence, answer_language=answer_language)
         blocks = []
         for item in evidence:
             blocks.append(
                 f"[{item.citation_id}] title={item.title!r}; doi={item.doi!r}; "
-                f"pages={item.page_start}-{item.page_end}; source_type={item.source_type}\n{item.text}"
+                f"pages={item.page_start}-{item.page_end}; source_type={item.source_type}\n{_evidence_text_for_generation(item)}"
             )
-        return f"Question:\n{question}\n\nEvidence:\n\n" + "\n\n".join(blocks)
+        return f"{_answer_language_instruction(answer_language)}\n\nQuestion:\n{question}\n\nEvidence:\n\n" + "\n\n".join(blocks)
 
     def _parse_response(self, payload: Any) -> ProviderResult:
         if not isinstance(payload, dict):

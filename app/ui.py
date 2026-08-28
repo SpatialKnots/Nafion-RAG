@@ -293,8 +293,16 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
     adequacy = metadata.get("evidence_adequacy") if isinstance(metadata, dict) else None
     adequacy_row = ""
     if isinstance(adequacy, dict):
-        distinctive_terms = [str(term) for term in adequacy.get("distinctive_terms", [])] if isinstance(adequacy.get("distinctive_terms"), list) else []
-        matched_terms = [str(term) for term in adequacy.get("matched_terms", [])] if isinstance(adequacy.get("matched_terms"), list) else []
+        distinctive_terms = (
+            [str(term) for term in adequacy.get("distinctive_terms", [])]
+            if isinstance(adequacy.get("distinctive_terms"), list)
+            else []
+        )
+        matched_terms = (
+            [str(term) for term in adequacy.get("matched_terms", [])]
+            if isinstance(adequacy.get("matched_terms"), list)
+            else []
+        )
         missing_terms = [term for term in distinctive_terms if term not in set(matched_terms)]
         term_diagnostics = ""
         if distinctive_terms:
@@ -366,8 +374,10 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
                 f"<td>{article_cell}"
                 f"<div class='muted'>{_html(citation.get('doi'))}</div></td>"
                 f"<td class='num'>{_html(_page_range(page_start, page_end))}</td>"
+                f"<td>{_html(citation.get('original_language') or 'unknown')}</td>"
                 f"<td class='num'>{_html(citation.get('score'))}</td>"
-                f"<td>{_html(_truncate(str(citation.get('text') or ''), 360))}</td>"
+                f"<td>{_html(_truncate(str(citation.get('text') or ''), 360))}"
+                f"<div class='muted'>translation={_html(citation.get('translation_status') or 'not_requested')}</div></td>"
                 f"<td class='actions'>{' '.join(links)}</td>"
                 "</tr>"
             )
@@ -377,7 +387,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
         else "<p class='warn'>No answer: evidence was insufficient or generation failed validation.</p>"
     )
     claim_rows_html = "".join(claim_rows) or "<tr><td colspan='2'>No claims</td></tr>"
-    citation_rows_html = "".join(citation_rows) or "<tr><td colspan='6'>No citations</td></tr>"
+    citation_rows_html = "".join(citation_rows) or "<tr><td colspan='7'>No citations</td></tr>"
     return (
         "<section class='panel'>"
         f"<p><strong>Query:</strong> {_html(payload.get('query') or question)}</p>"
@@ -392,7 +402,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
         "<h2>Claims</h2><table><tr><th>Claim</th><th>Citations</th></tr>"
         f"{claim_rows_html}</table>"
         "<h2>Citations</h2><table><tr><th>ID</th><th>Article</th><th class='num'>Pages</th>"
-        f"<th class='num'>Score</th><th>Evidence text</th><th>Links</th></tr>{citation_rows_html}</table>"
+        f"<th>Language</th><th class='num'>Score</th><th>Evidence text</th><th>Links</th></tr>{citation_rows_html}</table>"
     )
 
 
@@ -400,16 +410,22 @@ def _answer_body(
     question: str = "",
     collection: str = "literature",
     top_k: int = 5,
-    method: str = "hybrid",
+    method: str = "hybrid_cross_lingual",
     answer_style: str = "claims",
+    answer_language: str = "auto",
     result: str = "",
 ) -> str:
     method_options = "".join(
-        f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>" for value in ("exact", "semantic", "hybrid")
+        f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>"
+        for value in ("exact", "semantic", "hybrid", "hybrid_cross_lingual", "hybrid_cross_lingual_v2")
     )
     style_options = "".join(
         f"<option value='{value}' {'selected' if answer_style == value else ''}>{label}</option>"
         for value, label in (("claims", "Claims"), ("mini_review", "Mini-review by article"))
+    )
+    language_options = "".join(
+        f"<option value='{value}' {'selected' if answer_language == value else ''}>{label}</option>"
+        for value, label in (("auto", "Auto"), ("en", "English"), ("ru", "Russian"))
     )
     return f"""
     <h1>Answer</h1>
@@ -420,6 +436,7 @@ def _answer_body(
         <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
         <label>Method<br><select name="method">{method_options}</select></label>
         <label>Style<br><select name="answer_style">{style_options}</select></label>
+        <label>Answer language<br><select name="answer_language">{language_options}</select></label>
         <button type="submit">Answer</button>
       </div>
     </form>
@@ -437,7 +454,10 @@ def _answer_body(
         ['render', 'Render answer and citations']
       ];
       const progressHtml = () => '<section class="panel"><ol class="progress-steps">' +
-        steps.map(([key, label]) => '<li class="progress-step" data-step="' + key + '"><span class="marker"></span><span>' + label + '</span></li>').join('') +
+        steps.map(([key, label]) =>
+          '<li class="progress-step" data-step="' + key + '">' +
+          '<span class="marker"></span><span>' + label + '</span></li>'
+        ).join('') +
         '</ol></section>';
       const setStep = (activeKey, doneKeys = [], errorKey = null) => {{
         for (const item of result.querySelectorAll('.progress-step')) {{
@@ -490,7 +510,10 @@ def _answer_body(
           result.insertAdjacentHTML('beforeend', body);
         }} catch (error) {{
           setStep(null, ['prepare'], 'send');
-          result.insertAdjacentHTML('beforeend', '<section class="panel"><p class="warn">Request failed before the answer was returned.</p></section>');
+          result.insertAdjacentHTML(
+            'beforeend',
+            '<section class="panel"><p class="warn">Request failed before the answer was returned.</p></section>'
+          );
         }} finally {{
           if (button) {{
             button.disabled = false;
@@ -524,6 +547,7 @@ def _answer_result_fragment(
     top_k: int,
     method: str,
     answer_style: str,
+    answer_language: str,
 ) -> str:
     if top_k <= 0:
         return "<section class='panel'><p class='warn'>top_k must be positive.</p></section>"
@@ -536,6 +560,7 @@ def _answer_result_fragment(
             top_k=top_k,
             method=method,
             answer_style=answer_style,
+            answer_language=answer_language,
         )
         payload = answer_response_to_dict(response)
         return _answer_payload_panel(payload, question)
@@ -549,11 +574,12 @@ def answer_action(
     question: Annotated[str, Form()],
     collection: Annotated[str, Form()] = "literature",
     top_k: Annotated[int, Form()] = 5,
-    method: Annotated[str, Form()] = "hybrid",
+    method: Annotated[str, Form()] = "hybrid_cross_lingual",
     answer_style: Annotated[str, Form()] = "claims",
+    answer_language: Annotated[str, Form()] = "auto",
 ) -> HTMLResponse:
-    result = _answer_result_fragment(session, question, collection, top_k, method, answer_style)
-    return _layout("Answer", _answer_body(question, collection, top_k, method, answer_style, result))
+    result = _answer_result_fragment(session, question, collection, top_k, method, answer_style, answer_language)
+    return _layout("Answer", _answer_body(question, collection, top_k, method, answer_style, answer_language, result))
 
 
 @router.post("/ui/answer/result", response_class=HTMLResponse)
@@ -562,10 +588,11 @@ def answer_result_action(
     question: Annotated[str, Form()],
     collection: Annotated[str, Form()] = "literature",
     top_k: Annotated[int, Form()] = 5,
-    method: Annotated[str, Form()] = "hybrid",
+    method: Annotated[str, Form()] = "hybrid_cross_lingual",
     answer_style: Annotated[str, Form()] = "claims",
+    answer_language: Annotated[str, Form()] = "auto",
 ) -> HTMLResponse:
-    return HTMLResponse(_answer_result_fragment(session, question, collection, top_k, method, answer_style))
+    return HTMLResponse(_answer_result_fragment(session, question, collection, top_k, method, answer_style, answer_language))
 
 
 @router.get("/ui/vector-indexes", response_class=HTMLResponse)

@@ -15,6 +15,9 @@ from sqlalchemy.sql.elements import ColumnElement
 from app.core.config import Settings, get_settings
 from app.db.models import Article, ArticleTag, Chunk, Collection
 from app.documents.service import build_pdf_url
+from app.retrieval.cross_lingual import QueryBundle, QueryVariant, build_query_bundle, detect_query_language, query_bundle_metadata
+from app.retrieval.query_normalization import normalize_query, normalized_query_metadata
+from app.retrieval.reranking import rerank_cross_lingual_results as feature_rerank_cross_lingual_results
 from app.retrieval.vector_index import LoadedVectorIndex, embed_query_with_fastembed, load_current_vector_index_generation
 
 STOPWORDS = {"and", "in", "or", "the", "using", "vs", "with"}
@@ -38,12 +41,22 @@ MANDATORY_SCIENTIFIC_TERMS = {
     "SL",
     "THF",
 }
-RetrievalMethod = Literal["exact", "semantic", "hybrid"]
-SUPPORTED_RETRIEVAL_METHODS: tuple[RetrievalMethod, ...] = ("exact", "semantic", "hybrid")
+RetrievalMethod = Literal["exact", "semantic", "semantic_multilingual", "hybrid", "hybrid_cross_lingual", "hybrid_cross_lingual_v2"]
+SUPPORTED_RETRIEVAL_METHODS: tuple[RetrievalMethod, ...] = (
+    "exact",
+    "semantic",
+    "semantic_multilingual",
+    "hybrid",
+    "hybrid_cross_lingual",
+    "hybrid_cross_lingual_v2",
+)
 CONCRETE_RETRIEVAL_METHODS: dict[RetrievalMethod, str] = {
     "exact": "exact_ilike",
     "semantic": "semantic_cosine",
+    "semantic_multilingual": "semantic_multilingual_cosine",
     "hybrid": "hybrid_rrf",
+    "hybrid_cross_lingual": "hybrid_cross_lingual_rrf",
+    "hybrid_cross_lingual_v2": "hybrid_cross_lingual_v2_rrf",
 }
 QueryEmbeddingProvider = Callable[[str, str], Any]
 GroupBy = Literal["none", "article"]
@@ -413,6 +426,9 @@ def semantic_search(
     loaded_index: LoadedVectorIndex | None = None,
     query_embedder: QueryEmbeddingProvider | None = None,
     enforce_top_k_limit: bool = True,
+    embedding_model_override: str | None = None,
+    retrieval_method: str = "semantic_cosine",
+    semantic_role: str = "default",
 ) -> SearchResponse:
     normalized_query = query.strip()
     normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
@@ -425,7 +441,7 @@ def semantic_search(
     active_settings = settings or get_settings()
     if enforce_top_k_limit:
         _validate_top_k(top_k, active_settings)
-    embedding_model = active_settings.embedding_model
+    embedding_model = embedding_model_override or active_settings.embedding_model
     index = loaded_index or load_current_vector_index_generation(
         session,
         data_root=active_settings.data_root,
@@ -468,7 +484,7 @@ def semantic_search(
     results: list[SearchResult] = []
     for score, chunk_id in candidates[:top_k]:
         chunk, article = index.rows_by_chunk_id[chunk_id]
-        results.append(_result_from_chunk_article(chunk, article, query=normalized_query, score=score, retrieval_method="semantic_cosine"))
+        results.append(_result_from_chunk_article(chunk, article, query=normalized_query, score=score, retrieval_method=retrieval_method))
     metadata: dict[str, object] = {
         "backend": index.manifest["backend"],
         "embedding_model": embedding_model,
@@ -476,6 +492,7 @@ def semantic_search(
         "manifest_sha256": index.manifest_sha256,
         "chunk_count": index.manifest["chunk_count"],
         "similarity": "cosine",
+        "semantic_role": semantic_role,
     }
     if mandatory_terms:
         metadata["mandatory_terms"] = mandatory_terms
@@ -492,6 +509,44 @@ def semantic_search(
         )
         return SearchResponse(query=normalized_query, results=[], metadata=metadata, groups=groups)
     return SearchResponse(query=normalized_query, results=results, metadata=metadata)
+
+
+def semantic_multilingual_search(
+    session: Session,
+    query: str,
+    collection_name: str = "literature",
+    top_k: int = 10,
+    source_type: str | None = None,
+    filters: SearchFilters | None = None,
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
+    *,
+    settings: Settings | None = None,
+    loaded_index: LoadedVectorIndex | None = None,
+    query_embedder: QueryEmbeddingProvider | None = None,
+    enforce_top_k_limit: bool = True,
+) -> SearchResponse:
+    active_settings = settings or get_settings()
+    multilingual_model = getattr(active_settings, "multilingual_embedding_model", None)
+    if not isinstance(multilingual_model, str) or not multilingual_model.strip():
+        raise ValueError("multilingual_embedding_model must not be empty")
+    return semantic_search(
+        session,
+        query,
+        collection_name,
+        top_k,
+        source_type=source_type,
+        filters=filters,
+        group_by=group_by,
+        chunks_per_article=chunks_per_article,
+        settings=active_settings,
+        loaded_index=loaded_index,
+        query_embedder=query_embedder,
+        enforce_top_k_limit=enforce_top_k_limit,
+        embedding_model_override=multilingual_model,
+        retrieval_method="semantic_multilingual_cosine",
+        semantic_role="multilingual",
+    )
 
 
 def hybrid_search(
@@ -597,6 +652,445 @@ def hybrid_search(
     return SearchResponse(query=exact_response.query, results=limited_results, metadata=metadata)
 
 
+def hybrid_cross_lingual_search(
+    session: Session,
+    query: str,
+    collection_name: str = "literature",
+    top_k: int = 10,
+    source_type: str | None = None,
+    filters: SearchFilters | None = None,
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
+    *,
+    settings: Settings | None = None,
+) -> SearchResponse:
+    if top_k <= 0:
+        raise ValueError("top_k must be positive")
+    normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
+    normalized_group_by = normalize_group_by(group_by)
+    active_settings = settings or get_settings()
+    _validate_top_k(top_k, active_settings)
+    bundle = build_query_bundle(query)
+
+    variant_responses: list[SearchResponse] = []
+    variant_hits: list[dict[str, object]] = []
+    for variant_index, variant in enumerate(bundle.variants):
+        variant_top_k = min(top_k * 2, getattr(active_settings, "search_max_top_k", 100))
+        if variant.source == "original":
+            response = hybrid_search(
+                session,
+                variant.text,
+                collection_name,
+                variant_top_k,
+                filters=normalized_filters,
+                settings=active_settings,
+            )
+        else:
+            response = exact_search(session, variant.text, collection_name, variant_top_k, filters=normalized_filters)
+        variant_responses.append(response)
+        variant_hits.append(
+            {
+                "variant_index": variant_index,
+                "language": variant.language,
+                "source": variant.source,
+                "result_count": len(response.results),
+            }
+        )
+
+    component_results: dict[str, dict[str, tuple[int, SearchResult]]] = {}
+    for variant_index, response in enumerate(variant_responses):
+        variant = bundle.variants[variant_index]
+        method_name = f"{variant.source}_{variant.language}_{variant_index}"
+        for rank, result in enumerate(response.results, start=1):
+            component_results.setdefault(result.chunk_id, {})[method_name] = (rank, result)
+
+    rrf_k = active_settings.hybrid_rrf_k
+    fused_results: list[SearchResult] = []
+    for chunk_id, components in component_results.items():
+        method_ranks = {method: rank_result[0] for method, rank_result in components.items()}
+        method_scores = {method: rank_result[1].score for method, rank_result in components.items()}
+        fused_score = sum(1.0 / (rrf_k + rank) for rank in method_ranks.values())
+        best_component = min(components.values(), key=lambda item: item[0])
+        evidence = best_component[1]
+        fused_results.append(
+            SearchResult(
+                article_id=evidence.article_id,
+                chunk_id=chunk_id,
+                title=evidence.title,
+                doi=evidence.doi,
+                page_start=evidence.page_start,
+                page_end=evidence.page_end,
+                source_type=evidence.source_type,
+                text_layer=evidence.text_layer,
+                snippet=evidence.snippet,
+                full_text=evidence.full_text,
+                score=fused_score,
+                retrieval_method="hybrid_cross_lingual_rrf",
+                method_scores=method_scores,
+                method_ranks=method_ranks,
+            )
+        )
+
+    reranked = _rerank_cross_lingual_results(
+        fused_results,
+        bundle,
+        window_size=_cross_lingual_rerank_window_size(bundle, top_k=top_k, candidate_window=variant_top_k),
+    )
+    fused_results = reranked.results
+    limited_results = _diversify_cross_lingual_results(fused_results, preferred_per_article=2)[:top_k]
+    metadata = _metadata(
+        normalized_filters,
+        {
+            "fusion": "reciprocal_rank_fusion",
+            "retrieval_method": "hybrid_cross_lingual_rrf",
+            "rrf_k": rrf_k,
+            "component_methods": ["hybrid_rrf", "exact_ilike_glossary"],
+            "cross_lingual": query_bundle_metadata(bundle, variant_hits),
+            "reranking": reranked.metadata,
+        },
+    )
+    if normalized_group_by == "article":
+        groups = group_results_by_article(limited_results, chunks_per_article=chunks_per_article)
+        metadata.update(
+            {
+                "group_by": "article",
+                "chunks_per_article": chunks_per_article,
+                "candidate_count_before_grouping": len(limited_results),
+                "group_count": len(groups),
+            }
+        )
+        return SearchResponse(query=bundle.original, results=[], metadata=metadata, groups=groups)
+    return SearchResponse(query=bundle.original, results=limited_results, metadata=metadata)
+
+
+def hybrid_cross_lingual_v2_search(
+    session: Session,
+    query: str,
+    collection_name: str = "literature",
+    top_k: int = 10,
+    source_type: str | None = None,
+    filters: SearchFilters | None = None,
+    group_by: str = "none",
+    chunks_per_article: int | None = None,
+    *,
+    settings: Settings | None = None,
+) -> SearchResponse:
+    if top_k <= 0:
+        raise ValueError("top_k must be positive")
+    normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
+    normalized_group_by = normalize_group_by(group_by)
+    active_settings = settings or get_settings()
+    _validate_top_k(top_k, active_settings)
+    normalized_query = normalize_query(query)
+    bundle = build_query_bundle(normalized_query.original)
+    variant_top_k = min(top_k * 2, getattr(active_settings, "search_max_top_k", 100))
+
+    channel_responses: list[tuple[str, SearchResponse]] = []
+    channel_hits: dict[str, dict[str, object]] = {}
+
+    original_response = hybrid_search(
+        session,
+        normalized_query.original,
+        collection_name,
+        variant_top_k,
+        filters=normalized_filters,
+        settings=active_settings,
+    )
+    channel_responses.append(("lexical_original", original_response))
+    channel_hits["lexical_original"] = {"result_count": len(original_response.results)}
+
+    if getattr(active_settings, "cross_lingual_multilingual_embeddings_enabled", False):
+        multilingual_response = semantic_multilingual_search(
+            session,
+            normalized_query.original,
+            collection_name,
+            variant_top_k,
+            filters=normalized_filters,
+            settings=active_settings,
+            enforce_top_k_limit=False,
+        )
+        channel_responses.append(("semantic_multilingual", multilingual_response))
+        channel_hits["semantic_multilingual"] = {
+            "enabled": True,
+            "result_count": len(multilingual_response.results),
+            "model": multilingual_response.metadata.get("embedding_model"),
+        }
+    else:
+        channel_hits["semantic_multilingual"] = {
+            "enabled": False,
+            "result_count": 0,
+        }
+
+    rerank_variants = list(bundle.variants)
+    if normalized_query.lexical_normalized and _normalized_query_is_new(normalized_query.lexical_normalized, normalized_query.original):
+        normalized_response = exact_search(
+            session,
+            normalized_query.lexical_normalized,
+            collection_name,
+            variant_top_k,
+            filters=normalized_filters,
+        )
+        channel_responses.append(("lexical_normalized", normalized_response))
+        channel_hits["lexical_normalized"] = {
+            "result_count": len(normalized_response.results),
+            "query": normalized_query.lexical_normalized,
+        }
+        rerank_variants.append(
+            QueryVariant(
+                text=normalized_query.lexical_normalized,
+                language=normalized_query.language,
+                source="normalized_lexical",
+                concepts=tuple(bundle.matched_concepts),
+            )
+        )
+    else:
+        channel_hits["lexical_normalized"] = {
+            "result_count": 0,
+            "skipped": True,
+            "reason": "same_as_original_or_empty",
+        }
+
+    glossary_hits: list[dict[str, object]] = []
+    for variant_index, variant in enumerate(bundle.variants):
+        if variant.source == "original":
+            glossary_hits.append(
+                {
+                    "variant_index": variant_index,
+                    "language": variant.language,
+                    "source": variant.source,
+                    "result_count": len(original_response.results),
+                }
+            )
+            continue
+        response = exact_search(session, variant.text, collection_name, variant_top_k, filters=normalized_filters)
+        channel_name = f"glossary_{variant.language}_{variant_index}"
+        channel_responses.append((channel_name, response))
+        hit = {
+            "variant_index": variant_index,
+            "language": variant.language,
+            "source": variant.source,
+            "result_count": len(response.results),
+        }
+        glossary_hits.append(hit)
+    channel_hits["glossary"] = {
+        "matched_concepts": bundle.matched_concepts,
+        "variant_count": max(0, len(bundle.variants) - 1),
+        "variant_hits": [hit for hit in glossary_hits if hit["source"] != "original"],
+    }
+
+    fused_results = _fuse_cross_lingual_channel_results(
+        channel_responses,
+        rrf_k=active_settings.hybrid_rrf_k,
+        retrieval_method="hybrid_cross_lingual_v2_rrf",
+    )
+    rerank_bundle = QueryBundle(
+        original=bundle.original,
+        language=bundle.language,
+        variants=rerank_variants,
+        matched_concepts=bundle.matched_concepts,
+        language_detection=bundle.language_detection,
+    )
+    reranked = _rerank_cross_lingual_results(
+        fused_results,
+        rerank_bundle,
+        window_size=_cross_lingual_rerank_window_size(rerank_bundle, top_k=top_k, candidate_window=variant_top_k),
+    )
+    fused_results = reranked.results
+    limited_results = _diversify_cross_lingual_results(fused_results, preferred_per_article=2)[:top_k]
+    metadata = _metadata(
+        normalized_filters,
+        {
+            "fusion": "reciprocal_rank_fusion",
+            "retrieval_method": "hybrid_cross_lingual_v2_rrf",
+            "rrf_k": active_settings.hybrid_rrf_k,
+            "component_methods": ["hybrid_rrf", "semantic_multilingual_cosine", "exact_ilike_normalized", "exact_ilike_glossary"],
+            "cross_lingual": {
+                "enabled": True,
+                "version": "v2",
+                "query": normalized_query_metadata(normalized_query),
+                "glossary": query_bundle_metadata(bundle, glossary_hits),
+                "channels": channel_hits,
+                "fusion": {
+                    "method": "reciprocal_rank_fusion",
+                    "candidate_count": len(fused_results),
+                },
+            },
+            "reranking": reranked.metadata,
+        },
+    )
+    if normalized_group_by == "article":
+        groups = group_results_by_article(limited_results, chunks_per_article=chunks_per_article)
+        metadata.update(
+            {
+                "group_by": "article",
+                "chunks_per_article": chunks_per_article,
+                "candidate_count_before_grouping": len(limited_results),
+                "group_count": len(groups),
+            }
+        )
+        return SearchResponse(query=normalized_query.original, results=[], metadata=metadata, groups=groups)
+    return SearchResponse(query=normalized_query.original, results=limited_results, metadata=metadata)
+
+
+def _fuse_cross_lingual_channel_results(
+    channel_responses: list[tuple[str, SearchResponse]],
+    *,
+    rrf_k: int,
+    retrieval_method: str,
+) -> list[SearchResult]:
+    component_results: dict[str, dict[str, tuple[int, SearchResult]]] = {}
+    for method_name, response in channel_responses:
+        for rank, result in enumerate(response.results, start=1):
+            component_results.setdefault(result.chunk_id, {})[method_name] = (rank, result)
+
+    fused_results: list[SearchResult] = []
+    for chunk_id, components in component_results.items():
+        method_ranks = {method: rank_result[0] for method, rank_result in components.items()}
+        method_scores = {method: rank_result[1].score for method, rank_result in components.items()}
+        fused_score = sum(1.0 / (rrf_k + rank) for rank in method_ranks.values())
+        best_component = min(components.values(), key=lambda item: item[0])
+        evidence = best_component[1]
+        fused_results.append(
+            SearchResult(
+                article_id=evidence.article_id,
+                chunk_id=chunk_id,
+                title=evidence.title,
+                doi=evidence.doi,
+                page_start=evidence.page_start,
+                page_end=evidence.page_end,
+                source_type=evidence.source_type,
+                text_layer=evidence.text_layer,
+                snippet=evidence.snippet,
+                full_text=evidence.full_text,
+                score=fused_score,
+                retrieval_method=retrieval_method,
+                method_scores=method_scores,
+                method_ranks=method_ranks,
+            )
+        )
+    return fused_results
+
+
+def _normalized_query_is_new(normalized: str, original: str) -> bool:
+    return " ".join(normalized.lower().split()) != " ".join(original.lower().split())
+
+
+def _rerank_cross_lingual_results(results: list[SearchResult], bundle: QueryBundle, *, window_size: int) -> Any:
+    legacy_ordered = _legacy_rerank_cross_lingual_results(results, bundle)
+    window = legacy_ordered[:window_size]
+    tail = legacy_ordered[window_size:]
+    reranked_window = feature_rerank_cross_lingual_results(
+        window,
+        original_query=bundle.original,
+        query_language=bundle.language,
+        query_variants=[(variant.source, variant.text) for variant in bundle.variants],
+    )
+    return reranked_window.__class__(
+        results=[*reranked_window.results, *tail],
+        metadata={
+            **reranked_window.metadata,
+            "legacy_window_preserved": True,
+            "window_size": window_size,
+        },
+    )
+
+
+def _cross_lingual_rerank_window_size(bundle: QueryBundle, *, top_k: int, candidate_window: int) -> int:
+    if bundle.language == "mixed" or _mandatory_query_terms(bundle.original):
+        return candidate_window
+    return top_k
+
+
+def _legacy_rerank_cross_lingual_results(results: list[SearchResult], bundle: QueryBundle) -> list[SearchResult]:
+    variant_terms = [
+        (variant.source, set(_query_terms(variant.text)))
+        for variant in bundle.variants
+        if _query_terms(variant.text)
+    ]
+    article_variant_hits: dict[str, set[int]] = {}
+    article_glossary_hits: dict[str, set[int]] = {}
+    article_term_hits: dict[str, set[str]] = {}
+    result_term_hits: dict[str, set[str]] = {}
+    result_language_bonus: dict[str, int] = {}
+    original_positions = {result.chunk_id: index for index, result in enumerate(results)}
+    for result in results:
+        text = _cross_lingual_result_text(result)
+        result_language_bonus[result.chunk_id] = _cross_language_result_bonus(bundle.language, result)
+        matched_terms: set[str] = set()
+        for variant_index, (source, terms) in enumerate(variant_terms):
+            terms_in_result = {term for term in terms if _cross_lingual_term_matches(term, text)}
+            if not terms_in_result:
+                continue
+            article_variant_hits.setdefault(result.article_id, set()).add(variant_index)
+            if source == "glossary":
+                article_glossary_hits.setdefault(result.article_id, set()).add(variant_index)
+            matched_terms.update(terms_in_result)
+        result_term_hits[result.chunk_id] = matched_terms
+        article_term_hits.setdefault(result.article_id, set()).update(matched_terms)
+
+    return sorted(
+        results,
+        key=lambda result: (
+            -len(article_glossary_hits.get(result.article_id, set())),
+            -len(article_variant_hits.get(result.article_id, set())),
+            -len(article_term_hits.get(result.article_id, set())),
+            -len(result_term_hits.get(result.chunk_id, set())),
+            -result_language_bonus.get(result.chunk_id, 0),
+            min(result.method_ranks.values()) if result.method_ranks else len(results) + 1,
+            -result.score,
+            original_positions[result.chunk_id],
+        ),
+    )
+
+
+def _cross_lingual_result_text(result: SearchResult) -> str:
+    return "\n".join(
+        item
+        for item in (
+            result.title or "",
+            result.snippet,
+            result.full_text or "",
+        )
+        if item
+    ).lower().translate(LIGATURES)
+
+
+def _cross_language_result_bonus(query_language: str, result: SearchResult) -> int:
+    if query_language not in {"en", "ru"}:
+        return 0
+    result_language, _diagnostics = detect_query_language(
+        "\n".join(item for item in (result.title or "", result.snippet) if item)
+    )
+    if query_language == "en" and result_language == "ru":
+        return 1
+    if query_language == "ru" and result_language == "en":
+        return 1
+    return 0
+
+
+def _cross_lingual_term_matches(term: str, text: str) -> bool:
+    normalized = term.lower().translate(LIGATURES)
+    if normalized in text:
+        return True
+    if "-" in normalized:
+        return normalized.replace("-", " ") in text
+    return False
+
+
+def _diversify_cross_lingual_results(results: list[SearchResult], *, preferred_per_article: int) -> list[SearchResult]:
+    selected: list[SearchResult] = []
+    deferred: list[SearchResult] = []
+    article_counts: dict[str, int] = {}
+    for result in results:
+        count = article_counts.get(result.article_id, 0)
+        if count < preferred_per_article:
+            selected.append(result)
+        else:
+            deferred.append(result)
+        article_counts[result.article_id] = count + 1
+    return [*selected, *deferred]
+
+
 def concrete_retrieval_method(method: str) -> str:
     return CONCRETE_RETRIEVAL_METHODS[normalize_retrieval_method(method)]
 
@@ -646,8 +1140,41 @@ def search_chunks(
             chunks_per_article=chunks_per_article,
             settings=settings,
         )
+    if normalized_method == "semantic_multilingual":
+        return semantic_multilingual_search(
+            session,
+            query,
+            collection_name,
+            top_k,
+            filters=normalized_filters,
+            group_by=group_by,
+            chunks_per_article=chunks_per_article,
+            settings=settings,
+        )
     if normalized_method == "hybrid":
         return hybrid_search(
+            session,
+            query,
+            collection_name,
+            top_k,
+            filters=normalized_filters,
+            group_by=group_by,
+            chunks_per_article=chunks_per_article,
+            settings=settings,
+        )
+    if normalized_method == "hybrid_cross_lingual":
+        return hybrid_cross_lingual_search(
+            session,
+            query,
+            collection_name,
+            top_k,
+            filters=normalized_filters,
+            group_by=group_by,
+            chunks_per_article=chunks_per_article,
+            settings=settings,
+        )
+    if normalized_method == "hybrid_cross_lingual_v2":
+        return hybrid_cross_lingual_v2_search(
             session,
             query,
             collection_name,

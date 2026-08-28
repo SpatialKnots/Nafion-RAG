@@ -1,0 +1,257 @@
+- id: xling_en_ru_dissertation_lithium_relaxation
+  language: en
+  category: en_to_ru
+  query: "How do lithium ions affect thermodynamic and relaxation properties of Nafion membranes?"
+  expected_article_titles:
+    - "Диссертация Чернюк С.Д."
+  expected_article_checksums:
+    - "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+  notes: "English query should retrieve Russian dissertation evidence."
+
+- id: xling_en_ru_dissertation_swelling_mixing
+  language: en
+  category: en_to_ru
+  query: "How does replacing H+ with Li+ in Nafion affect swelling thermodynamics and Gibbs free energy of mixing with solvents?"
+  expected_article_titles:
+    - "Диссертация Чернюк С.Д."
+  expected_article_checksums:
+    - "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+  notes: "English thermodynamics wording should retrieve Russian dissertation evidence."
+
+- id: xling_en_ru_chernyuk_water_thermodynamics
+  language: en
+  category: en_to_ru
+  query: "What are the thermodynamic interactions of PFSA Nafion with water?"
+  expected_article_dois:
+    - "10.31857/s2308112023700463"
+  notes: "English query should retrieve Russian Chernyuk 2023 Nafion-water thermodynamics paper."
+
+- id: xling_en_ru_chernyuk_alcohol_solution_enthalpy
+  language: en
+  category: en_to_ru
+  query: "What is the enthalpy of interaction of lithiated Nafion with aqueous alcohol solutions?"
+  expected_article_titles:
+    - "Чернюк 2024"
+  expected_article_checksums:
+    - "de0c55db3994c9a6c2a2e3f0939d3b28b907fe3ac0c6ca867050be02bc53f182"
+  notes: "English phrasing should retrieve Russian Chernyuk 2024 enthalpy paper."
+
+- id: xling_en_ru_ec_sl_phase_diagram
+  language: en
+  category: en_to_ru
+  query: "Where is the phase diagram of ethylene carbonate and sulfolane discussed?"
+  expected_article_dois:
+    - "10.31857/s0044453721060224"
+  notes: "English compound names should retrieve Russian EC/SL phase diagram paper."
+
+- id: xling_en_ru_kayumov_li_conducting_membranes
+  language: en
+  category: en_to_ru
+  query: "Which Russian paper discusses electrical conductivity of lithium-conducting Nafion membranes with sulfolane ethylene carbonate and diglyme?"
+  expected_article_dois:
+    - "10.31857/s0424857021060049"
+  notes: "English query should retrieve Kayumov 2021 Russian conductivity paper."
+
+- id: xling_ru_en_sanginov_ec_sl_conductivity
+  language: ru
+  category: ru_to_en
+  query: "Как смесь этиленкарбоната и сульфолана влияет на ионную проводимость Li-Nafion?"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  notes: "Russian query should retrieve English Sanginov 2021 Li-Nafion EC/SL conductivity paper."
+
+- id: xling_ru_en_sanginov_binary_plasticizer
+  language: ru
+  category: ru_to_en
+  query: "Где описан бинарный пластификатор EC SL для одноионного литиевого проводника Li-Nafion?"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  notes: "Russian plasticizer wording should retrieve Sanginov 2021."
+
+- id: xling_ru_en_istomina_swelling_temperature
+  language: ru
+  category: ru_to_en
+  query: "Как температура смешения влияет на набухание литированной мембраны Nafion в этиленкарбонате и сульфолане?"
+  expected_article_dois:
+    - "10.3390/polym13071150"
+  notes: "Russian query should retrieve English Istomina 2021."
+
+- id: xling_ru_en_istomina_physicochemical_properties
+  language: ru
+  category: ru_to_en
+  query: "В какой работе изучены физико-химические свойства Li-Nafion после смешения EC и SL при разной температуре?"
+  expected_article_dois:
+    - "10.3390/polym13071150"
+  notes: "Russian paraphrase should retrieve Istomina 2021."
+
+- id: xling_ru_en_ma_solution_casting
+  language: ru
+  category: ru_to_en
+  query: "Какая английская статья изучает морфологию мембран Nafion, полученных solution casting?"
+  expected_article_dois:
+    - "10.1016/j.polymer.2009.01.060"
+  notes: "Russian question with English method term should retrieve Ma 2009."
+
+- id: xling_ru_en_dai_casting_solvent_annealing
+  language: ru
+  category: ru_to_en
+  query: "Где исследовано влияние растворителя кастинга и температуры отжига на recast Nafion membranes?"
+  expected_article_dois:
+    - "10.1016/j.memsci.2016.09.014"
+  notes: "Russian query should retrieve Dai 2017 casting solvent/annealing paper."
+
+- id: xling_mixed_sanginov_solvent_parameters
+  language: mixed
+  category: mixed
+  query: "Какие donor number dielectric constant вязкость molar volume контролируют swelling Li-Nafion?"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  notes: "Mixed query should preserve English solvent-parameter terms."
+
+- id: xling_mixed_istomina_temperature_swelling
+  language: mixed
+  category: mixed
+  query: "Как mixing temperature влияет на swelling Li-Nafion в EC/SL?"
+  expected_article_dois:
+    - "10.3390/polym13071150"
+  notes: "Mixed query should retrieve Istomina 2021."
+
+- id: xling_mixed_chernyuk_gibbs_swelling
+  language: mixed
+  category: mixed
+  query: "Как энергия Gibbs mixing связана с набухание Li-Nafion в растворителях?"
+  expected_article_titles:
+    - "Диссертация Чернюк С.Д."
+  expected_article_checksums:
+    - "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+  notes: "Mixed English/Russian thermodynamics query should retrieve dissertation evidence."
+
+- id: xling_mixed_chernyuk_water_pfsa
+  language: mixed
+  category: mixed
+  query: "Thermodynamic interaction Nafion с водой сорбция мембраны"
+  expected_article_dois:
+    - "10.31857/s2308112023700463"
+  notes: "Mixed thermodynamic/water query should retrieve Chernyuk 2023."
+
+- id: xling_morph_ionic_conductivity_nominative
+  language: ru
+  category: morphology
+  query: "ионная проводимость Li-Nafion EC SL"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  notes: "Nominative Russian morphology variant for ionic conductivity."
+
+- id: xling_morph_ionic_conductivity_genitive
+  language: ru
+  category: morphology
+  query: "измерение ионной проводимости Li-Nafion EC SL"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  notes: "Genitive Russian morphology variant for ionic conductivity."
+
+- id: xling_morph_ionic_conductivity_accusative
+  language: ru
+  category: morphology
+  query: "как повысить ионную проводимость Li-Nafion EC SL"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  notes: "Accusative Russian morphology variant for ionic conductivity."
+
+- id: xling_morph_swelling_nominative
+  language: ru
+  category: morphology
+  query: "набухание литированной мембраны Nafion EC SL"
+  expected_article_dois:
+    - "10.3390/polym13071150"
+  notes: "Russian swelling noun form should retrieve Istomina 2021."
+
+- id: xling_morph_swelling_genitive
+  language: ru
+  category: morphology
+  query: "степень набухания литированной мембраны Nafion EC SL"
+  expected_article_dois:
+    - "10.3390/polym13071150"
+  notes: "Russian genitive swelling phrase should retrieve Istomina 2021."
+
+- id: xling_abbrev_ec_sl_sanginov
+  language: en
+  category: abbreviation
+  query: "EC SL Li-Nafion ionic conductivity binary plasticizer"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  notes: "Abbreviation query should retrieve Sanginov 2021."
+
+- id: xling_abbrev_ethylene_sulfolane_sanginov
+  language: en
+  category: abbreviation
+  query: "ethylene carbonate sulfolane Li-Nafion ionic conductivity binary plasticizer"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  notes: "Expanded compound names should retrieve Sanginov 2021."
+
+- id: xling_abbrev_ru_ec_sl_phase
+  language: ru
+  category: abbreviation
+  query: "фазовая диаграмма EC SL"
+  expected_article_dois:
+    - "10.31857/s0044453721060224"
+  notes: "Abbreviated Russian phase-diagram query should retrieve Reznitskikh 2021."
+
+- id: xling_abbrev_ru_ethylene_sulfolane_phase
+  language: ru
+  category: abbreviation
+  query: "фазовая диаграмма этиленкарбонат сульфолан"
+  expected_article_dois:
+    - "10.31857/s0044453721060224"
+  notes: "Russian compound names should retrieve Reznitskikh 2021."
+
+- id: xling_same_en_ma_solution_casting
+  language: en
+  category: en_to_en
+  query: "Morphology and properties of Nafion membranes prepared by solution casting"
+  expected_article_dois:
+    - "10.1016/j.polymer.2009.01.060"
+  notes: "Same-language English baseline should remain strong."
+
+- id: xling_same_en_dai_recast_solvent
+  language: en
+  category: en_to_en
+  query: "Effect of casting solvent and annealing temperature on recast Nafion membranes"
+  expected_article_dois:
+    - "10.1016/j.memsci.2016.09.014"
+  notes: "Same-language English baseline should remain strong."
+
+- id: xling_same_en_welch_sans_nmr
+  language: en
+  category: en_to_en
+  query: "Welch SANS NMR glycerol ethylene glycol Nafion"
+  expected_article_dois:
+    - "10.1021/mz3005204"
+  notes: "Same-language English baseline for Welch 2012."
+
+- id: xling_same_ru_kayumov_conductivity
+  language: ru
+  category: ru_to_ru
+  query: "электропроводности литий-проводящих мембран Нафион сульфолан этиленкарбонат диглим"
+  expected_article_dois:
+    - "10.31857/s0424857021060049"
+  notes: "Same-language Russian baseline should remain strong."
+
+- id: xling_same_ru_chernyuk_water
+  language: ru
+  category: ru_to_ru
+  query: "термодинамика взаимодействия Nafion с водой"
+  expected_article_dois:
+    - "10.31857/s2308112023700463"
+  notes: "Same-language Russian baseline for Chernyuk 2023."
+
+- id: xling_same_ru_dissertation_title
+  language: ru
+  category: ru_to_ru
+  query: "влияние ионов лития на термодинамические и релаксационные свойства мембран Nafion"
+  expected_article_titles:
+    - "Диссертация Чернюк С.Д."
+  expected_article_checksums:
+    - "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+  notes: "Same-language Russian dissertation baseline."

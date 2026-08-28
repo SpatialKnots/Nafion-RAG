@@ -69,6 +69,7 @@ class ExtendedEvaluationQuestion:
     expected_chunks: list[ExtendedExpectedChunk]
     answerable: bool = True
     language: str | None = None
+    category: str | None = None
     filters: dict[str, object] | None = None
     notes: str | None = None
 
@@ -191,6 +192,7 @@ def load_extended_questions(path: Path) -> list[ExtendedEvaluationQuestion]:
             raise ValueError(f"{question_id}.query must be a non-empty string")
         notes = _optional_string(item.get("notes"), "notes", question_id)
         language = _optional_string(item.get("language"), "language", question_id)
+        category = _optional_string(item.get("category"), "category", question_id)
         filters = item.get("filters")
         if filters is not None and not isinstance(filters, dict):
             raise ValueError(f"{question_id}.filters must be a mapping when provided")
@@ -229,6 +231,7 @@ def load_extended_questions(path: Path) -> list[ExtendedEvaluationQuestion]:
                     else [],
                     answerable=answerable,
                     language=language,
+                    category=category,
                     filters=cast(dict[str, object] | None, filters),
                     notes=old_question.notes,
                 )
@@ -244,6 +247,7 @@ def load_extended_questions(path: Path) -> list[ExtendedEvaluationQuestion]:
                     expected_chunks=_load_extended_expected_chunks(expected.get("chunks"), question_id),
                     answerable=answerable,
                     language=language,
+                    category=category,
                     filters=cast(dict[str, object] | None, filters),
                     notes=notes,
                 )
@@ -547,6 +551,7 @@ def _evaluate_question(
         "candidate_count_before_grouping": candidate_count_before_grouping,
         "group_count": group_count,
         "top_result": top_result,
+        "retrieval_metadata": response.metadata,
         "results": result_payload,
     }
 
@@ -581,9 +586,10 @@ def run_retrieval_evaluation(
             settings=settings,
         )
         if response.metadata:
-            if retrieval_metadata and response.metadata != retrieval_metadata:
+            stable_metadata = _stable_retrieval_metadata(response.metadata)
+            if retrieval_metadata and stable_metadata != retrieval_metadata:
                 raise ValueError("retrieval metadata changed during evaluation")
-            retrieval_metadata = response.metadata
+            retrieval_metadata = stable_metadata
         result_payload = _result_payloads_from_response(response)
         evaluated.append(
             _evaluate_question(
@@ -622,6 +628,11 @@ def run_retrieval_evaluation(
         "questions": evaluated,
         "failures": failures,
     }
+
+
+def _stable_retrieval_metadata(metadata: dict[str, object]) -> dict[str, object]:
+    query_specific_keys = {"cross_lingual", "mandatory_terms", "reranking"}
+    return {key: value for key, value in metadata.items() if key not in query_specific_keys}
 
 
 def _corpus_manifest_sha256() -> str | None:
@@ -697,6 +708,7 @@ def _evaluate_extended_question(
         "id": question.id,
         "query": question.query,
         "language": question.language,
+        "category": question.category,
         "answerable": question.answerable,
         "passed": passed,
         "rank_of_first_relevant": first_rank,
@@ -756,9 +768,10 @@ def run_extended_retrieval_evaluation(
         )
         elapsed_ms = (time.perf_counter() - started) * 1000
         if response.metadata:
-            if retrieval_metadata and response.metadata != retrieval_metadata:
+            stable_metadata = _stable_retrieval_metadata(response.metadata)
+            if retrieval_metadata and stable_metadata != retrieval_metadata:
                 raise ValueError("retrieval metadata changed during evaluation")
-            retrieval_metadata = response.metadata
+            retrieval_metadata = stable_metadata
         result_payload = _result_payloads_from_response(response)
         evaluated.append(
             _evaluate_extended_question(
@@ -797,6 +810,8 @@ def run_extended_retrieval_evaluation(
         "evidence_trace_complete": all(bool(item["evidence_trace_complete"]) for item in evaluated),
         "p50_latency_ms": _percentile(latencies, 50),
         "p95_latency_ms": _percentile(latencies, 95),
+        "by_language": _extended_breakdown(evaluated, "language"),
+        "by_category": _extended_breakdown(evaluated, "category"),
     }
     return {
         "created_at": datetime.now(UTC).isoformat(),
@@ -828,6 +843,29 @@ def run_extended_retrieval_evaluation(
 def _mean_optional(items: list[dict[str, Any]], field: str) -> float | None:
     values = [float(item[field]) for item in items if isinstance(item.get(field), (int, float))]
     return sum(values) / len(values) if values else None
+
+
+def _extended_breakdown(items: list[dict[str, Any]], field: str) -> dict[str, dict[str, Any]]:
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for item in items:
+        value = item.get(field)
+        key = str(value) if isinstance(value, str) and value else "unspecified"
+        groups.setdefault(key, []).append(item)
+    breakdown: dict[str, dict[str, Any]] = {}
+    for key, group_items in sorted(groups.items()):
+        answerable = [item for item in group_items if item["answerable"]]
+        ranks = [item["rank_of_first_relevant"] for item in answerable if isinstance(item["rank_of_first_relevant"], int)]
+        breakdown[key] = {
+            "total": len(group_items),
+            "answerable": len(answerable),
+            "passed": sum(1 for item in group_items if item["passed"]),
+            "failed": sum(1 for item in group_items if not item["passed"]),
+            "article_recall_at_k": _mean_optional(answerable, "article_recall_at_k"),
+            "mrr": _mean_optional(answerable, "mrr"),
+            "top_1_passed": sum(1 for item in answerable if item["top_1_passed"]),
+            "mean_rank": (sum(ranks) / len(ranks)) if ranks else None,
+        }
+    return breakdown
 
 
 def _percentile(values: list[float], percentile: int) -> float | None:

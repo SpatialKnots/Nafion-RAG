@@ -18,6 +18,7 @@ from app.retrieval.search import (
     normalize_retrieval_method,
     search_chunks,
     search_response_to_dict,
+    semantic_multilingual_search,
     semantic_search,
 )
 from app.retrieval.vector_index import LoadedVectorIndex
@@ -202,6 +203,10 @@ def test_normalize_retrieval_method_accepts_semantic_case_insensitive() -> None:
     assert normalize_retrieval_method(" Semantic ") == "semantic"
 
 
+def test_normalize_retrieval_method_accepts_semantic_multilingual_case_insensitive() -> None:
+    assert normalize_retrieval_method(" Semantic_Multilingual ") == "semantic_multilingual"
+
+
 def test_normalize_retrieval_method_accepts_hybrid_case_insensitive() -> None:
     assert normalize_retrieval_method(" Hybrid ") == "hybrid"
 
@@ -318,6 +323,41 @@ def test_semantic_search_ranks_cosine_similarity_and_preserves_evidence() -> Non
     assert response.results[0].snippet
     assert response.metadata["embedding_model"] == "test/model"
     assert response.metadata["manifest_sha256"] == "manifest-checksum"
+
+
+def test_semantic_multilingual_search_uses_separate_embedding_model() -> None:
+    index, chunks = _semantic_index(embedding_model="test/multilingual")
+
+    response = semantic_multilingual_search(
+        FakeSession(),  # type: ignore[arg-type]
+        "Как Li-Nafion влияет на проводимость?",
+        top_k=2,
+        settings=SimpleNamespace(
+            embedding_model="test/english",
+            multilingual_embedding_model="test/multilingual",
+            data_root=None,
+        ),  # type: ignore[arg-type]
+        loaded_index=index,
+        query_embedder=lambda query, model: [0.9, 0.1] if model == "test/multilingual" else [0.0, 1.0],
+    )
+
+    assert [result.chunk_id for result in response.results] == [str(chunks[0].id), str(chunks[1].id)]
+    assert response.results[0].retrieval_method == "semantic_multilingual_cosine"
+    assert response.metadata["embedding_model"] == "test/multilingual"
+    assert response.metadata["semantic_role"] == "multilingual"
+
+
+def test_semantic_multilingual_search_rejects_empty_model_setting() -> None:
+    with pytest.raises(ValueError, match="multilingual_embedding_model"):
+        semantic_multilingual_search(
+            FakeSession(),  # type: ignore[arg-type]
+            "query",
+            settings=SimpleNamespace(
+                embedding_model="test/english",
+                multilingual_embedding_model=" ",
+                data_root=None,
+            ),  # type: ignore[arg-type]
+        )
 
 
 def test_semantic_search_filters_source_type_before_top_k() -> None:
@@ -499,7 +539,7 @@ def test_make_snippet_normalizes_common_pdf_ligatures() -> None:
     assert "Li-Nafion" in snippet
 
 
-def _semantic_index() -> tuple[LoadedVectorIndex, list[object]]:
+def _semantic_index(*, embedding_model: str = "test/model") -> tuple[LoadedVectorIndex, list[object]]:
     article = SimpleNamespace(id=uuid.uuid4(), title="Semantic paper", doi="10.1000/semantic")
     chunks = [
         SimpleNamespace(
@@ -531,7 +571,7 @@ def _semantic_index() -> tuple[LoadedVectorIndex, list[object]]:
             rows_by_chunk_id={chunk_id: (chunk, article) for chunk_id, chunk in zip(chunk_ids, chunks, strict=True)},  # type: ignore[dict-item]
             manifest={
                 "backend": "local_vector_index",
-                "embedding_model": "test/model",
+                "embedding_model": embedding_model,
                 "embedding_dimension": 2,
                 "chunk_count": 2,
             },

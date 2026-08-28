@@ -305,6 +305,7 @@ def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:
     assert payload["status"] == "insufficient_evidence"
     assert payload["retrieval_method"] == "hybrid"
     assert captured_kwargs["answer_style"] == "mini_review"
+    assert captured_kwargs["answer_language"] == "auto"
 
 
 @pytest.mark.parametrize(

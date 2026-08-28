@@ -70,20 +70,37 @@ class EvidenceAdequacy:
     coverage: float
     top_coverage: float
     reason: str
+    concept_coverage: dict[str, object]
 
 
-def assess_evidence_adequacy(question: str, evidence: Sequence[EvidenceText]) -> EvidenceAdequacy:
+def assess_evidence_adequacy(
+    question: str,
+    evidence: Sequence[EvidenceText],
+    *,
+    concept_terms: dict[str, dict[str, list[str]]] | None = None,
+) -> EvidenceAdequacy:
     query_terms = _query_terms(question)
-    distinctive_terms = [term for term in query_terms if term not in COMMON_QUERY_TERMS]
+    distinctive_terms = distinctive_query_terms(question)
+    empty_concept_coverage = _concept_coverage("", concept_terms or {})
     if not evidence:
-        return EvidenceAdequacy(False, query_terms, distinctive_terms, [], [], 0.0, 0.0, "no_evidence")
+        return EvidenceAdequacy(False, query_terms, distinctive_terms, [], [], 0.0, 0.0, "no_evidence", empty_concept_coverage)
     if not distinctive_terms:
-        return EvidenceAdequacy(False, query_terms, distinctive_terms, [], [], 0.0, 0.0, "no_distinctive_query_terms")
+        return EvidenceAdequacy(
+            False,
+            query_terms,
+            distinctive_terms,
+            [],
+            [],
+            0.0,
+            0.0,
+            "no_distinctive_query_terms",
+            empty_concept_coverage,
+        )
 
     all_text = "\n".join(item.text for item in evidence).lower().translate(LIGATURES)
     top_text = evidence[0].text.lower().translate(LIGATURES)
-    matched_terms = [term for term in distinctive_terms if _term_matches_text(term, all_text)]
-    top_matched_terms = [term for term in distinctive_terms if _term_matches_text(term, top_text)]
+    matched_terms = [term for term in distinctive_terms if term_matches_text(term, all_text)]
+    top_matched_terms = [term for term in distinctive_terms if term_matches_text(term, top_text)]
     coverage = len(matched_terms) / len(distinctive_terms)
     top_coverage = len(top_matched_terms) / len(distinctive_terms)
     if len(distinctive_terms) <= 2:
@@ -104,6 +121,7 @@ def assess_evidence_adequacy(question: str, evidence: Sequence[EvidenceText]) ->
         coverage=coverage,
         top_coverage=top_coverage,
         reason=reason,
+        concept_coverage=_concept_coverage(all_text, concept_terms or {}),
     )
 
 
@@ -112,7 +130,32 @@ def _query_terms(question: str) -> list[str]:
     return [term.strip("-") for term in raw_terms if len(term.strip("-")) >= 3]
 
 
-def _term_matches_text(term: str, text: str) -> bool:
+def distinctive_query_terms(question: str) -> list[str]:
+    return [term for term in _query_terms(question) if term not in COMMON_QUERY_TERMS]
+
+
+def term_matches_text(term: str, text: str) -> bool:
     if term in text:
         return True
     return any(synonym in text for synonym in DOMAIN_TERM_SYNONYMS.get(term, []))
+
+
+def _concept_coverage(text: str, concept_terms: dict[str, dict[str, list[str]]]) -> dict[str, object]:
+    matched: list[str] = []
+    missing: list[str] = []
+    details: dict[str, dict[str, list[str]]] = {}
+    for concept, languages in concept_terms.items():
+        terms = [term for values in languages.values() for term in values]
+        matched_terms = [term for term in terms if term_matches_text(term.lower().translate(LIGATURES), text)]
+        if matched_terms:
+            matched.append(concept)
+        else:
+            missing.append(concept)
+        details[concept] = {"matched_terms": matched_terms}
+    total = len(matched) + len(missing)
+    return {
+        "matched": matched,
+        "missing": missing,
+        "coverage": (len(matched) / total) if total else None,
+        "details": details,
+    }

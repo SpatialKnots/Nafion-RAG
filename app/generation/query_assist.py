@@ -81,7 +81,12 @@ def _suggest_term_corrections(term: str) -> list[QueryCorrection]:
     direct = _suggest_term_correction(term)
     corrections = [direct] if direct is not None else []
     if "-" in term:
-        corrections.extend(correction for part in term.split("-") for correction in [_suggest_term_correction(part)] if correction is not None)
+        corrections.extend(
+            correction
+            for part in term.split("-")
+            for correction in [_suggest_term_correction(part)]
+            if correction is not None
+        )
     return corrections
 
 

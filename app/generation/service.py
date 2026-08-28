@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.generation.evidence_adequacy import assess_evidence_adequacy
+from app.generation.evidence_selection import select_answer_evidence
 from app.generation.providers import (
+    AnswerLanguage,
     AnswerProvider,
     AnswerStyle,
     DeepSeekAnswerProvider,
@@ -19,6 +21,7 @@ from app.generation.providers import (
     OpenAIAnswerProvider,
 )
 from app.generation.query_assist import query_assistance_to_dict, suggest_query_corrections
+from app.retrieval.cross_lingual import detect_query_language, glossary_terms_for_concepts
 from app.retrieval.search import SearchResponse, search_chunks
 
 
@@ -40,6 +43,13 @@ def normalize_answer_style(answer_style: str) -> AnswerStyle:
     if normalized in {"claims", "mini_review"}:
         return cast(AnswerStyle, normalized)
     raise ValueError("answer_style must be one of: claims, mini_review")
+
+
+def normalize_answer_language(answer_language: str) -> AnswerLanguage:
+    normalized = answer_language.strip().lower()
+    if normalized in {"auto", "en", "ru"}:
+        return cast(AnswerLanguage, normalized)
+    raise ValueError("answer_language must be one of: auto, en, ru")
 
 
 def build_answer_provider(settings: Settings) -> AnswerProvider:
@@ -87,6 +97,7 @@ def _evidence_from_response(response: SearchResponse, *, use_full_text: bool = F
             retrieval_method=result.retrieval_method,
             method_scores=result.method_scores,
             method_ranks=result.method_ranks,
+            original_language=detect_query_language(result.full_text or result.snippet)[0],
         )
         for index, result in enumerate(response.results, start=1)
         if result.snippet.strip()
@@ -116,6 +127,7 @@ def answer_question(
     top_k: int | None = None,
     method: str | None = None,
     answer_style: str = "claims",
+    answer_language: str = "auto",
     provider: AnswerProvider | None = None,
 ) -> AnswerResponse:
     normalized_question = question.strip()
@@ -127,6 +139,7 @@ def answer_question(
         raise ValueError("top_k must be positive")
     active_method = method or settings.rag_retrieval_method
     active_answer_style = normalize_answer_style(answer_style)
+    active_answer_language = normalize_answer_language(answer_language)
     retrieval = search_chunks(
         session,
         normalized_question,
@@ -135,9 +148,20 @@ def answer_question(
         method=active_method,
         settings=settings,
     )
-    evidence = _evidence_from_response(retrieval, use_full_text=True)
-    display_evidence = _evidence_from_response(retrieval)
-    adequacy = assess_evidence_adequacy(normalized_question, evidence)
+    evidence_selection = select_answer_evidence(
+        normalized_question,
+        retrieval.results,
+        additional_queries=_cross_lingual_selection_queries(retrieval.metadata),
+    )
+    selected_retrieval = SearchResponse(query=retrieval.query, results=evidence_selection.results, metadata=retrieval.metadata)
+    evidence = _evidence_from_response(selected_retrieval, use_full_text=True)
+    display_evidence = _evidence_from_response(selected_retrieval)
+    cross_lingual_concepts = _cross_lingual_matched_concepts(retrieval.metadata)
+    adequacy = assess_evidence_adequacy(
+        normalized_question,
+        evidence,
+        concept_terms=glossary_terms_for_concepts(cross_lingual_concepts),
+    )
     adequacy_metadata = {
         "adequate": adequacy.adequate,
         "reason": adequacy.reason,
@@ -146,13 +170,17 @@ def answer_question(
         "top_matched_terms": adequacy.top_matched_terms,
         "coverage": adequacy.coverage,
         "top_coverage": adequacy.top_coverage,
+        "concept_coverage": adequacy.concept_coverage,
     }
     query_assistance = suggest_query_corrections(normalized_question, adequacy.distinctive_terms, adequacy.matched_terms)
     base_metadata = {
         "retrieval": retrieval.metadata,
         "retrieved_count": len(retrieval.results),
+        "answer_evidence_selection": evidence_selection.metadata,
         "evidence_adequacy": adequacy_metadata,
         "answer_style": active_answer_style,
+        "answer_language": active_answer_language,
+        "citation_language_coverage": _citation_language_coverage(display_evidence),
     }
     if query_assistance is not None:
         base_metadata["query_assistance"] = query_assistance_to_dict(query_assistance)
@@ -169,7 +197,12 @@ def answer_question(
             metadata=base_metadata,
         )
     active_provider = provider or build_answer_provider(settings)
-    generated = active_provider.generate(normalized_question, evidence, answer_style=active_answer_style)
+    generated = active_provider.generate(
+        normalized_question,
+        evidence,
+        answer_style=active_answer_style,
+        answer_language=active_answer_language,
+    )
     if not evidence or not generated.answerable:
         return AnswerResponse(
             query=normalized_question,
@@ -211,3 +244,43 @@ def answer_response_to_dict(response: AnswerResponse) -> dict[str, Any]:
         "generation_model": response.generation_model,
         "metadata": response.metadata,
     }
+
+
+def _cross_lingual_selection_queries(metadata: dict[str, object]) -> list[str]:
+    cross_lingual = metadata.get("cross_lingual")
+    if not isinstance(cross_lingual, dict):
+        return []
+    variants = cross_lingual.get("variants")
+    if not isinstance(variants, list):
+        return []
+    queries = []
+    for variant in variants:
+        if not isinstance(variant, dict) or variant.get("source") == "original":
+            continue
+        text = variant.get("text")
+        if isinstance(text, str) and text.strip():
+            queries.append(text)
+    return queries
+
+
+def _cross_lingual_matched_concepts(metadata: dict[str, object]) -> list[str]:
+    cross_lingual = metadata.get("cross_lingual")
+    if not isinstance(cross_lingual, dict):
+        return []
+    concepts = cross_lingual.get("matched_concepts")
+    if isinstance(concepts, list):
+        return [str(concept) for concept in concepts if isinstance(concept, str)]
+    glossary = cross_lingual.get("glossary")
+    if isinstance(glossary, dict):
+        nested = glossary.get("matched_concepts")
+        if isinstance(nested, list):
+            return [str(concept) for concept in nested if isinstance(concept, str)]
+    return []
+
+
+def _citation_language_coverage(evidence: list[Evidence]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in evidence:
+        language = item.original_language or "unknown"
+        counts[language] = counts.get(language, 0) + 1
+    return counts

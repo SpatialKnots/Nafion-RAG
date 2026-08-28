@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     chunk_target_chars: int = Field(default=4500, ge=1000)
     chunk_overlap_chars: int = Field(default=600, ge=0)
     embedding_model: str = "BAAI/bge-small-en-v1.5"
+    multilingual_embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    cross_lingual_multilingual_embeddings_enabled: bool = False
     hybrid_rrf_k: int = Field(default=60, ge=1)
     hybrid_candidate_multiplier: int = Field(default=5, ge=1)
     hybrid_max_candidate_k: int = Field(default=500, ge=1)

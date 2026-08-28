@@ -1,0 +1,52 @@
+- id: xling_en_dissertation_lithium_thermodynamics
+  query: "How do lithium ions affect thermodynamic and relaxation properties of Nafion membranes?"
+  expected_article_titles:
+    - "Диссертация Чернюк С.Д."
+  expected_article_checksums:
+    - "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+  expected_keywords:
+    - "Nafion"
+    - "Li"
+  notes: "English cross-lingual query should retrieve the Russian Chernyuk dissertation."
+- id: xling_en_dissertation_swelling_mixing
+  query: "How does replacing H+ with Li+ in Nafion affect swelling thermodynamics and Gibbs free energy of mixing with solvents?"
+  expected_article_titles:
+    - "Диссертация Чернюк С.Д."
+  expected_article_checksums:
+    - "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266"
+  expected_keywords:
+    - "термодинами"
+    - "Nafion"
+  notes: "English thermodynamics wording should cross the language barrier to dissertation evidence."
+- id: xling_en_chernyuk_2023_water_thermodynamics
+  query: "What are the thermodynamic interactions of PFSA Nafion with water?"
+  expected_article_dois:
+    - "10.31857/s2308112023700463"
+  expected_keywords:
+    - "Nafion"
+    - "вод"
+  notes: "English query should retrieve the Russian Chernyuk 2023 Nafion-water thermodynamics paper."
+- id: xling_ru_sanginov_ec_sl_conductivity
+  query: "Как смесь этиленкарбоната и сульфолана влияет на ионную проводимость Li-Nafion?"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  expected_keywords:
+    - "Li-Nafion"
+    - "conductivity"
+  notes: "Russian query should retrieve English Sanginov 2021 Li-Nafion EC/SL conductivity evidence."
+- id: xling_ru_istomina_swelling_temperature
+  query: "Как температура смешения влияет на набухание литированной мембраны Nafion в этиленкарбонате и сульфолане?"
+  expected_article_dois:
+    - "10.3390/polym13071150"
+  expected_keywords:
+    - "swelling"
+    - "temperature"
+  notes: "Russian query should retrieve English Istomina 2021 swelling and mixing-temperature evidence."
+- id: xling_mixed_solvent_parameters
+  query: "Какие donor number dielectric constant вязкость molar volume контролируют swelling Li-Nafion?"
+  expected_article_dois:
+    - "10.1016/j.electacta.2021.137914"
+  expected_keywords:
+    - "donor"
+    - "viscosity"
+  notes: "Mixed query should preserve English parameter terms and Russian wording."
