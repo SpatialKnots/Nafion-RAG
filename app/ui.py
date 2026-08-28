@@ -140,28 +140,76 @@ def _highlighted_text(text: str, highlights: object) -> str:
 
 def _layout(title: str, body: str) -> HTMLResponse:
     css = """
-    :root { color-scheme: light; --line:#d7dde5; --muted:#5c6675; --bg:#f6f8fb; --ink:#1d2430; --accent:#2454a6; }
+    :root {
+      color-scheme: light;
+      --graphite:#2B3843;
+      --slate:#5D7285;
+      --aqua:#91DEDB;
+      --coral:#E5664A;
+      --paper:#FDFEFF;
+      --line:#DCE3E8;
+      --muted:#5D7285;
+      --bg:#F4F7F9;
+      --ink:#1F2A33;
+      --accent:#247A82;
+      --ok:#126B36;
+      --warn:#8A4B16;
+      --radius:12px;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: Segoe UI, Arial, sans-serif; color: var(--ink); background: var(--bg); font-size: 14px; }
-    header { background: #ffffff; border-bottom: 1px solid var(--line); padding: 12px 20px; display:flex; gap:18px; align-items:center; }
-    header strong { font-size: 16px; }
-    nav a { margin-right: 12px; color: var(--accent); text-decoration: none; }
+    body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; color: var(--ink); background: var(--bg); font-size: 14px; }
+    header {
+      background: var(--paper); border-bottom: 1px solid var(--line); padding: 12px 20px;
+      display:flex; gap:18px; align-items:center;
+    }
+    header strong { font-size: 16px; color:var(--graphite); letter-spacing:0; }
+    header strong .domain { color:var(--slate); font-weight:500; }
+    nav { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    nav a { color: var(--accent); text-decoration: none; }
     main { padding: 18px 20px 40px; max-width: 1500px; margin: 0 auto; }
     h1 { font-size: 22px; margin: 0 0 14px; }
     h2 { font-size: 17px; margin: 22px 0 8px; }
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-    .panel { background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px; }
+    .workbench-grid { display:grid; grid-template-columns:minmax(320px, 0.9fr) minmax(420px, 1.4fr); gap:14px; align-items:start; }
+    .evidence-grid { display:grid; grid-template-columns:minmax(320px, 0.9fr) minmax(420px, 1.2fr); gap:14px; align-items:start; }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:12px; }
+    .panel.compact h2 { margin-top:0; }
+    .workspace-band {
+      background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+      padding:14px; margin-bottom:14px;
+    }
+    .status-strip { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:8px 0 0; }
+    .status-pill, .citation-chip {
+      display:inline-flex; align-items:center; gap:6px; min-height:24px; padding:3px 8px; border:1px solid var(--line);
+      border-radius:999px; background:#F8FBFC; color:var(--graphite); text-decoration:none; font-size:12px;
+    }
+    .status-pill.ok { border-color:#B8DCC7; color:var(--ok); background:#F4FBF7; }
+    .status-pill.warn { border-color:#E5C6B1; color:var(--warn); background:#FFF8F3; }
+    .citation-chip { border-color:#B9DADC; background:#F2FBFB; color:#155E63; font-weight:600; }
+    .claim-card {
+      border:1px solid var(--line); border-left:4px solid var(--aqua); border-radius:var(--radius);
+      padding:12px; background:var(--paper); margin-bottom:10px;
+    }
+    .claim-card.low-evidence { border-left-color:var(--coral); }
+    .claim-text { font-size:15px; line-height:1.45; margin:0 0 10px; }
+    .source-card { border:1px solid var(--line); border-radius:var(--radius); padding:10px; background:var(--paper); margin-bottom:10px; }
+    .source-card.table-derived { border-left:4px solid var(--coral); }
+    .source-head { display:flex; justify-content:space-between; gap:12px; align-items:start; margin-bottom:6px; }
+    .source-title { font-weight:600; color:var(--graphite); }
+    .source-fragment { border-left:3px solid var(--aqua); padding-left:10px; margin:8px 0; color:#24313A; }
+    .empty-state { border:1px dashed var(--line); border-radius:var(--radius); padding:12px; background:#FBFCFD; }
     .muted { color: var(--muted); }
     .path { font-family: Consolas, monospace; font-size: 12px; word-break: break-all; }
-    table { width:100%; border-collapse: collapse; background:#fff; border:1px solid var(--line); }
+    table { width:100%; border-collapse: collapse; background:var(--paper); border:1px solid var(--line); }
     th, td { border-bottom:1px solid var(--line); padding:7px 8px; vertical-align: top; text-align:left; }
-    th { background:#eef2f7; font-weight:600; }
-    tr:hover td { background:#fafcff; }
+    th { background:#EEF4F6; font-weight:600; color:var(--graphite); }
+    tr:hover td { background:#FAFDFD; }
     .num { text-align:right; font-variant-numeric: tabular-nums; }
-    .tag { display:inline-block; border:1px solid var(--line); border-radius:4px; padding:2px 5px; margin:1px; background:#f9fbfd; }
+    .tag { display:inline-block; border:1px solid var(--line); border-radius:8px; padding:2px 5px; margin:1px; background:#F9FBFD; }
     .actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .ok { color:#126b36; font-weight:600; }
-    .warn { color:#9b5a00; font-weight:600; }
+    .actions a { display:inline-flex; min-height:26px; align-items:center; }
+    .ok { color:var(--ok); font-weight:600; }
+    .warn { color:var(--warn); font-weight:600; }
     .progress-steps { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
     .progress-step { display:flex; gap:9px; align-items:center; color:var(--muted); }
     .progress-step .marker { width:18px; height:18px; border:1px solid #b9c4d2; border-radius:50%; display:inline-grid;
@@ -177,23 +225,27 @@ def _layout(title: str, body: str) -> HTMLResponse:
     @keyframes spin { to { transform: rotate(360deg); } }
     mark { background:#fff1a8; padding:0 1px; }
     pre.context { white-space: pre-wrap; font-family: Consolas, monospace; font-size: 13px; margin: 6px 0 0; }
-    input, select, button { font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:4px; background:#fff; }
-    textarea { font: inherit; padding:7px 8px; border:1px solid var(--line); border-radius:4px; background:#fff;
+    input, select, button { font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper); }
+    textarea { font: inherit; padding:7px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper);
       min-width: min(720px, 100%); }
-    button { background:#2454a6; color:#fff; border-color:#2454a6; }
+    button { background:var(--graphite); color:#fff; border-color:var(--graphite); }
     form { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:14px; }
     form.stack { display:block; }
     form.stack label { display:block; margin:0 0 10px; }
     form.stack .actions { margin-top:8px; }
     a { color: var(--accent); }
+    @media (max-width: 900px) {
+      .workbench-grid, .evidence-grid { grid-template-columns:1fr; }
+      header { align-items:flex-start; flex-direction:column; gap:8px; }
+    }
     """
     nav = (
-        '<a href="/">Dashboard</a>'
+        '<a href="/">Library</a>'
         '<a href="/ui/search">Search</a>'
         '<a href="/ui/answer">Answer</a>'
-        '<a href="/ui/articles">Articles</a>'
+        '<a href="/ui/articles">Documents</a>'
         '<a href="/ui/ingestion">Ingestion</a>'
-        '<a href="/ui/vector-indexes">Vector indexes</a>'
+        '<a href="/ui/vector-indexes">Settings</a>'
         '<a href="/ui/reports/retrieval">Retrieval report</a>'
         '<a href="/ui/reports/text-quality">Text quality</a>'
         '<a href="/ui/reports/classification">Classification report</a>'
@@ -207,7 +259,7 @@ def _layout(title: str, body: str) -> HTMLResponse:
 <style>{css}</style>
 </head>
 <body>
-<header><strong>Nafion RAG</strong><nav>{nav}</nav></header>
+<header><strong>ARIADNE <span class="domain">/ Nafion profile</span></strong><nav>{nav}</nav></header>
 <main>{body}</main>
 </body></html>"""
     return HTMLResponse(html)
@@ -261,7 +313,27 @@ def dashboard(session: SessionDep) -> HTMLResponse:
         f'<table><tr><th>Layer</th><th class="num">Chunks</th></tr>{text_layer_rows}</table></section>'
     )
     body = f"""
-    <h1>Corpus Dashboard</h1>
+    <h1>ARIADNE Research Workbench</h1>
+    <section class="workspace-band">
+      <form method="get" action="/ui/answer">
+        <label>Question<br><input name="question" size="56" value="Li-Nafion conductivity"></label>
+        <label>Collection<br><input name="collection" value="literature"></label>
+        <label>Method<br><select name="method">
+          <option value="hybrid_cross_lingual">hybrid_cross_lingual</option>
+          <option value="hybrid">hybrid</option>
+          <option value="exact">exact</option>
+        </select></label>
+        <button type="submit">Answer</button>
+      </form>
+      <div class="status-strip">
+        <a class="status-pill" href="/ui/search">Search</a>
+        <a class="status-pill" href="/ui/answer">Claims</a>
+        <a class="status-pill" href="/ui/answer">Evidence</a>
+        <a class="status-pill" href="/ui/articles">Documents</a>
+        <a class="status-pill" href="/ui/reports/text-quality">Tables / Facts diagnostics</a>
+      </div>
+    </section>
+    <h2>Corpus Dashboard</h2>
     <div class="grid">
       <section class="panel"><h2>Corpus</h2><table>{corpus_rows}</table></section>
       {selected_panel}
@@ -335,19 +407,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
                 f"<button type='button' data-suggested-query='{_html(corrected_query)}'>Use suggested query</button>"
                 "</section>"
             )
-    claim_rows = []
-    claims = payload.get("claims", [])
-    if isinstance(claims, list):
-        for claim in claims:
-            if not isinstance(claim, dict):
-                continue
-            claim_rows.append(
-                "<tr>"
-                f"<td>{_html(claim.get('text'))}</td>"
-                f"<td>{_html(', '.join(str(item) for item in claim.get('citation_ids', [])))}</td>"
-                "</tr>"
-            )
-    citation_rows = []
+    citation_by_id: dict[str, dict[str, object]] = {}
     citation_dicts: list[dict[str, object]] = []
     citations = payload.get("citations", [])
     if isinstance(citations, list):
@@ -355,52 +415,115 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
             if not isinstance(citation, dict):
                 continue
             citation_dicts.append(citation)
-            article_id = citation.get("article_id")
-            chunk_id = citation.get("chunk_id")
-            page_start = citation.get("page_start") if isinstance(citation.get("page_start"), int) else None
-            page_end = citation.get("page_end") if isinstance(citation.get("page_end"), int) else None
-            evidence_text = str(citation.get("text") or "")
-            links = []
-            if article_id and chunk_id:
-                links.append(_context_link(str(article_id), str(chunk_id), evidence_text, "Evidence", "phrase"))
-                links.append(_context_link(str(article_id), str(chunk_id), question))
-            if article_id:
-                links.append(_pdf_link(str(article_id), page_start))
-            title = _html(citation.get("title"))
-            article_cell = f"<a href='/ui/articles/{_html(article_id)}'>{title}</a>" if article_id else title
-            citation_rows.append(
-                "<tr>"
-                f"<td>{_html(citation.get('citation_id'))}</td>"
-                f"<td>{article_cell}"
-                f"<div class='muted'>{_html(citation.get('doi'))}</div></td>"
-                f"<td class='num'>{_html(_page_range(page_start, page_end))}</td>"
-                f"<td>{_html(citation.get('original_language') or 'unknown')}</td>"
-                f"<td class='num'>{_html(citation.get('score'))}</td>"
-                f"<td>{_html(_truncate(str(citation.get('text') or ''), 360))}"
-                f"<div class='muted'>translation={_html(citation.get('translation_status') or 'not_requested')}</div></td>"
-                f"<td class='actions'>{' '.join(links)}</td>"
-                "</tr>"
+            citation_id = citation.get("citation_id")
+            if citation_id:
+                citation_by_id[str(citation_id)] = citation
+
+    claim_cards = []
+    claims = payload.get("claims", [])
+    if isinstance(claims, list):
+        for index, claim in enumerate(claims, start=1):
+            if not isinstance(claim, dict):
+                continue
+            citation_ids = [str(item) for item in claim.get("citation_ids", [])]
+            chips = []
+            for citation_id in citation_ids:
+                citation = citation_by_id.get(citation_id)
+                article_id = citation.get("article_id") if citation else None
+                chunk_id = citation.get("chunk_id") if citation else None
+                evidence_text = str(citation.get("text") or "") if citation else ""
+                if article_id and chunk_id:
+                    chips.append(
+                        f"<a class='citation-chip' href='{_html(_context_url(str(article_id), str(chunk_id), evidence_text, 'phrase'))}'>"
+                        f"{_html(citation_id)}</a>"
+                    )
+                else:
+                    chips.append(f"<span class='citation-chip'>{_html(citation_id)}</span>")
+            citation_chips_html = "".join(chips) or "<span class='muted'>No citation links</span>"
+            claim_cards.append(
+                "<article class='claim-card'>"
+                f"<p class='claim-text'><strong>Claim {index}.</strong> {_html(claim.get('text'))}</p>"
+                f"<div class='actions'>{citation_chips_html}</div>"
+                "</article>"
             )
+
+    source_cards = []
+    citation_rows = []
+    for citation in citation_dicts:
+        article_id = citation.get("article_id")
+        chunk_id = citation.get("chunk_id")
+        page_start = citation.get("page_start") if isinstance(citation.get("page_start"), int) else None
+        page_end = citation.get("page_end") if isinstance(citation.get("page_end"), int) else None
+        evidence_text = str(citation.get("text") or "")
+        links = []
+        if article_id and chunk_id:
+            links.append(_context_link(str(article_id), str(chunk_id), evidence_text, "Evidence", "phrase"))
+            links.append(_context_link(str(article_id), str(chunk_id), question))
+        if article_id:
+            links.append(_pdf_link(str(article_id), page_start))
+        title = _html(citation.get("title"))
+        article_cell = f"<a href='/ui/articles/{_html(article_id)}'>{title}</a>" if article_id else title
+        page_range = _page_range(page_start, page_end)
+        source_type = str(citation.get("source_type") or "")
+        source_class = "source-card table-derived" if source_type == "table_derived" else "source-card"
+        source_cards.append(
+            f"<article class='{source_class}'>"
+            "<div class='source-head'>"
+            f"<div><span class='citation-chip'>{_html(citation.get('citation_id'))}</span> "
+            f"<span class='source-title'>{article_cell}</span><div class='muted'>{_html(citation.get('doi'))}</div></div>"
+            f"<div class='num muted'>p. {_html(page_range or 'unknown')}</div>"
+            "</div>"
+            f"<div class='source-fragment'>{_html(_truncate(evidence_text, 520))}</div>"
+            f"<div class='status-strip'><span class='status-pill'>{_html(source_type or 'source')}</span>"
+            f"<span class='status-pill'>language={_html(citation.get('original_language') or 'unknown')}</span>"
+            f"<span class='status-pill'>translation={_html(citation.get('translation_status') or 'not_requested')}</span></div>"
+            f"<p class='actions'>{' '.join(links)}</p>"
+            "</article>"
+        )
+        citation_rows.append(
+            "<tr>"
+            f"<td>{_html(citation.get('citation_id'))}</td>"
+            f"<td>{article_cell}"
+            f"<div class='muted'>{_html(citation.get('doi'))}</div></td>"
+            f"<td class='num'>{_html(_page_range(page_start, page_end))}</td>"
+            f"<td>{_html(citation.get('original_language') or 'unknown')}</td>"
+            f"<td class='num'>{_html(citation.get('score'))}</td>"
+            f"<td>{_html(_truncate(str(citation.get('text') or ''), 360))}"
+            f"<div class='muted'>translation={_html(citation.get('translation_status') or 'not_requested')}</div></td>"
+            f"<td class='actions'>{' '.join(links)}</td>"
+            "</tr>"
+        )
     answer_block = (
         f"<pre class='context'>{_linked_answer_text(str(answer), citation_dicts)}</pre>"
         if answer
         else "<p class='warn'>No answer: evidence was insufficient or generation failed validation.</p>"
     )
-    claim_rows_html = "".join(claim_rows) or "<tr><td colspan='2'>No claims</td></tr>"
+    claim_cards_html = (
+        "".join(claim_cards) or "<div class='empty-state warn'>No claims. The available evidence did not support an answer.</div>"
+    )
     citation_rows_html = "".join(citation_rows) or "<tr><td colspan='7'>No citations</td></tr>"
+    source_cards_html = "".join(source_cards) or "<div class='empty-state warn'>No source fragments selected.</div>"
+    retrieved_count = metadata.get("retrieved_count") if isinstance(metadata, dict) else ""
     return (
-        "<section class='panel'>"
+        "<section class='workspace-band'>"
         f"<p><strong>Query:</strong> {_html(payload.get('query') or question)}</p>"
-        f"<p><strong>Status:</strong> <span class='{status_class}'>{_html(payload.get('status'))}</span> "
-        f"<strong>Retrieval:</strong> {_html(payload.get('retrieval_method'))} "
-        f"<strong>Provider:</strong> {_html(payload.get('generation_provider'))} "
-        f"<strong>Retrieved:</strong> {_html(metadata.get('retrieved_count') if isinstance(metadata, dict) else '')}</p>"
+        "<div class='status-strip'>"
+        f"<span class='status-pill {status_class}'><strong>Status:</strong> {_html(payload.get('status'))}</span>"
+        f"<span class='status-pill'><strong>Retrieval:</strong> {_html(payload.get('retrieval_method'))}</span>"
+        f"<span class='status-pill'><strong>Provider:</strong> {_html(payload.get('generation_provider'))}</span>"
+        f"<span class='status-pill'><strong>Retrieved:</strong> {_html(retrieved_count)}</span>"
+        "</div>"
         f"{adequacy_row}"
-        f"{answer_block}"
         "</section>"
         f"{query_assistance_row}"
-        "<h2>Claims</h2><table><tr><th>Claim</th><th>Citations</th></tr>"
-        f"{claim_rows_html}</table>"
+        "<div class='evidence-grid'>"
+        "<section><h2>Answer</h2>"
+        f"<section class='panel compact'>{answer_block}</section>"
+        "<h2>Claims</h2>"
+        f"{claim_cards_html}</section>"
+        "<section><h2>Evidence</h2>"
+        f"{source_cards_html}</section>"
+        "</div>"
         "<h2>Citations</h2><table><tr><th>ID</th><th>Article</th><th class='num'>Pages</th>"
         f"<th>Language</th><th class='num'>Score</th><th>Evidence text</th><th>Links</th></tr>{citation_rows_html}</table>"
     )
@@ -536,8 +659,15 @@ def _answer_body(
 
 
 @router.get("/ui/answer", response_class=HTMLResponse)
-def answer_page() -> HTMLResponse:
-    return _layout("Answer", _answer_body())
+def answer_page(
+    question: str = "",
+    collection: str = "literature",
+    top_k: int = Query(default=5, ge=1),
+    method: str = "hybrid_cross_lingual",
+    answer_style: str = "claims",
+    answer_language: str = "auto",
+) -> HTMLResponse:
+    return _layout("Answer", _answer_body(question, collection, top_k, method, answer_style, answer_language))
 
 
 def _answer_result_fragment(

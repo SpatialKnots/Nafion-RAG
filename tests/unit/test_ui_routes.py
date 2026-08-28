@@ -183,6 +183,8 @@ def test_dashboard_returns_html(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert "Corpus Dashboard" in response.body.decode()
+    assert "ARIADNE Research Workbench" in response.body.decode()
+    assert "Tables / Facts diagnostics" in response.body.decode()
     assert "Articles" in response.body.decode()
     assert "Retrieval Evaluation" in response.body.decode()
 
@@ -332,6 +334,8 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
     assert "missing=none" in body
     assert "Li-Nafion conductivity was measured" in body
     assert "Nafion conductivity evidence" in body
+    assert "claim-card" in body
+    assert "source-fragment" in body
     assert "translation=not_requested" in body
     assert ">[E1]</a>" in body
     assert ">Evidence</a>" in body
