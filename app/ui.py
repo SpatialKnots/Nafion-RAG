@@ -508,6 +508,27 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
                 f"<button type='button' data-suggested-query='{_html(corrected_query)}'>Use suggested query</button>"
                 "</section>"
             )
+    derived_evidence = metadata.get("derived_evidence") if isinstance(metadata, dict) else None
+    derived_evidence_row = ""
+    if isinstance(derived_evidence, dict):
+        source_pages = derived_evidence.get("source_pages")
+        source_page_text = ""
+        if isinstance(source_pages, list) and source_pages:
+            source_page_text = _page_range(
+                source_pages[0] if isinstance(source_pages[0], int) else None,
+                source_pages[1] if len(source_pages) > 1 and isinstance(source_pages[1], int) else None,
+            )
+        derived_evidence_row = (
+            "<section class='panel'>"
+            "<p class='section-kicker'>Derived evidence</p>"
+            f"<p><strong>Type:</strong> {_html(derived_evidence.get('type'))} &nbsp; "
+            f"<strong>Pages:</strong> {_html(source_page_text or 'unknown')} &nbsp; "
+            f"<strong>Matching rows:</strong> {_html(derived_evidence.get('matching_row_count'))} &nbsp; "
+            f"<strong>Nonmatching rows:</strong> {_html(derived_evidence.get('nonmatching_row_count'))}</p>"
+            f"<p><strong>Source article:</strong> {_html(derived_evidence.get('source_article_id'))}<br>"
+            f"<strong>Source chunk:</strong> {_html(derived_evidence.get('source_chunk_id'))}</p>"
+            "</section>"
+        )
     citation_by_id: dict[str, dict[str, object]] = {}
     citation_dicts: list[dict[str, object]] = []
     citations = payload.get("citations", [])
@@ -620,6 +641,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
         f"{adequacy_row}"
         "</section>"
         f"{query_assistance_row}"
+        f"{derived_evidence_row}"
         "<div class='answer-surface'>"
         "<section class='answer-card'>"
         "<p class='section-kicker'>Evidence-based answer</p>"

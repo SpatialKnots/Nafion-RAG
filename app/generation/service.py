@@ -349,7 +349,7 @@ def _has_swelling_comparison_intent(question: str) -> bool:
     text = question.lower()
     has_swelling = "swelling degree" in text or "степень набухания" in text
     has_forms = "li-nafion" in text and "h-nafion" in text
-    has_comparison = any(term in text for term in ("more", "than", "higher", "больше", "выше"))
+    has_comparison = any(term in text for term in ("more", "than", "higher", "больше", "большую", "большей", "выше"))
     return has_swelling and has_forms and has_comparison
 
 
@@ -396,6 +396,7 @@ def _swelling_comparison_summary_text(
     )
     return (
         "Deterministic row comparison extracted from Table 4.5. "
+        "Растворители, которые дают Li-Nafion большую степень набухания, чем H-Nafion, are listed by alphaLi > alphaH. "
         f"Rows where Li-Nafion has higher equilibrium swelling degree than H-Nafion: {matching_text}. "
         f"Rows where Li-Nafion is not higher: {nonmatching_text}."
     )

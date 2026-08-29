@@ -325,6 +325,14 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
                     "corrections": [{"original": "litation", "suggestion": "lithiation", "reason": "edit_distance_2"}],
                     "mode": "suggest_only",
                 },
+                "derived_evidence": {
+                    "type": "swelling_comparison_table",
+                    "source_article_id": str(ARTICLE_ID),
+                    "source_chunk_id": "22222222-2222-2222-2222-222222222222",
+                    "source_pages": [96, 97],
+                    "matching_row_count": 4,
+                    "nonmatching_row_count": 5,
+                },
             },
         },
     )
@@ -350,6 +358,11 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
     assert "Possible query typo" in body
     assert "litation -&gt; lithiation" in body
     assert "data-suggested-query='What protocol of Nafion lithiation?'" in body
+    assert "Derived evidence" in body
+    assert "swelling_comparison_table" in body
+    assert "Matching rows:</strong> 4" in body
+    assert "Nonmatching rows:</strong> 5" in body
+    assert "Pages:</strong> 96-97" in body
     assert f"/ui/articles/{ARTICLE_ID}/chunks/22222222-2222-2222-2222-222222222222/context" in body
     assert f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1" in body
 

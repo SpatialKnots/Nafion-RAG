@@ -629,7 +629,7 @@ def test_answer_question_adds_derived_swelling_comparison_evidence(monkeypatch) 
     response = answer_question(
         object(),  # type: ignore[arg-type]
         _settings(),  # type: ignore[arg-type]
-        "In what solvents Li-Nafion has more swelling degree than H-Nafion?",
+        "Какие растворители дают Li-Nafion большую степень набухания, чем H-Nafion?",
         provider=provider,
     )
 
