@@ -1460,7 +1460,12 @@ def retrieval_report_page() -> HTMLResponse:
                 continue
             status_class = "ok" if question.get("passed") else "warn"
             missing_dois = ", ".join(str(item) for item in question.get("missing_article_dois", []))
+            missing_titles = ", ".join(str(item) for item in question.get("missing_article_titles", []))
+            missing_checksums = ", ".join(str(item) for item in question.get("missing_article_checksums", []))
             missing_keywords = ", ".join(str(item) for item in question.get("missing_keywords", []))
+            trace_complete = question.get("evidence_trace_complete")
+            trace_label = "unknown" if trace_complete is None else ("yes" if trace_complete else "no")
+            rank = question.get("rank_of_expected", question.get("rank_of_first_relevant"))
             results = question.get("results", [])
             result_rows = _result_rows(results if isinstance(results, list) else [])
             question_sections.append(
@@ -1468,8 +1473,14 @@ def retrieval_report_page() -> HTMLResponse:
                 "<section class='panel'>"
                 f"<p><strong>Status:</strong> <span class='{status_class}'>"
                 f"{_html('PASS' if question.get('passed') else 'FAIL')}</span> "
-                f"<strong>Results:</strong> {_html(question.get('result_count'))}</p>"
+                f"<strong>Results:</strong> {_html(question.get('result_count'))} &nbsp; "
+                f"<strong>Rank:</strong> {_html(rank if rank is not None else 'none')} &nbsp; "
+                f"<strong>Top-1:</strong> {_html('yes' if question.get('top_1_passed') else 'no')} &nbsp; "
+                f"<strong>Recall@k:</strong> {_html(question.get('recall_at_k', question.get('article_recall_at_k')))} &nbsp; "
+                f"<strong>Trace complete:</strong> {_html(trace_label)}</p>"
                 f"<p><strong>Missing DOI:</strong> {_html(missing_dois or 'none')} &nbsp; "
+                f"<strong>Missing title:</strong> {_html(missing_titles or 'none')} &nbsp; "
+                f"<strong>Missing checksum:</strong> {_html(missing_checksums or 'none')} &nbsp; "
                 f"<strong>Missing keywords:</strong> {_html(missing_keywords or 'none')}</p>"
                 "</section>"
                 "<table><tr><th>Article</th><th class='num'>Pages</th>"
@@ -1479,7 +1490,10 @@ def retrieval_report_page() -> HTMLResponse:
     summary_rows = (
         f'<td class="num">{_html(summary.get("total"))}</td>'
         f'<td class="num">{_html(summary.get("passed"))}</td>'
+        f'<td class="num">{_html(summary.get("top_1_passed"))}</td>'
         f'<td class="num">{_html(summary.get("failed"))}</td>'
+        f'<td class="num">{_html(summary.get("recall_at_k", summary.get("article_recall_at_k")))}</td>'
+        f'<td class="num">{_html(summary.get("mean_rank"))}</td>'
         f'<td class="num">{_html(summary.get("empty_result_queries"))}</td>'
     )
     method = _html(settings_payload.get("retrieval_method"))
@@ -1488,7 +1502,8 @@ def retrieval_report_page() -> HTMLResponse:
     <section class="panel">
       <p><strong>Path:</strong> <span class="path">{_html(report_path)}</span></p>
       <p><strong>Created:</strong> {_html(payload.get("created_at"))} &nbsp; <strong>Method:</strong> {method}</p>
-      <table><tr><th>Total</th><th>Passed</th><th>Failed</th><th>Empty result queries</th></tr><tr>{summary_rows}</tr></table>
+      <table><tr><th>Total</th><th>Passed</th><th>Top-1 passed</th><th>Failed</th>
+      <th>Recall@k</th><th>Mean rank</th><th>Empty result queries</th></tr><tr>{summary_rows}</tr></table>
     </section>
     {"".join(question_sections) or '<p class="warn">Report has no readable questions.</p>'}
     """

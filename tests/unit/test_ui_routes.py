@@ -509,13 +509,28 @@ def test_retrieval_report_page_renders_latest_report(monkeypatch, tmp_path) -> N
             {
                 "created_at": "2026-07-02T00:00:00+00:00",
                 "settings": {"retrieval_method": "exact_ilike"},
-                "summary": {"total": 1, "passed": 0, "failed": 1, "empty_result_queries": 0},
+                "summary": {
+                    "total": 1,
+                    "passed": 0,
+                    "top_1_passed": 0,
+                    "failed": 1,
+                    "recall_at_k": 1.0,
+                    "mean_rank": 2.0,
+                    "empty_result_queries": 0,
+                    "evidence_trace_complete": False,
+                },
                 "questions": [
                     {
                         "id": "q01",
                         "query": "Li-Nafion conductivity",
                         "passed": False,
+                        "top_1_passed": False,
+                        "rank_of_expected": 2,
+                        "recall_at_k": 1.0,
+                        "evidence_trace_complete": False,
                         "missing_article_dois": [],
+                        "missing_article_titles": ["missing title"],
+                        "missing_article_checksums": ["abc123"],
                         "missing_keywords": ["NMP"],
                         "result_count": 1,
                         "results": [
@@ -547,6 +562,14 @@ def test_retrieval_report_page_renders_latest_report(monkeypatch, tmp_path) -> N
     assert "exact_ilike" in body
     assert "Li-Nafion conductivity evidence" in body
     assert "NMP" in body
+    assert "Top-1 passed" in body
+    assert "Mean rank" in body
+    assert "Rank:</strong> 2" in body
+    assert "Missing title:" in body
+    assert "missing title" in body
+    assert "Missing checksum:" in body
+    assert "abc123" in body
+    assert "Trace complete:</strong> no" in body
 
 
 def test_text_quality_report_page_renders_latest_report(monkeypatch, tmp_path) -> None:
