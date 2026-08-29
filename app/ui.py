@@ -316,7 +316,11 @@ def _layout(title: str, body: str) -> HTMLResponse:
     nav_items = (
         ("Library", "/", {"Dashboard", "Articles", "Article", "Text Layers"}),
         ("Search", "/ui/search", {"Search", "Answer"}),
-        ("Evidence", "/ui/reports/retrieval", {"Retrieval Evaluation Report", "Text Quality Report", "Classification Report"}),
+        (
+            "Evidence",
+            "/ui/reports/retrieval",
+            {"Retrieval Evaluation Report", "Extended Retrieval Evaluation Report", "Text Quality Report", "Classification Report"},
+        ),
         ("Sessions", "/ui/ingestion", {"Ingestion", "Vector Indexes"}),
         ("Settings", "/ui/vector-indexes", {"Vector Indexes"}),
     )
@@ -353,7 +357,8 @@ def _layout(title: str, body: str) -> HTMLResponse:
 @router.get("/", response_class=HTMLResponse)
 def dashboard(session: SessionDep) -> HTMLResponse:
     settings = get_settings()
-    retrieval_report = _latest_report(settings.data_root, "retrieval_eval_*.json")
+    retrieval_report = _latest_standard_retrieval_report(settings.data_root)
+    extended_retrieval_report = _latest_extended_retrieval_report(settings.data_root)
     text_quality_report = _latest_report(settings.data_root, "text_quality_report_*.json")
     retrieval_report_link = (
         f"<a href='/ui/reports/retrieval'>Latest retrieval evaluation</a><div class='path'>{_html(retrieval_report)}</div>"
@@ -364,6 +369,12 @@ def dashboard(session: SessionDep) -> HTMLResponse:
         f"<a href='/ui/reports/text-quality'>Latest text quality audit</a><div class='path'>{_html(text_quality_report)}</div>"
         if text_quality_report is not None
         else "<span class='warn'>No text quality report generated yet.</span>"
+    )
+    extended_retrieval_report_link = (
+        f"<a href='/ui/reports/retrieval-extended'>Latest extended retrieval evaluation</a>"
+        f"<div class='path'>{_html(extended_retrieval_report)}</div>"
+        if extended_retrieval_report is not None
+        else "<span class='warn'>No extended retrieval evaluation report generated yet.</span>"
     )
     article_count = session.scalar(select(func.count()).select_from(Article)) or 0
     page_count = session.scalar(select(func.count()).select_from(Page)) or 0
@@ -384,6 +395,9 @@ def dashboard(session: SessionDep) -> HTMLResponse:
     source_rows = _counter_rows(source_types)
     text_layer_rows = _counter_rows(text_layers)
     eval_command = "python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10"
+    extended_eval_command = (
+        "python -m app.evaluation.cli retrieval-extended docs/evaluation_questions_extended.yaml --top-k 10 --method exact"
+    )
     text_quality_command = "python -m app.ingestion.cli text-quality-report"
     selected_panel = (
         '<section class="panel"><h2>Selected Page Layers</h2>'
@@ -425,6 +439,8 @@ def dashboard(session: SessionDep) -> HTMLResponse:
       {source_panel}
       {text_layer_panel}
       <section class="panel"><h2>Retrieval Evaluation</h2>{retrieval_report_link}{_command_hint(eval_command)}</section>
+      <section class="panel"><h2>Extended Retrieval Evaluation</h2>
+      {extended_retrieval_report_link}{_command_hint(extended_eval_command)}</section>
       <section class="panel"><h2>Text Quality</h2>{text_quality_report_link}{_command_hint(text_quality_command)}</section>
     </div>
     <h2>Quick Search</h2>
@@ -538,8 +554,10 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
     for citation in citation_dicts:
         article_id = citation.get("article_id")
         chunk_id = citation.get("chunk_id")
-        page_start = citation.get("page_start") if isinstance(citation.get("page_start"), int) else None
-        page_end = citation.get("page_end") if isinstance(citation.get("page_end"), int) else None
+        raw_page_start = citation.get("page_start")
+        raw_page_end = citation.get("page_end")
+        page_start = raw_page_start if isinstance(raw_page_start, int) else None
+        page_end = raw_page_end if isinstance(raw_page_end, int) else None
         evidence_text = str(citation.get("text") or "")
         links = []
         if article_id and chunk_id:
@@ -1373,6 +1391,22 @@ def _latest_report(data_root: Path, pattern: str) -> Path | None:
     return reports[0] if reports else None
 
 
+def _latest_standard_retrieval_report(data_root: Path) -> Path | None:
+    export_dir = data_root / "exports"
+    if not export_dir.exists():
+        return None
+    reports = [
+        path
+        for path in export_dir.glob("retrieval_eval_*.json")
+        if not path.name.startswith("retrieval_eval_extended_")
+    ]
+    return sorted(reports, key=lambda path: path.stat().st_mtime, reverse=True)[0] if reports else None
+
+
+def _latest_extended_retrieval_report(data_root: Path) -> Path | None:
+    return _latest_report(data_root, "retrieval_eval_extended_*.json")
+
+
 def _result_rows(results: list[object]) -> str:
     rows = []
     for result in results:
@@ -1438,10 +1472,41 @@ def _text_quality_page_rows(pages: object, query: str = "") -> str:
     return "".join(rows) or "<tr><td colspan='6'>No pages</td></tr>"
 
 
+def _bool_label(value: object) -> str:
+    if value is None:
+        return "unknown"
+    return "yes" if bool(value) else "no"
+
+
+def _extended_breakdown_rows(groups: object) -> str:
+    if not isinstance(groups, dict) or not groups:
+        return "<tr><td colspan='7'>No breakdown data</td></tr>"
+    rows = []
+    for key, payload in sorted(groups.items()):
+        if not isinstance(payload, dict):
+            continue
+        rows.append(
+            "<tr>"
+            f"<td>{_html(key)}</td>"
+            f"<td class='num'>{_html(payload.get('total'))}</td>"
+            f"<td class='num'>{_html(payload.get('passed'))}</td>"
+            f"<td class='num'>{_html(payload.get('article_recall_at_k'))}</td>"
+            f"<td class='num'>{_html(payload.get('mrr'))}</td>"
+            f"<td class='num'>{_html(payload.get('top_1_passed'))}</td>"
+            f"<td class='num'>{_html(payload.get('mean_rank'))}</td>"
+            "</tr>"
+        )
+    return "".join(rows) or "<tr><td colspan='7'>No breakdown data</td></tr>"
+
+
+def _missing_expected_count(value: object) -> int:
+    return len(value) if isinstance(value, list) else 0
+
+
 @router.get("/ui/reports/retrieval", response_class=HTMLResponse)
 def retrieval_report_page() -> HTMLResponse:
     settings = get_settings()
-    report_path = _latest_report(settings.data_root, "retrieval_eval_*.json")
+    report_path = _latest_standard_retrieval_report(settings.data_root)
     if report_path is None:
         command = "python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10"
         body = (
@@ -1508,6 +1573,89 @@ def retrieval_report_page() -> HTMLResponse:
     {"".join(question_sections) or '<p class="warn">Report has no readable questions.</p>'}
     """
     return _layout("Retrieval Evaluation Report", body)
+
+
+@router.get("/ui/reports/retrieval-extended", response_class=HTMLResponse)
+def extended_retrieval_report_page() -> HTMLResponse:
+    settings = get_settings()
+    report_path = _latest_extended_retrieval_report(settings.data_root)
+    if report_path is None:
+        command = "python -m app.evaluation.cli retrieval-extended docs/evaluation_questions_extended.yaml --top-k 10 --method exact"
+        body = (
+            "<h1>Extended Retrieval Evaluation Report</h1>"
+            "<p class='warn'>No extended retrieval evaluation report generated yet.</p>"
+            f"{_command_hint(command)}"
+        )
+        return _layout("Extended Retrieval Evaluation Report", body)
+
+    payload: dict[str, Any] = json.loads(report_path.read_text(encoding="utf-8"))
+    summary = payload.get("summary", {})
+    settings_payload = payload.get("settings", {})
+    summary_rows = (
+        f'<tr><td>Total</td><td class="num">{_html(summary.get("total"))}</td></tr>'
+        f'<tr><td>Answerable</td><td class="num">{_html(summary.get("answerable"))}</td></tr>'
+        f'<tr><td>Unanswerable</td><td class="num">{_html(summary.get("unanswerable"))}</td></tr>'
+        f'<tr><td>Passed</td><td class="num">{_html(summary.get("passed"))}</td></tr>'
+        f'<tr><td>Failed</td><td class="num">{_html(summary.get("failed"))}</td></tr>'
+        f'<tr><td>Article recall@k</td><td class="num">{_html(summary.get("article_recall_at_k"))}</td></tr>'
+        f'<tr><td>Chunk recall@k</td><td class="num">{_html(summary.get("chunk_recall_at_k"))}</td></tr>'
+        f'<tr><td>MRR</td><td class="num">{_html(summary.get("mrr"))}</td></tr>'
+        f'<tr><td>NDCG@k</td><td class="num">{_html(summary.get("ndcg_at_k"))}</td></tr>'
+        f'<tr><td>Top-1 passed</td><td class="num">{_html(summary.get("top_1_passed"))}</td></tr>'
+        f'<tr><td>Mean rank</td><td class="num">{_html(summary.get("mean_rank"))}</td></tr>'
+        f'<tr><td>False answerable</td><td class="num">{_html(summary.get("false_answerable"))}</td></tr>'
+        f'<tr><td>Evidence trace complete</td><td class="num">{_html(_bool_label(summary.get("evidence_trace_complete")))}</td></tr>'
+        f'<tr><td>P95 latency ms</td><td class="num">{_html(summary.get("p95_latency_ms"))}</td></tr>'
+    )
+    breakdown_header = (
+        "<tr><th>Group</th><th class='num'>Total</th><th class='num'>Passed</th>"
+        "<th class='num'>Article recall@k</th><th class='num'>MRR</th>"
+        "<th class='num'>Top-1</th><th class='num'>Mean rank</th></tr>"
+    )
+    question_rows = []
+    questions = payload.get("questions", [])
+    if isinstance(questions, list):
+        for question in questions:
+            if not isinstance(question, dict):
+                continue
+            status_class = "ok" if question.get("passed") else "warn"
+            question_rows.append(
+                "<tr>"
+                f"<td>{_html(question.get('id'))}<div class='muted'>{_html(question.get('query'))}</div></td>"
+                f"<td>{_html(question.get('language') or 'unspecified')}</td>"
+                f"<td>{_html(question.get('category') or 'unspecified')}</td>"
+                f"<td><span class='{status_class}'>{_html('PASS' if question.get('passed') else 'FAIL')}</span></td>"
+                f"<td class='num'>{_html(question.get('rank_of_first_relevant'))}</td>"
+                f"<td class='num'>{_html(question.get('article_recall_at_k'))}</td>"
+                f"<td class='num'>{_html(question.get('mrr'))}</td>"
+                f"<td class='num'>{_html(question.get('ndcg_at_k'))}</td>"
+                f"<td class='num'>{_html(_missing_expected_count(question.get('missing_expected_articles')))}</td>"
+                f"<td class='num'>{_html(_missing_expected_count(question.get('missing_expected_chunks')))}</td>"
+                f"<td>{_html(_bool_label(question.get('evidence_trace_complete')))}</td>"
+                "</tr>"
+            )
+    question_rows_html = "".join(question_rows) or "<tr><td colspan='11'>No readable questions</td></tr>"
+    method = _html(settings_payload.get("retrieval_method") or settings_payload.get("method"))
+    body = f"""
+    <h1>Extended Retrieval Evaluation Report</h1>
+    <section class="panel">
+      <p><strong>Path:</strong> <span class="path">{_html(report_path)}</span></p>
+      <p><strong>Created:</strong> {_html(payload.get("created_at"))} &nbsp; <strong>Method:</strong> {method}</p>
+      <table><tr><th>Metric</th><th class="num">Value</th></tr>{summary_rows}</table>
+    </section>
+    <div class="grid">
+      <section class="panel"><h2>By Language</h2>
+      <table>{breakdown_header}{_extended_breakdown_rows(summary.get("by_language"))}</table></section>
+      <section class="panel"><h2>By Category</h2>
+      <table>{breakdown_header}{_extended_breakdown_rows(summary.get("by_category"))}</table></section>
+    </div>
+    <h2>Questions</h2>
+    <table><tr><th>Question</th><th>Language</th><th>Category</th><th>Status</th>
+    <th class="num">Rank</th><th class="num">Article recall@k</th><th class="num">MRR</th>
+    <th class="num">NDCG@k</th><th class="num">Missing articles</th><th class="num">Missing chunks</th>
+    <th>Trace</th></tr>{question_rows_html}</table>
+    """
+    return _layout("Extended Retrieval Evaluation Report", body)
 
 
 @router.get("/ui/reports/text-quality", response_class=HTMLResponse)

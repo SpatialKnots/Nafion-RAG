@@ -23,6 +23,7 @@ from app.ui import (
     article_text_layers,
     chunk_context_page,
     dashboard,
+    extended_retrieval_report_page,
     ingestion_page,
     retrieval_report_page,
     search_page,
@@ -188,6 +189,7 @@ def test_dashboard_returns_html(monkeypatch) -> None:
     assert "Tables / Facts diagnostics" in response.body.decode()
     assert "Articles" in response.body.decode()
     assert "Retrieval Evaluation" in response.body.decode()
+    assert "Extended Retrieval Evaluation" in response.body.decode()
 
 
 def test_search_page_returns_results(monkeypatch) -> None:
@@ -504,6 +506,19 @@ def test_retrieval_report_page_renders_latest_report(monkeypatch, tmp_path) -> N
     export_dir = tmp_path / "exports"
     export_dir.mkdir()
     report_path = export_dir / "retrieval_eval_20260702T000000Z.json"
+    extended_path = export_dir / "retrieval_eval_extended_exact_20260703T000000Z.json"
+    extended_path.write_text(
+        json.dumps(
+            {
+                "schema": "retrieval_eval_extended_v1",
+                "created_at": "2026-07-03T00:00:00+00:00",
+                "settings": {"retrieval_method": "extended_should_not_render"},
+                "summary": {"total": 99},
+                "questions": [],
+            }
+        ),
+        encoding="utf-8",
+    )
     report_path.write_text(
         json.dumps(
             {
@@ -560,6 +575,7 @@ def test_retrieval_report_page_renders_latest_report(monkeypatch, tmp_path) -> N
     assert response.status_code == 200
     assert "Retrieval Evaluation Report" in body
     assert "exact_ilike" in body
+    assert "extended_should_not_render" not in body
     assert "Li-Nafion conductivity evidence" in body
     assert "NMP" in body
     assert "Top-1 passed" in body
@@ -570,6 +586,92 @@ def test_retrieval_report_page_renders_latest_report(monkeypatch, tmp_path) -> N
     assert "Missing checksum:" in body
     assert "abc123" in body
     assert "Trace complete:</strong> no" in body
+
+
+def test_extended_retrieval_report_page_renders_latest_report(monkeypatch, tmp_path) -> None:
+    export_dir = tmp_path / "exports"
+    export_dir.mkdir()
+    report_path = export_dir / "retrieval_eval_extended_hybrid_20260702T000000Z.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "schema": "retrieval_eval_extended_v1",
+                "created_at": "2026-07-02T00:00:00+00:00",
+                "settings": {"retrieval_method": "hybrid_rrf"},
+                "summary": {
+                    "total": 2,
+                    "answerable": 1,
+                    "unanswerable": 1,
+                    "passed": 2,
+                    "failed": 0,
+                    "article_recall_at_k": 1.0,
+                    "chunk_recall_at_k": 0.5,
+                    "mrr": 0.5,
+                    "ndcg_at_k": 0.75,
+                    "top_1_passed": 1,
+                    "mean_rank": 2.0,
+                    "false_answerable": 0,
+                    "evidence_trace_complete": True,
+                    "p95_latency_ms": 12.5,
+                    "by_language": {
+                        "ru": {
+                            "total": 1,
+                            "passed": 1,
+                            "article_recall_at_k": 1.0,
+                            "mrr": 0.5,
+                            "top_1_passed": 0,
+                            "mean_rank": 2.0,
+                        }
+                    },
+                    "by_category": {
+                        "swelling": {
+                            "total": 1,
+                            "passed": 1,
+                            "article_recall_at_k": 1.0,
+                            "mrr": 0.5,
+                            "top_1_passed": 0,
+                            "mean_rank": 2.0,
+                        }
+                    },
+                },
+                "questions": [
+                    {
+                        "id": "x01",
+                        "query": "степень набухания Li-Nafion",
+                        "language": "ru",
+                        "category": "swelling",
+                        "passed": True,
+                        "rank_of_first_relevant": 2,
+                        "article_recall_at_k": 1.0,
+                        "mrr": 0.5,
+                        "ndcg_at_k": 0.75,
+                        "missing_expected_articles": [],
+                        "missing_expected_chunks": [{"text_contains": ["alphaLi"]}],
+                        "evidence_trace_complete": True,
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace(data_root=tmp_path))
+
+    response = extended_retrieval_report_page()
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "Extended Retrieval Evaluation Report" in body
+    assert "hybrid_rrf" in body
+    assert "Article recall@k" in body
+    assert "NDCG@k" in body
+    assert "False answerable" in body
+    assert "Evidence trace complete" in body
+    assert "By Language" in body
+    assert "By Category" in body
+    assert "swelling" in body
+    assert "x01" in body
+    assert "Missing chunks" in body
 
 
 def test_text_quality_report_page_renders_latest_report(monkeypatch, tmp_path) -> None:
