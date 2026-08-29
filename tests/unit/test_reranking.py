@@ -94,6 +94,38 @@ def test_rerank_prefers_title_phrase_match_over_loose_terms() -> None:
     assert reranked.metadata["top_features"][0]["title_phrase_matches"] >= 1  # type: ignore[index]
 
 
+def test_rerank_maps_russian_highest_plasticizer_conductivity_terms() -> None:
+    generic = _result(
+        uuid.UUID(int=1),
+        "Lithium salt background",
+        "Lithium salts in carbonates have bipolar charge transport.",
+        ranks={"glossary_ru_1": 1},
+    )
+    conductivity = _result(
+        uuid.UUID(int=2),
+        "Istomina 2021",
+        (
+            "Li-Nafion membrane plasticised with EC/SL binary plasticiser. "
+            "The best transport properties of Li-Nafion provided EC/SL mixtures enriched "
+            "with ethylene carbonate, and conductivity rapidly decreases with sulfolane."
+        ),
+        ranks={"glossary_en_2": 8},
+    )
+
+    reranked = rerank_cross_lingual_results(
+        [generic, conductivity],
+        original_query="В каких пластификаторах наибольшую проводимость дают Li-Nafion",
+        query_language="ru",
+        query_variants=[
+            ("original", "В каких пластификаторах наибольшую проводимость дают Li-Nafion"),
+            ("glossary", "ionic conductivity binary plasticiser li-nafion"),
+        ],
+    )
+
+    assert reranked.results[0].title == "Istomina 2021"
+    assert reranked.metadata["top_features"][0]["term_matches"] >= 4  # type: ignore[index]
+
+
 def test_rerank_prefers_swelling_comparison_numeric_table() -> None:
     generic = _result(
         uuid.UUID(int=1),

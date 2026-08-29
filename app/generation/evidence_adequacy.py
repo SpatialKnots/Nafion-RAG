@@ -9,6 +9,13 @@ LIGATURES = str.maketrans({"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", 
 DOMAIN_TERM_SYNONYMS = {
     "lithiation": ["li-nafion", "lithiated nafion", "lithium form", "converted to the lithium form"],
     "protocol": ["experimental", "prepared", "preparation", "procedure", "method"],
+    "наибольшую": ["highest", "highest conductivity", "best", "maximum", "max"],
+    "наибольшая": ["highest", "highest conductivity", "best", "maximum", "max"],
+    "наибольший": ["highest", "best", "maximum", "max"],
+    "лучшую": ["best", "highest", "maximum"],
+    "лучшие": ["best", "highest", "maximum"],
+    "пластификаторах": ["plasticiser", "plasticizer", "plasticisers", "plasticizers", "пластификатор"],
+    "пластификаторами": ["plasticiser", "plasticizer", "plasticisers", "plasticizers", "пластификатор"],
 }
 
 COMMON_QUERY_TERMS = {
@@ -44,6 +51,11 @@ COMMON_QUERY_TERMS = {
     "водные",
     "водой",
     "для",
+    "какая",
+    "какие",
+    "каких",
+    "каком",
+    "какой",
     "мембран",
     "мембрана",
     "мембраны",

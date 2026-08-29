@@ -178,6 +178,22 @@ def test_evidence_adequacy_reports_concept_coverage() -> None:
     assert coverage["missing"] == []
 
 
+def test_evidence_adequacy_accepts_inflected_russian_plasticizer_conductivity_query() -> None:
+    adequacy = assess_evidence_adequacy(
+        "В каких пластификаторах наибольшую проводимость дают Li-Nafion",
+        [
+            _evidence(
+                "The best transport properties of Li-Nafion provided EC/SL mixtures enriched "
+                "with ethylene carbonate. Conductivity was shown for the binary plasticiser."
+            )
+        ],
+    )
+
+    assert adequacy.adequate is True
+    assert "пластификаторах" in adequacy.matched_terms
+    assert "наибольшую" in adequacy.matched_terms
+
+
 def test_answer_question_refuses_when_retrieval_returns_no_evidence(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.generation.service.search_chunks",

@@ -43,6 +43,16 @@ def test_query_bundle_adds_same_language_and_cross_language_glossary_variants() 
     assert any(variant.language == "en" and "ethylene carbonate" in variant.text for variant in bundle.variants)
 
 
+def test_query_bundle_maps_inflected_russian_plasticizer_conductivity_query() -> None:
+    bundle = build_query_bundle("В каких пластификаторах наибольшую проводимость дают Li-Nafion")
+
+    assert "transport" in bundle.matched_concepts
+    assert "plasticizers" in bundle.matched_concepts
+    assert "lithium_form" in bundle.matched_concepts
+    assert any(variant.language == "en" and "ionic conductivity" in variant.text for variant in bundle.variants)
+    assert any(variant.language == "en" and "binary plasticiser" in variant.text for variant in bundle.variants)
+
+
 def test_query_bundle_maps_english_water_interaction_to_russian_terms() -> None:
     bundle = build_query_bundle("What are the thermodynamic interactions of PFSA Nafion with water?")
 

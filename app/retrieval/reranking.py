@@ -13,6 +13,19 @@ from app.retrieval.query_normalization import normalize_query
 STOPWORDS = {"and", "in", "or", "the", "using", "vs", "with", "how", "what", "which", "where", "does", "affect"}
 RUSSIAN_STOPWORDS = {"как", "где", "что", "какие", "какая", "в", "на", "и", "с", "для", "по", "при"}
 WORD_PATTERN = re.compile(r"[\w+-]+", flags=re.UNICODE)
+RERANK_TERM_SYNONYMS = {
+    "наибольшую": ("highest", "best", "maximum", "max"),
+    "наибольшая": ("highest", "best", "maximum", "max"),
+    "наибольший": ("highest", "best", "maximum", "max"),
+    "наибольш": ("highest", "best", "maximum", "max"),
+    "лучшую": ("best", "highest", "maximum"),
+    "лучшие": ("best", "highest", "maximum"),
+    "пластификаторах": ("plasticiser", "plasticizer", "plasticisers", "plasticizers"),
+    "пластификаторами": ("plasticiser", "plasticizer", "plasticisers", "plasticizers"),
+    "пластификатор": ("plasticiser", "plasticizer", "plasticisers", "plasticizers"),
+    "проводимость": ("conductivity", "ionic conductivity", "transport properties"),
+    "проводимост": ("conductivity", "ionic conductivity", "transport properties"),
+}
 
 
 @dataclass(frozen=True)
@@ -232,6 +245,8 @@ def _numeric_table_bonus(text: str, *, enabled: bool) -> int:
 def _term_matches(term: str, text: str) -> bool:
     normalized = term.lower().translate(LIGATURES)
     if normalized in text:
+        return True
+    if any(synonym in text for synonym in RERANK_TERM_SYNONYMS.get(normalized, ())):
         return True
     if "-" in normalized and normalized.replace("-", " ") in text:
         return True
