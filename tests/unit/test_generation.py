@@ -99,6 +99,48 @@ def test_answer_question_uses_full_text_as_generation_evidence(monkeypatch) -> N
     assert response.citations[0].text == "Truncated table row with DMF."
 
 
+def test_answer_question_displays_marker_centered_citation_excerpt(monkeypatch) -> None:
+    search_result = _search_result()
+    search_result = SearchResult(
+        article_id=search_result.article_id,
+        chunk_id=search_result.chunk_id,
+        title=search_result.title,
+        doi=search_result.doi,
+        page_start=search_result.page_start,
+        page_end=search_result.page_end,
+        source_type="table",
+        snippet="Opening background that does not contain the table.",
+        full_text=(
+            "Opening background that does not contain the requested values. "
+            "Table 4.6 reports Li-Nafion conductivity in plasticized membranes with DMF, DMSO, and NMP."
+        ),
+        score=search_result.score,
+        retrieval_method=search_result.retrieval_method,
+    )
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(query="Li-Nafion conductivity in plasticizers", results=[search_result]),
+    )
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="The table reports conductivity.", citation_ids=["E1"])],
+            provider="test",
+            model=None,
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Li-Nafion conductivity in plasticizers",
+        provider=provider,
+    )
+
+    assert provider.evidence_texts[0].startswith("Opening background")
+    assert "Table 4.6 reports Li-Nafion conductivity" in response.citations[0].text
+
+
 def test_answer_question_passes_mini_review_style_to_provider(monkeypatch) -> None:
     search_result = _search_result()
     monkeypatch.setattr(
@@ -487,6 +529,80 @@ def test_answer_question_prioritizes_article_with_full_distinctive_term_coverage
     assert response.citations[0].title == "Sanginov 2021"
     assert selection["reordered"] is True  # type: ignore[index]
     assert selection["article_term_coverage"][2]["matched_terms"] == ["li-nafion", "lithiation", "protocol"]  # type: ignore[index]
+
+
+def test_answer_question_prioritizes_specific_plasticizer_conductivity_evidence(monkeypatch) -> None:
+    article_id = str(uuid.UUID(int=1))
+    background = SearchResult(
+        article_id=article_id,
+        chunk_id=str(uuid.UUID(int=11)),
+        title="Диссертация Чернюк С.Д.",
+        doi=None,
+        page_start=28,
+        page_end=29,
+        source_type="method",
+        snippet="Li-Nafion применяют в ЛИА; растворы солей лития в карбонатах имеют биполярный перенос заряда.",
+        full_text="Li-Nafion применяют в ЛИА; растворы солей лития в карбонатах имеют биполярный перенос заряда.",
+        score=0.04,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    table = SearchResult(
+        article_id=article_id,
+        chunk_id=str(uuid.UUID(int=12)),
+        title="Диссертация Чернюк С.Д.",
+        doi=None,
+        page_start=107,
+        page_end=109,
+        source_type="table",
+        snippet="Таблица 4.6 — Ионная проводимость мембраны Li-Nafion при 25 °C.",
+        full_text=(
+            "Таблица 4.6 — Ионная проводимость мембраны Li-Nafion при 25 °C, "
+            "пластифицированных растворителями различной природы. DMF, DMSO, NMP, "
+            "NMF and DMAA show highest ionic conductivities."
+        ),
+        score=0.03,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="В каких пластификаторах наибольшую проводимость дают Li-Nafion",
+            results=[background, table],
+            metadata={
+                "cross_lingual": {
+                    "variants": [
+                        {"text": "ionic conductivity binary plasticiser li-nafion"},
+                    ],
+                    "matched_concepts": ["lithium_form", "transport", "plasticizers"],
+                }
+            },
+        ),
+    )
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[GeneratedClaim(text="The table gives the solvent conductivity comparison.", citation_ids=["E1"])],
+            provider="test",
+            model=None,
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "В каких пластификаторах наибольшую проводимость дают Li-Nafion",
+        method="hybrid_cross_lingual",
+        provider=provider,
+    )
+
+    selection = response.metadata["answer_evidence_selection"]  # type: ignore[index]
+    assert response.status == "answered"
+    assert provider.evidence_texts[0].startswith("Таблица 4.6")
+    assert response.citations[0].chunk_id == table.chunk_id
+    assert selection["conductivity_plasticizer_intent"] is True  # type: ignore[index]
+    assert selection["conductivity_plasticizer_result_count"] == 1  # type: ignore[index]
+    assert selection["filtered_to_conductivity_plasticizer_evidence"] is True  # type: ignore[index]
+    assert [citation.chunk_id for citation in response.citations] == [table.chunk_id]
 
 
 def test_answer_question_uses_cross_lingual_variant_terms_for_evidence_selection(monkeypatch) -> None:

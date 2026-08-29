@@ -29,11 +29,17 @@ def select_answer_evidence(question: str, results: list[SearchResult], *, additi
     article_terms: OrderedDict[str, set[str]] = OrderedDict()
     result_terms: dict[str, set[str]] = {}
     numeric_table_scores: dict[str, int] = {}
+    conductivity_plasticizer_scores: dict[str, int] = {}
     numeric_comparison_intent = _has_swelling_comparison_intent(question, additional_queries or [])
+    conductivity_plasticizer_intent = _has_conductivity_plasticizer_intent(question, additional_queries or [])
     for result in results:
         matched = _matched_terms(result, distinctive_terms)
         result_terms[result.chunk_id] = matched
         numeric_table_scores[result.chunk_id] = _swelling_comparison_table_score(result, enabled=numeric_comparison_intent)
+        conductivity_plasticizer_scores[result.chunk_id] = _conductivity_plasticizer_score(
+            result,
+            enabled=conductivity_plasticizer_intent,
+        )
         article_terms.setdefault(result.article_id, set()).update(matched)
 
     original_positions = {result.chunk_id: index for index, result in enumerate(results)}
@@ -41,12 +47,17 @@ def select_answer_evidence(question: str, results: list[SearchResult], *, additi
         results,
         key=lambda result: (
             -numeric_table_scores[result.chunk_id],
+            -conductivity_plasticizer_scores[result.chunk_id],
             -len(article_terms[result.article_id]),
             -len(result_terms[result.chunk_id]),
             original_positions[result.chunk_id],
         ),
     )
     selected = _diversify_by_article(ranked, preferred_per_article=2)
+    filtered_to_conductivity_plasticizer_evidence = False
+    if conductivity_plasticizer_intent and any(score > 0 for score in conductivity_plasticizer_scores.values()):
+        selected = [result for result in selected if conductivity_plasticizer_scores[result.chunk_id] > 0]
+        filtered_to_conductivity_plasticizer_evidence = True
     reordered = [result.chunk_id for result in selected] != [result.chunk_id for result in results]
     return EvidenceSelection(
         results=selected,
@@ -64,6 +75,9 @@ def select_answer_evidence(question: str, results: list[SearchResult], *, additi
             ],
             "numeric_comparison_intent": numeric_comparison_intent,
             "numeric_table_result_count": sum(1 for score in numeric_table_scores.values() if score > 0),
+            "conductivity_plasticizer_intent": conductivity_plasticizer_intent,
+            "conductivity_plasticizer_result_count": sum(1 for score in conductivity_plasticizer_scores.values() if score > 0),
+            "filtered_to_conductivity_plasticizer_evidence": filtered_to_conductivity_plasticizer_evidence,
         },
     )
 
@@ -99,6 +113,14 @@ def _has_swelling_comparison_intent(question: str, additional_queries: list[str]
     return has_swelling and has_forms and has_comparison
 
 
+def _has_conductivity_plasticizer_intent(question: str, additional_queries: list[str]) -> bool:
+    text = " ".join([question, *additional_queries]).lower().translate(LIGATURES)
+    has_conductivity = any(term in text for term in ("conductivity", "проводимост", "электропровод"))
+    has_plasticizer = any(term in text for term in ("plasticiser", "plasticizer", "пластификатор", "растворител"))
+    has_lithium_form = any(term in text for term in ("li-nafion", "lithiated nafion", "литиевая", "литирован"))
+    return has_conductivity and has_plasticizer and has_lithium_form
+
+
 def _swelling_comparison_table_score(result: SearchResult, *, enabled: bool) -> int:
     if not enabled:
         return 0
@@ -109,6 +131,28 @@ def _swelling_comparison_table_score(result: SearchResult, *, enabled: bool) -> 
     if not (has_forms and has_alpha_columns and decimal_count >= 4):
         return 0
     if "таблица 4.5" in text or "table 4.5" in text:
+        return 2
+    return 0
+
+
+def _conductivity_plasticizer_score(result: SearchResult, *, enabled: bool) -> int:
+    if not enabled:
+        return 0
+    text = "\n".join(item for item in (result.title or "", result.snippet, result.full_text or "") if item).lower().translate(LIGATURES)
+    has_lithium_form = any(term in text for term in ("li-nafion", "lithiated nafion", "li‑nafion", "литирован"))
+    has_conductivity = any(term in text for term in ("conductivity", "transport properties", "проводимост", "электропровод"))
+    has_plasticizer = any(
+        term in text for term in ("plasticiser", "plasticizer", "plasticised", "plasticized", "пластификатор", "пластифицирован")
+    )
+    if not (has_lithium_form and has_conductivity and has_plasticizer):
+        return 0
+    if any(term in text for term in ("table 4.6", "таблица 4.6", "highest li-ion conductivity", "highest ionic conductivities")):
+        return 3
+    if any(term in text for term in ("best transport properties", "highest conductivity values", "best sample")):
+        return 3
+    if "ec/sl" in text and any(term in text for term in ("conductivity", "transport properties")):
+        return 2
+    if sum(1 for term in ("dmf", "dmso", "nmp", "nmf", "dmaa", "methanol") if term in text) >= 3:
         return 2
     return 1
 

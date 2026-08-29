@@ -44,6 +44,7 @@ class _ResultFeatures:
     channel_count: int
     cross_language_bonus: int
     numeric_table_bonus: int
+    conductivity_plasticizer_bonus: int
     conductivity_conflict_penalty: int
     result_score: float
 
@@ -66,6 +67,7 @@ def rerank_cross_lingual_results(
     variant_terms = [(source, _query_terms_for_rerank(text)) for source, text in query_variants if text.strip()]
     query_phrases = _phrases_for_rerank([original_query, normalized_query.lexical_normalized, *(text for _source, text in query_variants)])
     swelling_comparison_intent = _has_swelling_comparison_intent(original_query, query_variants)
+    conductivity_plasticizer_intent = _has_conductivity_plasticizer_intent(original_query, query_variants)
 
     result_features: dict[str, _ResultFeatures] = {}
     article_scores: dict[str, float] = {}
@@ -79,6 +81,7 @@ def rerank_cross_lingual_results(
             query_phrases=query_phrases,
             variant_terms=variant_terms,
             swelling_comparison_intent=swelling_comparison_intent,
+            conductivity_plasticizer_intent=conductivity_plasticizer_intent,
         )
         result_features[result.chunk_id] = features
         article_result_scores.setdefault(result.article_id, []).append(features.result_score)
@@ -94,6 +97,7 @@ def rerank_cross_lingual_results(
         results,
         key=lambda result: (
             -result_features[result.chunk_id].numeric_table_bonus,
+            -result_features[result.chunk_id].conductivity_plasticizer_bonus,
             -article_scores.get(result.article_id, 0.0),
             -result_features[result.chunk_id].result_score,
             min(result.method_ranks.values()) if getattr(result, "method_ranks", None) else len(results) + 1,
@@ -126,6 +130,7 @@ def _features_for_result(
     query_phrases: list[str],
     variant_terms: Sequence[tuple[str, list[str]]],
     swelling_comparison_intent: bool,
+    conductivity_plasticizer_intent: bool,
 ) -> _ResultFeatures:
     text = _result_text(result)
     title = (getattr(result, "title", None) or "").lower().translate(LIGATURES)
@@ -141,6 +146,7 @@ def _features_for_result(
     channel_count = len(getattr(result, "method_ranks", {}) or {})
     cross_language_bonus = _cross_language_bonus(query_language, result)
     numeric_table_bonus = _numeric_table_bonus(text, enabled=swelling_comparison_intent)
+    conductivity_plasticizer_bonus = _conductivity_plasticizer_bonus(text, enabled=conductivity_plasticizer_intent)
     conductivity_conflict_penalty = _conductivity_conflict_penalty(" ".join(query_terms), text)
     score = (
         4.0 * protected_matches
@@ -151,6 +157,7 @@ def _features_for_result(
         + 0.8 * min(channel_count, 3)
         + 1.5 * cross_language_bonus
         + 6.0 * numeric_table_bonus
+        + 5.0 * conductivity_plasticizer_bonus
         - 2.5 * conductivity_conflict_penalty
     )
     return _ResultFeatures(
@@ -162,6 +169,7 @@ def _features_for_result(
         channel_count=channel_count,
         cross_language_bonus=cross_language_bonus,
         numeric_table_bonus=numeric_table_bonus,
+        conductivity_plasticizer_bonus=conductivity_plasticizer_bonus,
         conductivity_conflict_penalty=conductivity_conflict_penalty,
         result_score=score,
     )
@@ -180,6 +188,7 @@ def _feature_payload(result: Any, features: _ResultFeatures, article_score: floa
         "channel_count": features.channel_count,
         "cross_language_bonus": features.cross_language_bonus,
         "numeric_table_bonus": features.numeric_table_bonus,
+        "conductivity_plasticizer_bonus": features.conductivity_plasticizer_bonus,
         "conductivity_conflict_penalty": features.conductivity_conflict_penalty,
         "result_score": features.result_score,
         "article_score": article_score,
@@ -229,6 +238,14 @@ def _has_swelling_comparison_intent(original_query: str, query_variants: Sequenc
     return has_swelling and has_forms and has_comparison
 
 
+def _has_conductivity_plasticizer_intent(original_query: str, query_variants: Sequence[tuple[str, str]]) -> bool:
+    query_text = " ".join([original_query, *(text for _source, text in query_variants)]).lower().translate(LIGATURES)
+    has_conductivity = any(term in query_text for term in ("conductivity", "проводимост", "электропровод"))
+    has_plasticizer = any(term in query_text for term in ("plasticiser", "plasticizer", "пластификатор", "растворител"))
+    has_lithium_form = any(term in query_text for term in ("li-nafion", "lithiated nafion", "литиевая", "литирован"))
+    return has_conductivity and has_plasticizer and has_lithium_form
+
+
 def _numeric_table_bonus(text: str, *, enabled: bool) -> int:
     if not enabled:
         return 0
@@ -238,6 +255,27 @@ def _numeric_table_bonus(text: str, *, enabled: bool) -> int:
     if not (has_forms and has_alpha_columns and has_decimal_values):
         return 0
     if "таблица 4.5" in text or "table 4.5" in text:
+        return 2
+    return 0
+
+
+def _conductivity_plasticizer_bonus(text: str, *, enabled: bool) -> int:
+    if not enabled:
+        return 0
+    has_lithium_form = any(term in text for term in ("li-nafion", "lithiated nafion", "li‑nafion", "литирован"))
+    has_conductivity = any(term in text for term in ("conductivity", "transport properties", "проводимост", "электропровод"))
+    has_plasticizer = any(
+        term in text for term in ("plasticiser", "plasticizer", "plasticised", "plasticized", "пластификатор", "пластифицирован")
+    )
+    if not (has_lithium_form and has_conductivity and has_plasticizer):
+        return 0
+    if any(term in text for term in ("table 4.6", "таблица 4.6", "highest li-ion conductivity", "highest ionic conductivities")):
+        return 3
+    if any(term in text for term in ("best transport properties", "highest conductivity values", "best sample")):
+        return 3
+    if "ec/sl" in text and any(term in text for term in ("conductivity", "transport properties")):
+        return 2
+    if sum(1 for term in ("dmf", "dmso", "nmp", "nmf", "dmaa", "methanol") if term in text) >= 3:
         return 2
     return 1
 

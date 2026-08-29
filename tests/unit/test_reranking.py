@@ -124,6 +124,39 @@ def test_rerank_maps_russian_highest_plasticizer_conductivity_terms() -> None:
 
     assert reranked.results[0].title == "Istomina 2021"
     assert reranked.metadata["top_features"][0]["term_matches"] >= 4  # type: ignore[index]
+    assert reranked.metadata["top_features"][0]["conductivity_plasticizer_bonus"] == 3  # type: ignore[index]
+
+
+def test_rerank_prefers_specific_conductivity_table_over_background_article_support() -> None:
+    article_id = str(uuid.UUID(int=100))
+    background = _result(
+        uuid.UUID(int=1),
+        "Диссертация Чернюк С.Д.",
+        "Li-Nafion применяют в ЛИА; растворы солей лития в карбонатах имеют биполярный перенос заряда.",
+        article_id=article_id,
+        ranks={"glossary_ru_1": 1},
+    )
+    table = _result(
+        uuid.UUID(int=2),
+        "Диссертация Чернюк С.Д.",
+        (
+            "Таблица 4.6 — Ионная проводимость мембраны Li-Nafion при 25 °C, "
+            "пластифицированных растворителями различной природы. DMF, DMSO, NMP, "
+            "NMF and DMAA show highest ionic conductivities."
+        ),
+        article_id=article_id,
+        ranks={"original_ru_0": 8},
+    )
+
+    reranked = rerank_cross_lingual_results(
+        [background, table],
+        original_query="В каких пластификаторах наибольшую проводимость дают Li-Nafion",
+        query_language="ru",
+        query_variants=[("glossary", "ionic conductivity binary plasticiser li-nafion")],
+    )
+
+    assert reranked.results[0].chunk_id == table.chunk_id
+    assert reranked.metadata["top_features"][0]["conductivity_plasticizer_bonus"] == 3  # type: ignore[index]
 
 
 def test_rerank_prefers_swelling_comparison_numeric_table() -> None:

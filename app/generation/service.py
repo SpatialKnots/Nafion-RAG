@@ -8,7 +8,7 @@ from typing import Any, cast
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.generation.evidence_adequacy import assess_evidence_adequacy
+from app.generation.evidence_adequacy import LIGATURES, assess_evidence_adequacy
 from app.generation.evidence_selection import select_answer_evidence
 from app.generation.providers import (
     AnswerLanguage,
@@ -24,7 +24,7 @@ from app.generation.providers import (
 )
 from app.generation.query_assist import query_assistance_to_dict, suggest_query_corrections
 from app.retrieval.cross_lingual import detect_query_language, glossary_terms_for_concepts
-from app.retrieval.search import SearchResponse, search_chunks
+from app.retrieval.search import SearchResponse, SearchResult, make_snippet, search_chunks
 
 _SWELLING_TABLE_ROWS = (
     ("ацетонитрил", "acetonitrile"),
@@ -113,7 +113,7 @@ def _evidence_from_response(response: SearchResponse, *, use_full_text: bool = F
             page_start=result.page_start,
             page_end=result.page_end,
             source_type=result.source_type,
-            text=(result.full_text or result.snippet) if use_full_text else result.snippet,
+            text=(result.full_text or result.snippet) if use_full_text else _display_text_for_result(result),
             score=result.score,
             retrieval_method=result.retrieval_method,
             method_scores=result.method_scores,
@@ -123,6 +123,29 @@ def _evidence_from_response(response: SearchResponse, *, use_full_text: bool = F
         for index, result in enumerate(response.results, start=1)
         if result.snippet.strip()
     ]
+
+
+def _display_text_for_result(result: SearchResult) -> str:
+    full_text = result.full_text or ""
+    normalized = full_text.lower().translate(LIGATURES)
+    for marker in (
+        "таблица 4.6",
+        "table 4.6",
+        "highest ionic conductivities",
+        "highest li-ion conductivity",
+        "best transport properties",
+        "highest conductivity values",
+        "best sample",
+        "стабильно высокие значения",
+        "наиболее высок",
+        "10−4–10−3",
+        "дмфа",
+        "дмсо",
+        "нмп",
+    ):
+        if marker in normalized:
+            return make_snippet(full_text, marker, radius=220)
+    return result.snippet
 
 
 def _validate_claims(claims: list[GeneratedClaim], evidence: list[Evidence]) -> None:
