@@ -1,0 +1,161 @@
+- id: user_reg_001_ru_plasticizer_highest_conductivity
+  language: ru
+  category: user_plasticizer_conductivity
+  query: "В каких пластификаторах наибольшую проводимость дают Li-Nafion"
+  expected:
+    articles:
+      - doi: "10.31857/s0424857021060049"
+        relevance: 3
+      - title_contains: "Диссертация Чернюк"
+        relevance: 2
+    chunks: []
+  notes: "Regression for Russian inflected plasticizer/conductivity wording; answer-level selection separately checks Table 4.6 evidence."
+
+- id: user_reg_002_ru_ec_sl_highest_conductivity
+  language: ru
+  category: user_plasticizer_conductivity
+  query: "Какая смесь EC/SL дает наибольшую проводимость Li-Nafion?"
+  expected:
+    articles:
+      - doi: "10.31857/s0424857021060049"
+        relevance: 3
+      - doi: "10.1016/j.electacta.2021.137914"
+        relevance: 2
+    chunks:
+      - article_doi: "10.1016/j.electacta.2021.137914"
+        text_contains:
+          - "Li-Nafion"
+          - "EC/SL"
+          - "conductivity"
+        relevance: 2
+  notes: "Checks EC/SL conductivity wording with Russian maximum phrasing."
+
+- id: user_reg_003_ru_ec_sl_conductivity_effect
+  language: ru
+  category: user_ec_sl_transport
+  query: "Как смесь EC и SL влияет на ионную проводимость Li-Nafion?"
+  expected:
+    articles:
+      - doi: "10.1016/j.electacta.2021.137914"
+        relevance: 3
+      - doi: "10.31857/s0424857021060049"
+        relevance: 2
+    chunks:
+      - article_doi: "10.1016/j.electacta.2021.137914"
+        text_contains:
+          - "Li-Nafion"
+          - "EC/SL"
+          - "conductivity"
+        relevance: 3
+  notes: "Russian EC/SL transport query should keep Sanginov evidence in top-k."
+
+- id: user_reg_004_ru_swelling_li_vs_h
+  language: ru
+  category: user_swelling_comparison
+  query: "Какие растворители дают Li-Nafion большую степень набухания, чем H-Nafion?"
+  expected:
+    articles:
+      - title_contains: "Диссертация Чернюк"
+        relevance: 3
+    chunks:
+      - article_title_contains: "Диссертация Чернюк"
+        text_contains:
+          - "H-Nafion"
+          - "Li-Nafion"
+          - "αLi"
+        relevance: 3
+  notes: "Regression for Li-vs-H swelling comparison and alpha-column evidence."
+
+- id: user_reg_005_ru_recast_solvent_list
+  language: ru
+  category: user_recast_membranes
+  query: "Где сравниваются DMF, DMSO, NMP, EtOH и DMAc для recast Nafion?"
+  expected:
+    articles:
+      - doi: "10.1016/j.memsci.2016.09.014"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1016/j.memsci.2016.09.014"
+        text_contains:
+          - "NMP"
+          - "DMF"
+          - "DMSO"
+        relevance: 2
+  notes: "Solvent-list regression for Dai 2017 recast Nafion membranes."
+
+- id: user_reg_006_mixed_solution_casting_morphology
+  language: mixed
+  category: user_solution_casting
+  query: "Как solvent casting влияет на морфологию и свойства мембран Nafion?"
+  expected:
+    articles:
+      - doi: "10.1016/j.polymer.2009.01.060"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1016/j.polymer.2009.01.060"
+        text_contains:
+          - "morphology"
+          - "Nafion"
+        relevance: 2
+  notes: "Mixed Russian/English solution-casting morphology query."
+
+- id: user_reg_007_ru_mixing_temperature_swelling
+  language: ru
+  category: user_ec_sl_swelling
+  query: "Как температура смешения влияет на набухание литированной мембраны Nafion в EC/SL?"
+  expected:
+    articles:
+      - doi: "10.3390/polym13071150"
+        relevance: 3
+    chunks:
+      - article_doi: "10.3390/polym13071150"
+        text_contains:
+          - "mixing temperature"
+          - "swelling degree"
+          - "Li-Nafion"
+        relevance: 3
+  notes: "Russian EC/SL mixing-temperature swelling query should retrieve Istomina 2021."
+
+- id: user_reg_008_en_water_sorption_thermodynamics
+  language: en
+  category: user_water_thermodynamics
+  query: "Which Russian paper discusses Nafion-water sorption thermodynamics?"
+  expected:
+    articles:
+      - title_contains: "Диссертация Чернюк"
+        relevance: 2
+    chunks: []
+  notes: "Known ambiguous query: current retrieval surfaces the dissertation context rather than the standalone Chernyuk 2023 paper."
+
+- id: user_reg_009_mixed_solvent_parameters
+  language: mixed
+  category: user_solvent_parameters
+  query: "Какие donor number, acceptor number и dielectric constant важны для растворителей Nafion?"
+  expected:
+    articles:
+      - doi: "10.1016/j.electacta.2021.137914"
+        relevance: 3
+    chunks:
+      - article_doi: "10.1016/j.electacta.2021.137914"
+        text_contains:
+          - "donor number"
+          - "dielectric constant"
+        relevance: 2
+  notes: "Mixed solvent-parameter query should preserve English parameter names."
+
+- id: user_reg_010_ru_phase_diagram_ec_sl
+  language: ru
+  category: user_phase_diagram
+  query: "Где построена фазовая диаграмма системы этиленкарбонат-сульфолан?"
+  expected:
+    articles:
+      - doi: "10.31857/s0044453721060224"
+        relevance: 3
+    chunks:
+      - article_doi: "10.31857/s0044453721060224"
+        text_contains:
+          - "фазовая диаграмма"
+          - "этиленкарбонат"
+          - "сульфолан"
+        relevance: 3
+  notes: "Russian EC/SL phase-diagram query."

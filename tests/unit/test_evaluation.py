@@ -113,6 +113,15 @@ def test_load_extended_questions_accepts_new_schema(tmp_path) -> None:
     assert questions[0].expected_chunks[0].text_contains == ["morphology"]
 
 
+def test_user_regression_extended_questions_file_loads() -> None:
+    questions = load_extended_questions(Path("docs/evaluation_questions_user_regression_extended.yaml"))
+
+    assert len(questions) == 10
+    assert questions[0].id == "user_reg_001_ru_plasticizer_highest_conductivity"
+    assert questions[0].language == "ru"
+    assert any(question.expected_chunks for question in questions)
+
+
 def test_load_extended_questions_adapts_legacy_schema(tmp_path) -> None:
     path = tmp_path / "questions.yaml"
     path.write_text(
