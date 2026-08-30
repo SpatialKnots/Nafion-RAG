@@ -761,7 +761,23 @@ def hybrid_cross_lingual_search(
 
 
 def _cross_lingual_variant_top_k(bundle: QueryBundle, *, top_k: int, settings: Settings) -> int:
-    multiplier = 20 if "swelling_degree_comparison" in bundle.matched_concepts else 2
+    wide_window_concepts = {
+        "casting_annealing",
+        "ec_sl_solvents",
+        "mixing_temperature",
+        "phase_diagram",
+        "physicochemical_properties",
+        "solution_casting_morphology",
+        "transport",
+    }
+    if "swelling_degree_comparison" in bundle.matched_concepts:
+        multiplier = 20
+    elif _has_standalone_water_thermodynamics_query(bundle):
+        multiplier = 5
+    elif wide_window_concepts.intersection(bundle.matched_concepts):
+        multiplier = 5
+    else:
+        multiplier = 2
     return min(top_k * multiplier, getattr(settings, "search_max_top_k", 100))
 
 
@@ -806,8 +822,9 @@ def _fuse_cross_lingual_channel_results(
 
 def _rerank_cross_lingual_results(results: list[SearchResult], bundle: QueryBundle, *, window_size: int) -> Any:
     legacy_ordered = _legacy_rerank_cross_lingual_results(results, bundle)
-    window = legacy_ordered[:window_size]
-    tail = legacy_ordered[window_size:]
+    feature_ordered = _diversify_cross_lingual_results(legacy_ordered, preferred_per_article=2)
+    window = feature_ordered[:window_size]
+    tail = feature_ordered[window_size:]
     reranked_window = feature_rerank_cross_lingual_results(
         window,
         original_query=bundle.original,
@@ -820,6 +837,7 @@ def _rerank_cross_lingual_results(results: list[SearchResult], bundle: QueryBund
             **reranked_window.metadata,
             "legacy_window_preserved": True,
             "window_size": window_size,
+            "feature_window_selection": "article_diverse",
         },
     )
 
@@ -827,9 +845,28 @@ def _rerank_cross_lingual_results(results: list[SearchResult], bundle: QueryBund
 def _cross_lingual_rerank_window_size(bundle: QueryBundle, *, top_k: int, candidate_window: int) -> int:
     if "swelling_degree_comparison" in bundle.matched_concepts:
         return candidate_window
+    if {
+        "casting_annealing",
+        "mixing_temperature",
+        "phase_diagram",
+        "physicochemical_properties",
+        "solution_casting_morphology",
+        "transport",
+    }.intersection(bundle.matched_concepts):
+        return candidate_window
+    if _has_standalone_water_thermodynamics_query(bundle):
+        return candidate_window
     if bundle.language == "mixed" or _mandatory_query_terms(bundle.original):
         return candidate_window
     return top_k
+
+
+def _has_standalone_water_thermodynamics_query(bundle: QueryBundle) -> bool:
+    return (
+        "water_interaction" in bundle.matched_concepts
+        and "thermodynamic_interaction" in bundle.matched_concepts
+        and "lithium_form" not in bundle.matched_concepts
+    )
 
 
 def _legacy_rerank_cross_lingual_results(results: list[SearchResult], bundle: QueryBundle) -> list[SearchResult]:

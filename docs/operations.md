@@ -158,6 +158,19 @@ GET /search?q=proton%20transport&collection=literature&top_k=10&method=hybrid
 
 Hybrid uses equal-weight reciprocal rank fusion with `HYBRID_RRF_K=60` and retrieves `top_k * HYBRID_CANDIDATE_MULTIPLIER` candidates from each component. The default multiplier is 5. Results use `retrieval_method=hybrid_rrf` and expose `method_scores` plus `method_ranks`. A semantic index failure aborts hybrid retrieval; there is no silent exact-only fallback.
 
+Cross-lingual retrieval is available through `method=hybrid_cross_lingual`. It
+uses the hybrid path plus glossary variants, article-diverse feature-rerank
+windows, and narrow query-intent diagnostics such as EC/SL conductivity,
+EC/SL swelling, mixing temperature, phase diagram, recast casting/annealing,
+solution casting morphology, broad plasticizer conductivity survey evidence,
+water thermodynamics, Li-Nafion thermodynamics/relaxation, Li-Nafion alcohol
+enthalpy, and Russian EC/SL/diglyme conductivity wording. Standalone
+water-thermodynamics queries also use a scoped wider window and DOI-bearing
+main-text evidence quality to avoid reference-like chunks hiding the standalone
+paper. These diagnostics are reported in response metadata and are ranking
+evidence only; they do not change stored text, source traceability, or
+answer-generation validation.
+
 Run retrieval evaluation only after `docs/evaluation_questions.yaml` contains real expected DOI or keyword evidence:
 
 ```powershell
@@ -352,12 +365,25 @@ The extended schema supports:
 - graded article targets by DOI, title, title substring, checksum, or article ID;
 - chunk targets by chunk ID or stable text fragments scoped to an article;
 - answerable and unanswerable questions;
+- `error_class`, `expected_behavior`, and `regression_guard` metadata for
+  class-level regression tracking;
 - article Recall@k, Precision@k, MRR, nDCG@k, chunk Recall@k, latency, and evidence trace completeness.
 - deterministic evidence-adequacy diagnostics for unanswerable controls.
 
 Unanswerable controls are not expected to return an empty retrieval list. They
 pass when retrieved snippets fail the shared evidence-adequacy policy and would
 therefore be treated as `insufficient_evidence` by the answer layer.
+
+Retrieval errors should be fixed by documented error class rather than hidden
+query-specific or article-specific promotions. The policy and accepted classes
+are recorded in:
+
+```text
+docs/retrieval_error_fixing_policy.md
+```
+
+Extended reports include `summary.by_error_class` when question files provide
+`error_class` values.
 
 ## Priority 6 Text Quality And Table/Caption Evaluation
 

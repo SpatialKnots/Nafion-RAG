@@ -2,7 +2,7 @@
 
 Date: 2026-08-27
 
-Updated: 2026-08-28
+Updated: 2026-08-30
 
 ## Scope
 
@@ -18,6 +18,10 @@ This records the current M1 cross-lingual retrieval state after adding:
   and protected-token queries.
 - M3 ordered glossary matching and narrow corpus-backed concepts for Dai
   solvent-list and Ma solution-casting morphology prompts.
+- M4 article-diverse feature-rerank windows and narrow intent bonuses for
+  EC/SL conductivity, EC/SL swelling, mixing temperature, phase diagram, recast
+  casting/annealing, solution casting morphology, broad plasticizer conductivity
+  survey evidence, and water thermodynamics.
 
 No method is promoted to default.
 
@@ -49,10 +53,11 @@ ru_to_ru
 
 ## Latest Reports
 
-Current best recall/ranking balance on the extended set after M3:
+Current best recall/ranking balance on the extended set after the
+EN-to-RU Li-Nafion intent gate:
 
 ```text
-data\exports\retrieval_eval_extended_hybrid_cross_lingual_20260827T105055Z.json
+data\exports\retrieval_eval_extended_hybrid_cross_lingual_20260830T191020Z.json
 ```
 
 Summary:
@@ -63,9 +68,26 @@ Summary:
   "passed": 31,
   "failed": 0,
   "article_recall_at_k": 1.0,
-  "mrr": 0.5134024577572965,
+  "mrr": 0.8487455197132616,
+  "top_1_passed": 24,
+  "mean_rank": 1.7096774193548387
+}
+```
+
+Immediate pre-M4 baseline on the same machine:
+
+```text
+data\exports\retrieval_eval_extended_hybrid_cross_lingual_20260830T122727Z.json
+```
+
+```json
+{
+  "passed": 31,
+  "failed": 0,
+  "article_recall_at_k": 1.0,
+  "mrr": 0.5152457757296467,
   "top_1_passed": 12,
-  "mean_rank": 3.806451612903226
+  "mean_rank": 3.7419354838709675
 }
 ```
 
@@ -140,6 +162,39 @@ MRR:    0.398 -> 0.513
 top-1:  8     -> 12
 ```
 
+M4 keeps 31/31 article recall and improves ranking without adding broad glossary
+entries:
+
+```text
+passed:   31/31 -> 31/31
+MRR:      0.515 -> 0.794
+top-1:    12    -> 22
+mean rank 3.742 -> 2.129
+```
+
+The source-type ambiguity gate keeps 31/31 article recall and improves ranking
+by using a wider candidate/rerank window only for standalone water
+thermodynamics queries, plus DOI-bearing main-text evidence quality for
+standalone articles:
+
+```text
+passed:   31/31 -> 31/31
+MRR:      0.794 -> 0.834
+top-1:    22    -> 24
+mean rank 2.129 -> 2.000
+```
+
+The EN-to-RU Li-Nafion intent gate keeps 31/31 article recall and improves
+ranking for lithium-form thermodynamics/relaxation, alcohol enthalpy, and
+Russian EC/SL/diglyme conductivity wording:
+
+```text
+passed:   31/31 -> 31/31
+MRR:      0.834 -> 0.849
+top-1:    24    -> 24
+mean rank 2.000 -> 1.710
+```
+
 The MiniLM multilingual semantic index is usable and separate from the current
 English semantic index, but it does not yet improve the extended benchmark.
 
@@ -161,9 +216,9 @@ The previous misses were closed by corpus-backed glossary entries:
 
 Do not expand the glossary broadly.
 
-The next useful ranking step is still article-level reranking with explicit
-features, but only if the evaluation improves `mean_rank`, `MRR`, and `top_3`
-without reducing current extended recall:
+The next useful ranking step is to review remaining EN-to-RU ranking weakness
+without reducing current extended recall.
+Any additional change should continue using explicit features:
 
 - exact protected token match;
 - compound/abbreviation match;
@@ -173,5 +228,5 @@ without reducing current extended recall:
 - negative conflict checks for close properties such as ionic vs proton vs
   electronic conductivity.
 
-The ranking objective should improve `mean_rank`, `MRR`, and `top_3` without
-reducing current extended recall.
+The ranking objective should improve `mean_rank`, `MRR`, and top-3 behavior
+without reducing current extended recall.

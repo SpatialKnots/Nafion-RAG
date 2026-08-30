@@ -2,6 +2,8 @@
 
 Date: 2026-08-27
 
+Updated: 2026-08-30
+
 ## Scope
 
 This smoke set contains 25 user-style Russian, English, and mixed-language
@@ -17,7 +19,7 @@ docs/evaluation_questions_user_cross_lingual.yaml
 Report:
 
 ```text
-data\exports\retrieval_eval_extended_hybrid_cross_lingual_20260827T105020Z.json
+data\exports\retrieval_eval_extended_hybrid_cross_lingual_20260830T190857Z.json
 ```
 
 ## Summary
@@ -25,6 +27,23 @@ data\exports\retrieval_eval_extended_hybrid_cross_lingual_20260827T105020Z.json
 ```json
 {
   "total": 25,
+  "passed": 25,
+  "failed": 0,
+  "article_recall_at_k": 1.0,
+  "mrr": 0.8368253968253968,
+  "top_1_passed": 19,
+  "mean_rank": 1.8
+}
+```
+
+Immediate pre-M4 baseline on the same machine:
+
+```text
+data\exports\retrieval_eval_extended_hybrid_cross_lingual_20260830T122542Z.json
+```
+
+```json
+{
   "passed": 24,
   "failed": 1,
   "article_recall_at_k": 0.96,
@@ -38,7 +57,7 @@ data\exports\retrieval_eval_extended_hybrid_cross_lingual_20260827T105020Z.json
 
 ```text
 user_en_to_en: 5/5
-user_en_to_ru: 5/6
+user_en_to_ru: 6/6
 user_mixed:    3/3
 user_ru_to_en: 6/6
 user_ru_to_ru: 5/5
@@ -47,40 +66,23 @@ user_ru_to_ru: 5/5
 ## Failures
 
 ```text
-user_xling_014_en_chernyuk_water_sorption
+none
 ```
-
-Query:
-
-```text
-Which Russian paper discusses Nafion-water sorption thermodynamics?
-```
-
-Expected:
-
-```text
-Чернюк 2023, DOI 10.31857/s2308112023700463
-```
-
-Observed top result:
-
-```text
-Диссертация Чернюк С.Д.
-```
-
-Interpretation: partial target ambiguity. The dissertation contains strong
-Nafion-water sorption thermodynamics reference context, while the expected target
-was the standalone Chernyuk 2023 paper.
 
 ## Current Interpretation
 
-The language barrier is mostly handled at top-10 for user-style prompts, but
-ranking is still not strong enough for comfortable top-3 use.
+The language barrier is mostly handled at top-10 for user-style prompts. M4
+article-diverse feature windows and narrow intent bonuses substantially improved
+ranking while preserving the same 24/25 article recall. The later
+property-confusion survey-evidence gate preserved the same smoke metrics. The
+source-type ambiguity gate closed the remaining water-thermodynamics miss by
+preferring DOI-bearing standalone main-text evidence for English "Russian paper"
+wording while keeping dissertation context visible.
 
 M3 closed the real Dai solvent-list miss and the Ma solution-casting morphology
 regression by adding ordered glossary matching and narrow corpus-backed concepts.
-The remaining miss is a target ambiguity rather than a clear language-barrier
-failure.
+The previous remaining miss was a source-type ambiguity: dissertation reference
+context crowded out the standalone Chernyuk 2023 article in the inspected top-k.
 
 RU-to-EN improved versus the previous smoke run:
 
@@ -88,15 +90,13 @@ RU-to-EN improved versus the previous smoke run:
 {
   "passed": 6,
   "failed": 0,
-  "mrr": 0.27559523809523806,
-  "top_1_passed": 1,
-  "mean_rank": 6.666666666666667
+  "mrr": 0.6944444444444445,
+  "top_1_passed": 3,
+  "mean_rank": 1.8333333333333333
 }
 ```
 
-## Next M3 Targets
+## Next Targets
 
-- Decide whether `Nafion-water sorption thermodynamics` should accept the
-  dissertation as relevant, or whether the question should explicitly target the
-  Chernyuk 2023 article.
-- Improve RU-to-EN top-3 ranking without reducing current top-10 recall.
+- Continue improving EN-to-RU ranking for lithium-form thermodynamics and
+  transport wording without reducing current top-10 recall.

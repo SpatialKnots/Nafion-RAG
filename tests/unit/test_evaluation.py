@@ -93,6 +93,10 @@ def test_load_extended_questions_accepts_new_schema(tmp_path) -> None:
         "- id: q01\n"
         "  query: Nafion solvent morphology\n"
         "  language: en\n"
+        "  category: morphology\n"
+        "  error_class: method_title_intent\n"
+        "  expected_behavior: Prefer method evidence.\n"
+        "  regression_guard: Keep morphology source in top-k.\n"
         "  answerable: true\n"
         "  expected:\n"
         "    articles:\n"
@@ -111,6 +115,10 @@ def test_load_extended_questions_accepts_new_schema(tmp_path) -> None:
     assert questions[0].expected_articles[0].doi == "10.1000/example"
     assert questions[0].expected_articles[0].relevance == 3
     assert questions[0].expected_chunks[0].text_contains == ["morphology"]
+    assert questions[0].category == "morphology"
+    assert questions[0].error_class == "method_title_intent"
+    assert questions[0].expected_behavior == "Prefer method evidence."
+    assert questions[0].regression_guard == "Keep morphology source in top-k."
 
 
 def test_user_regression_extended_questions_file_loads() -> None:
@@ -119,7 +127,11 @@ def test_user_regression_extended_questions_file_loads() -> None:
     assert len(questions) == 10
     assert questions[0].id == "user_reg_001_ru_plasticizer_highest_conductivity"
     assert questions[0].language == "ru"
+    assert questions[0].error_class == "property_confusion"
     assert any(question.expected_chunks for question in questions)
+    assert all(question.error_class for question in questions)
+    assert all(question.expected_behavior for question in questions)
+    assert all(question.regression_guard for question in questions)
 
 
 def test_load_extended_questions_adapts_legacy_schema(tmp_path) -> None:
@@ -631,6 +643,7 @@ def test_run_extended_retrieval_evaluation_summarizes_metrics(monkeypatch, tmp_p
     questions_path.write_text(
         "- id: q01\n"
         "  query: Li-Nafion conductivity\n"
+        "  error_class: property_confusion\n"
         "  expected:\n"
         "    articles:\n"
         "      - doi: 10.1000/example\n"
@@ -693,6 +706,8 @@ def test_run_extended_retrieval_evaluation_summarizes_metrics(monkeypatch, tmp_p
     assert report["summary"]["false_answerable"] == 0
     assert report["summary"]["article_recall_at_k"] == 1.0
     assert report["summary"]["mrr"] == 1.0
+    assert report["summary"]["by_error_class"]["property_confusion"]["passed"] == 1
+    assert report["questions"][0]["error_class"] == "property_confusion"
     assert report["provenance"]["git_commit"] == "abc"
 
 

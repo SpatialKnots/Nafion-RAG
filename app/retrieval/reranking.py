@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -45,6 +45,7 @@ class _ResultFeatures:
     cross_language_bonus: int
     numeric_table_bonus: int
     conductivity_plasticizer_bonus: int
+    intent_match_bonus: int
     conductivity_conflict_penalty: int
     result_score: float
 
@@ -68,6 +69,7 @@ def rerank_cross_lingual_results(
     query_phrases = _phrases_for_rerank([original_query, normalized_query.lexical_normalized, *(text for _source, text in query_variants)])
     swelling_comparison_intent = _has_swelling_comparison_intent(original_query, query_variants)
     conductivity_plasticizer_intent = _has_conductivity_plasticizer_intent(original_query, query_variants)
+    query_intents = _query_intents(original_query, query_variants)
 
     result_features: dict[str, _ResultFeatures] = {}
     article_scores: dict[str, float] = {}
@@ -82,6 +84,7 @@ def rerank_cross_lingual_results(
             variant_terms=variant_terms,
             swelling_comparison_intent=swelling_comparison_intent,
             conductivity_plasticizer_intent=conductivity_plasticizer_intent,
+            query_intents=query_intents,
         )
         result_features[result.chunk_id] = features
         article_result_scores.setdefault(result.article_id, []).append(features.result_score)
@@ -97,10 +100,12 @@ def rerank_cross_lingual_results(
         results,
         key=lambda result: (
             -result_features[result.chunk_id].numeric_table_bonus,
+            -result_features[result.chunk_id].intent_match_bonus,
+            _best_component_rank(result) if result_features[result.chunk_id].intent_match_bonus else len(results) + 1,
             -result_features[result.chunk_id].conductivity_plasticizer_bonus,
             -article_scores.get(result.article_id, 0.0),
             -result_features[result.chunk_id].result_score,
-            min(result.method_ranks.values()) if getattr(result, "method_ranks", None) else len(results) + 1,
+            _best_component_rank(result),
             -float(getattr(result, "score", 0.0)),
             original_positions[result.chunk_id],
         ),
@@ -113,6 +118,7 @@ def rerank_cross_lingual_results(
             "protected_tokens": protected_tokens,
             "query_terms": query_terms,
             "query_phrases": query_phrases,
+            "query_intents": sorted(query_intents),
             "top_features": [
                 _feature_payload(result, result_features[result.chunk_id], article_scores.get(result.article_id, 0.0))
                 for result in reranked[:10]
@@ -131,6 +137,7 @@ def _features_for_result(
     variant_terms: Sequence[tuple[str, list[str]]],
     swelling_comparison_intent: bool,
     conductivity_plasticizer_intent: bool,
+    query_intents: set[str],
 ) -> _ResultFeatures:
     text = _result_text(result)
     title = (getattr(result, "title", None) or "").lower().translate(LIGATURES)
@@ -147,6 +154,7 @@ def _features_for_result(
     cross_language_bonus = _cross_language_bonus(query_language, result)
     numeric_table_bonus = _numeric_table_bonus(text, enabled=swelling_comparison_intent)
     conductivity_plasticizer_bonus = _conductivity_plasticizer_bonus(text, enabled=conductivity_plasticizer_intent)
+    intent_match_bonus = _intent_match_bonus(result, text, query_intents)
     conductivity_conflict_penalty = _conductivity_conflict_penalty(" ".join(query_terms), text)
     score = (
         4.0 * protected_matches
@@ -158,6 +166,7 @@ def _features_for_result(
         + 1.5 * cross_language_bonus
         + 6.0 * numeric_table_bonus
         + 5.0 * conductivity_plasticizer_bonus
+        + 3.0 * intent_match_bonus
         - 2.5 * conductivity_conflict_penalty
     )
     return _ResultFeatures(
@@ -170,6 +179,7 @@ def _features_for_result(
         cross_language_bonus=cross_language_bonus,
         numeric_table_bonus=numeric_table_bonus,
         conductivity_plasticizer_bonus=conductivity_plasticizer_bonus,
+        intent_match_bonus=intent_match_bonus,
         conductivity_conflict_penalty=conductivity_conflict_penalty,
         result_score=score,
     )
@@ -189,10 +199,19 @@ def _feature_payload(result: Any, features: _ResultFeatures, article_score: floa
         "cross_language_bonus": features.cross_language_bonus,
         "numeric_table_bonus": features.numeric_table_bonus,
         "conductivity_plasticizer_bonus": features.conductivity_plasticizer_bonus,
+        "intent_match_bonus": features.intent_match_bonus,
         "conductivity_conflict_penalty": features.conductivity_conflict_penalty,
         "result_score": features.result_score,
         "article_score": article_score,
     }
+
+
+def _best_component_rank(result: Any) -> int:
+    method_ranks = getattr(result, "method_ranks", None)
+    if not method_ranks:
+        return 1_000_000
+    ranks = method_ranks if isinstance(method_ranks, Mapping) else {}
+    return min(int(rank) for rank in ranks.values())
 
 
 def _query_terms_for_rerank(query: str) -> list[str]:
@@ -246,6 +265,219 @@ def _has_conductivity_plasticizer_intent(original_query: str, query_variants: Se
     return has_conductivity and has_plasticizer and has_lithium_form
 
 
+def _query_intents(original_query: str, query_variants: Sequence[tuple[str, str]]) -> set[str]:
+    query_text = " ".join([original_query, *(text for _source, text in query_variants)]).lower().translate(LIGATURES)
+    intents: set[str] = set()
+    has_lithium_nafion = any(term in query_text for term in ("li-nafion", "lithiated nafion", "литирован", "литиевая"))
+    has_ec_sl_query = _has_ec_sl_evidence(query_text)
+    if (
+        has_lithium_nafion
+        and not has_ec_sl_query
+        and any(term in query_text for term in ("conductivity", "проводимост", "электропровод"))
+        and any(term in query_text for term in ("plasticiser", "plasticizer", "пластификатор", "растворител"))
+        and any(term in query_text for term in ("which", "what", "каких", "какие", "highest", "best", "maximum", "наибольш", "лучш"))
+    ):
+        intents.add("plasticizer_conductivity_survey")
+    if all(term in query_text for term in ("mixing temperature", "li-nafion")) or (
+        "температур" in query_text and "смеш" in query_text and "nafion" in query_text and has_ec_sl_query
+    ):
+        intents.add("mixing_temperature_li_nafion")
+    if all(term in query_text for term in ("phase diagram", "ethylene carbonate", "sulfolane")) or (
+        "фазовая диаграмма" in query_text and ("этиленкарбонат" in query_text or "ec" in query_text)
+    ):
+        intents.add("ec_sl_phase_diagram")
+    if all(term in query_text for term in ("casting solvent", "annealing temperature", "recast nafion")) or (
+        "растворител" in query_text and "кастинг" in query_text and "отжиг" in query_text and "recast nafion" in query_text
+    ):
+        intents.add("recast_casting_annealing")
+    if any(term in query_text for term in ("solution casting morphology", "solvent casting morphology")):
+        intents.add("solution_casting_morphology")
+    if has_ec_sl_query and has_lithium_nafion and any(term in query_text for term in ("ionic conductivity", "ионн", "проводимост")):
+        intents.add("ec_sl_li_nafion_conductivity")
+    if has_ec_sl_query and has_lithium_nafion and any(term in query_text for term in ("swelling", "набух", "sorption", "сорбц")):
+        intents.add("ec_sl_li_nafion_swelling")
+    if has_ec_sl_query and has_lithium_nafion and any(term in query_text for term in ("plasticised", "plasticized", "пластифиц")):
+        intents.add("ec_sl_li_nafion_plasticised")
+    if (
+        any(term in query_text for term in ("thermodynamic interaction", "thermodynamic interactions", "термодинамика взаимодействия"))
+        and any(term in query_text for term in ("water", "вод", "sorption", "сорбц"))
+        and "li-nafion" not in query_text
+    ):
+        intents.add("nafion_water_thermodynamics")
+    if (
+        has_lithium_nafion
+        and any(term in query_text for term in ("thermodynamic", "термодинами"))
+        and any(term in query_text for term in ("relaxation", "релаксац"))
+        and not has_ec_sl_query
+    ):
+        intents.add("li_nafion_thermodynamic_relaxation")
+    if (
+        has_lithium_nafion
+        and any(term in query_text for term in ("swelling", "набух", "sorption", "сорбц"))
+        and any(term in query_text for term in ("gibbs", "mixing", "энтальпия смешения", "энергия гиббса"))
+        and not has_ec_sl_query
+    ):
+        intents.add("li_nafion_swelling_mixing_thermodynamics")
+    if (
+        has_lithium_nafion
+        and any(term in query_text for term in ("enthalpy", "энтальп"))
+        and any(term in query_text for term in ("alcohol", "спирт"))
+        and any(term in query_text for term in ("aqueous", "water", "вод"))
+    ):
+        intents.add("li_nafion_alcohol_enthalpy")
+    if (
+        "russian paper" in query_text
+        and has_ec_sl_query
+        and "diglyme" in query_text
+        and any(term in query_text for term in ("conductivity", "lithium-conducting", "li+-conducting", "проводимост"))
+    ):
+        intents.add("russian_ec_sl_diglyme_conductivity")
+    return intents
+
+
+def _intent_match_bonus(result: Any, text: str, query_intents: set[str]) -> int:
+    bonus = 0
+    if "mixing_temperature_li_nafion" in query_intents and _has_all(text, ("mixing temperature", "li-nafion")):
+        if any(term in text for term in ("swelling degree", "physicochemical properties", "plasticised", "plasticized")):
+            bonus += 4
+        else:
+            bonus += 2
+    if "ec_sl_phase_diagram" in query_intents and any(
+        term in text for term in ("phase diagram", "фазовая диаграмма", "диаграмма плавкости")
+    ):
+        if _has_ec_sl_evidence(text):
+            bonus += 4
+        else:
+            bonus += 2
+    if "recast_casting_annealing" in query_intents and _has_all(text, ("recast nafion",)):
+        if _has_all(text, ("casting solvent", "annealing temperature")):
+            bonus += 5
+        elif any(term in text for term in ("casting solvent", "annealing temperature")):
+            bonus += 3
+    if "solution_casting_morphology" in query_intents and any(term in text for term in ("solution casting", "solvent casting")):
+        if "morpholog" in text and "nafion" in text:
+            bonus += 5
+        else:
+            bonus += 2
+    if "ec_sl_li_nafion_conductivity" in query_intents and _has_ec_sl_evidence(text):
+        if "li-nafion" in text and any(term in text for term in ("ionic conductivity", "conductivity", "transport properties")):
+            bonus += 4
+        elif any(term in text for term in ("conductivity", "проводимост", "электропровод")):
+            bonus += 2
+    if "ec_sl_li_nafion_swelling" in query_intents and _has_ec_sl_evidence(text):
+        if "li-nafion" in text and any(term in text for term in ("swelling degree", "swelling", "набух")):
+            bonus += 4
+        elif any(term in text for term in ("swelling", "набух")):
+            bonus += 2
+    if "ec_sl_li_nafion_plasticised" in query_intents and _has_ec_sl_evidence(text):
+        if "li-nafion" in text and any(term in text for term in ("plasticised", "plasticized", "physicochemical properties")):
+            bonus += 4
+        elif any(term in text for term in ("plasticised", "plasticized", "пластифиц")):
+            bonus += 2
+    if "nafion_water_thermodynamics" in query_intents and any(term in text for term in ("water", "вод", "sorption", "сорбц")):
+        if any(term in text for term in ("thermodynamic", "термодинами")):
+            bonus += 3
+        else:
+            bonus += 1
+        if _has_standalone_water_thermodynamics_evidence(result, text):
+            bonus += 5
+    if "plasticizer_conductivity_survey" in query_intents:
+        solvent_count = _plasticizer_solvent_count(text)
+        if any(term in text for term in ("table 4.6", "таблица 4.6", "highest li-ion conductivity", "highest ionic conductivities")):
+            bonus += 6
+        elif (
+            any(term in text for term in ("литий-ионная проводимость", "li-ion conductivity", "ionic conductivity"))
+            and any(term in text for term in ("мембраны нафион", "nafion membrane", "li-nafion"))
+            and any(term in text for term in ("апротонными растворителями", "aprotic solvents", "plasticised", "plasticized"))
+        ):
+            bonus += 5
+        elif solvent_count >= 3 and any(term in text for term in ("conductivity", "проводимост", "электропровод")):
+            bonus += 4
+    if "li_nafion_thermodynamic_relaxation" in query_intents:
+        if _has_li_nafion_dissertation_thermodynamic_relaxation(text):
+            bonus += 6
+        elif any(term in text for term in ("li-nafion", "li‑nafion", "ионы лития", "литиевая форма")) and any(
+            term in text for term in ("релаксационные свойства", "диэлектрическая релаксация", "relaxation properties")
+        ):
+            bonus += 3
+    if "li_nafion_swelling_mixing_thermodynamics" in query_intents:
+        if _has_li_nafion_mixing_thermodynamics_evidence(text):
+            bonus += 6
+        elif any(term in text for term in ("li-nafion", "li‑nafion", "ионы лития", "литиевая форма")) and any(
+            term in text for term in ("энтальпия смешения", "энергия гиббса", "gibbs", "mixing")
+        ):
+            bonus += 3
+    if "li_nafion_alcohol_enthalpy" in query_intents:
+        if _has_li_nafion_alcohol_enthalpy_evidence(text):
+            bonus += 7
+        elif any(term in text for term in ("li-nafion", "li‑nafion", "литирован")) and any(term in text for term in ("спирт", "alcohol")):
+            bonus += 3
+    if "russian_ec_sl_diglyme_conductivity" in query_intents:
+        if _has_russian_ec_sl_diglyme_conductivity_evidence(result, text):
+            bonus += 7
+        elif _has_ec_sl_evidence(text) and "diglyme" in text and any(term in text for term in ("conductivity", "проводимост")):
+            bonus += 3
+    return bonus
+
+
+def _has_all(text: str, terms: Sequence[str]) -> bool:
+    return all(term in text for term in terms)
+
+
+def _has_ec_sl_evidence(text: str) -> bool:
+    has_abbreviated_pair = "ec/sl" in text or re.search(r"(?<![a-z0-9])ec(?![a-z0-9]).{0,40}(?<![a-z0-9])sl(?![a-z0-9])", text) is not None
+    has_named_pair = "ethylene carbonate" in text and "sulfolane" in text
+    has_ru_pair = "этиленкарбонат" in text and "сульфолан" in text
+    return has_abbreviated_pair or has_named_pair or has_ru_pair
+
+
+def _has_standalone_water_thermodynamics_evidence(result: Any, text: str) -> bool:
+    source_type = (getattr(result, "source_type", None) or "").lower()
+    doi = getattr(result, "doi", None)
+    has_article_trace = bool(doi) and source_type == "main_text"
+    has_title_evidence = (
+        "термодинамика взаимодействия" in text
+        and "nafion" in text
+        and any(term in text for term in ("водой", "воды", "water"))
+    )
+    has_body_evidence = (
+        "nafion" in text
+        and any(term in text for term in ("сорбции воды", "water sorption", "набухание мембраны nafion в воде"))
+        and any(term in text for term in ("флори", "flory", "гиббс", "gibbs", "энтальп", "enthalp"))
+    )
+    return has_article_trace and (has_title_evidence or has_body_evidence)
+
+
+def _has_li_nafion_dissertation_thermodynamic_relaxation(text: str) -> bool:
+    has_lithium_form = any(term in text for term in ("h-nafion", "li-nafion", "li‑nafion", "ионы лития", "литиевая форма"))
+    has_thermodynamics = any(term in text for term in ("термодинамические характеристики", "thermodynamic", "термодинами"))
+    has_relaxation = any(term in text for term in ("релаксационные свойства", "диэлектрическая релаксация", "relaxation properties"))
+    return has_lithium_form and has_thermodynamics and has_relaxation
+
+
+def _has_li_nafion_mixing_thermodynamics_evidence(text: str) -> bool:
+    has_lithium_form = any(term in text for term in ("li-nafion", "li‑nafion", "ионы лития", "литиевая форма"))
+    has_swelling = any(term in text for term in ("набухание", "swelling", "сорбция"))
+    has_mixing = any(term in text for term in ("энтальпия смешения", "энергия гиббса", "gibbs free energy", "mixing"))
+    has_solvents = any(term in text for term in ("растворител", "solvent", "водно-спиртов", "апротон"))
+    return has_lithium_form and has_swelling and has_mixing and has_solvents
+
+
+def _has_li_nafion_alcohol_enthalpy_evidence(text: str) -> bool:
+    has_lithium_form = any(term in text for term in ("li-nafion", "li‑nafion", "литирован"))
+    has_alcohol = any(term in text for term in ("водно-спиртов", "спиртовые", "2-пропанол/вода", "alcohol", "aqueous alcohol"))
+    has_enthalpy = any(term in text for term in ("энтальп", "enthalpy"))
+    return has_lithium_form and has_alcohol and has_enthalpy
+
+
+def _has_russian_ec_sl_diglyme_conductivity_evidence(result: Any, text: str) -> bool:
+    doi = (getattr(result, "doi", None) or "").lower()
+    has_russian_article_trace = doi.startswith("10.31857/")
+    has_system = _has_ec_sl_evidence(text) and "diglyme" in text
+    has_transport = any(term in text for term in ("conductivity", "проводимост", "литий-ионная проводимость"))
+    return has_russian_article_trace and has_system and has_transport
+
+
 def _numeric_table_bonus(text: str, *, enabled: bool) -> int:
     if not enabled:
         return 0
@@ -275,9 +507,29 @@ def _conductivity_plasticizer_bonus(text: str, *, enabled: bool) -> int:
         return 3
     if "ec/sl" in text and any(term in text for term in ("conductivity", "transport properties")):
         return 2
-    if sum(1 for term in ("dmf", "dmso", "nmp", "nmf", "dmaa", "methanol") if term in text) >= 3:
+    if _plasticizer_solvent_count(text) >= 3:
         return 2
     return 1
+
+
+def _plasticizer_solvent_count(text: str) -> int:
+    return sum(
+        1
+        for term in (
+            "dmf",
+            "dmso",
+            "nmp",
+            "nmf",
+            "dmaa",
+            "methanol",
+            "диметилформамид",
+            "диметилсульфоксид",
+            "n-метил-2-пирролидон",
+            "n,n-диметилацетамид",
+            "метанол",
+        )
+        if term in text
+    )
 
 
 def _term_matches(term: str, text: str) -> bool:

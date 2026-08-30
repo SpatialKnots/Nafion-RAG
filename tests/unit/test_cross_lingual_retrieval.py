@@ -152,6 +152,117 @@ def test_hybrid_cross_lingual_search_merges_original_and_glossary_results(monkey
     assert any(hit["result_count"] == 1 for hit in cross_lingual["variant_hits"][1:])  # type: ignore[index]
 
 
+def test_hybrid_cross_lingual_search_uses_article_diverse_feature_window(monkeypatch) -> None:
+    dissertation_results = [
+        _result(uuid.UUID(int=index), "Диссертация Чернюк С.Д.", None, "exact_ilike")
+        for index in range(1, 12)
+    ]
+    dai = SearchResult(
+        article_id=str(uuid.UUID(int=500)),
+        chunk_id=str(uuid.UUID(int=500)),
+        title="Dai 2017",
+        doi="10.1016/j.memsci.2016.09.014",
+        page_start=1,
+        page_end=1,
+        source_type="body",
+        snippet="Effect of casting solvent and annealing temperature on recast Nafion membranes.",
+        full_text="Effect of casting solvent and annealing temperature on recast Nafion membranes.",
+        score=1.0,
+        retrieval_method="exact_ilike",
+    )
+
+    monkeypatch.setattr(
+        "app.retrieval.search.hybrid_search",
+        lambda *args, **kwargs: SearchResponse(query=args[1], results=dissertation_results),
+    )
+
+    def fake_exact(*args, **kwargs) -> SearchResponse:
+        query = args[1]
+        if "casting solvent" in query:
+            return SearchResponse(query=query, results=[dai])
+        return SearchResponse(query=query, results=dissertation_results)
+
+    monkeypatch.setattr("app.retrieval.search.exact_search", fake_exact)
+
+    response = hybrid_cross_lingual_search(
+        object(),  # type: ignore[arg-type]
+        "Где исследовано влияние растворителя кастинга и температуры отжига на recast Nafion membranes?",
+        top_k=5,
+        settings=SimpleNamespace(search_max_top_k=100, hybrid_rrf_k=60),
+    )
+
+    assert response.results[0].title == "Dai 2017"
+    assert response.metadata["reranking"]["feature_window_selection"] == "article_diverse"  # type: ignore[index]
+
+
+def test_hybrid_cross_lingual_search_uses_wide_window_for_water_thermodynamics(monkeypatch) -> None:
+    seen_top_k: list[int] = []
+    dissertation_results = [
+        _result(uuid.UUID(int=index), "Диссертация Чернюк С.Д.", None, "exact_ilike")
+        for index in range(1, 12)
+    ]
+    chernyuk_2023 = SearchResult(
+        article_id=str(uuid.UUID(int=600)),
+        chunk_id=str(uuid.UUID(int=600)),
+        title="Чернюк 2023",
+        doi="10.31857/s2308112023700463",
+        page_start=7,
+        page_end=8,
+        source_type="main_text",
+        snippet="Термодинамика взаимодействия Nafion с водой и сорбция воды.",
+        full_text="Термодинамика взаимодействия Nafion с водой и сорбция воды.",
+        score=1.0,
+        retrieval_method="exact_ilike",
+    )
+
+    def fake_hybrid(*args, **kwargs) -> SearchResponse:
+        seen_top_k.append(args[3])
+        return SearchResponse(query=args[1], results=dissertation_results)
+
+    def fake_exact(*args, **kwargs) -> SearchResponse:
+        seen_top_k.append(args[3])
+        query = args[1]
+        if "термодинамика взаимодействия" in query:
+            return SearchResponse(query=query, results=[*dissertation_results, chernyuk_2023])
+        return SearchResponse(query=query, results=dissertation_results)
+
+    monkeypatch.setattr("app.retrieval.search.hybrid_search", fake_hybrid)
+    monkeypatch.setattr("app.retrieval.search.exact_search", fake_exact)
+
+    response = hybrid_cross_lingual_search(
+        object(),  # type: ignore[arg-type]
+        "Which Russian paper discusses Nafion-water sorption thermodynamics?",
+        top_k=5,
+        settings=SimpleNamespace(search_max_top_k=100, hybrid_rrf_k=60),
+    )
+
+    assert max(seen_top_k) == 25
+    assert any(result.title == "Чернюк 2023" for result in response.results)
+    assert response.metadata["reranking"]["window_size"] == 25  # type: ignore[index]
+
+
+def test_hybrid_cross_lingual_search_keeps_lithium_water_alcohol_window_narrow(monkeypatch) -> None:
+    seen_top_k: list[int] = []
+    result = _result(uuid.UUID(int=1), "Чернюк 2024", None, "exact_ilike")
+
+    def fake_search(*args, **kwargs) -> SearchResponse:
+        seen_top_k.append(args[3])
+        return SearchResponse(query=args[1], results=[result])
+
+    monkeypatch.setattr("app.retrieval.search.hybrid_search", fake_search)
+    monkeypatch.setattr("app.retrieval.search.exact_search", fake_search)
+
+    response = hybrid_cross_lingual_search(
+        object(),  # type: ignore[arg-type]
+        "What is the enthalpy of interaction of lithiated Nafion with aqueous alcohol solutions?",
+        top_k=5,
+        settings=SimpleNamespace(search_max_top_k=100, hybrid_rrf_k=60),
+    )
+
+    assert max(seen_top_k) == 10
+    assert response.metadata["reranking"]["window_size"] == 5  # type: ignore[index]
+
+
 def _result(chunk_id: uuid.UUID, title: str, doi: str | None, method: str) -> SearchResult:
     return SearchResult(
         article_id=str(uuid.UUID(int=100 + chunk_id.int)),

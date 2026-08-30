@@ -1,6 +1,9 @@
 - id: user_reg_001_ru_plasticizer_highest_conductivity
   language: ru
   category: user_plasticizer_conductivity
+  error_class: property_confusion
+  expected_behavior: "Prefer lithium/ionic conductivity evidence over generic lithium-salt or unrelated conductivity background."
+  regression_guard: "Do not demote Kayumov 2021 and dissertation Table 4.6 evidence out of top-k for Russian plasticizer/conductivity wording."
   query: "В каких пластификаторах наибольшую проводимость дают Li-Nafion"
   expected:
     articles:
@@ -14,6 +17,9 @@
 - id: user_reg_002_ru_ec_sl_highest_conductivity
   language: ru
   category: user_plasticizer_conductivity
+  error_class: compound_intent_ambiguity
+  expected_behavior: "Treat EC/SL plus maximum conductivity as a transport-property query, not only as a phase-diagram or generic solvent query."
+  regression_guard: "Keep both Kayumov 2021 and Sanginov 2021 relevant evidence visible in top-k."
   query: "Какая смесь EC/SL дает наибольшую проводимость Li-Nafion?"
   expected:
     articles:
@@ -33,6 +39,9 @@
 - id: user_reg_003_ru_ec_sl_conductivity_effect
   language: ru
   category: user_ec_sl_transport
+  error_class: compound_intent_ambiguity
+  expected_behavior: "Prefer EC/SL Li-Nafion ionic-conductivity evidence when the query asks about EC/SL effect on conductivity."
+  regression_guard: "Do not let Russian EC/SL conductivity wording be dominated by phase-diagram or broad Russian conductivity articles."
   query: "Как смесь EC и SL влияет на ионную проводимость Li-Nafion?"
   expected:
     articles:
@@ -52,6 +61,9 @@
 - id: user_reg_004_ru_swelling_li_vs_h
   language: ru
   category: user_swelling_comparison
+  error_class: numeric_table_evidence
+  expected_behavior: "Prefer table-like Li-Nafion versus H-Nafion alpha-column evidence for comparative swelling questions."
+  regression_guard: "Do not replace explicit alpha-column evidence with generic swelling discussion."
   query: "Какие растворители дают Li-Nafion большую степень набухания, чем H-Nafion?"
   expected:
     articles:
@@ -69,6 +81,9 @@
 - id: user_reg_005_ru_recast_solvent_list
   language: ru
   category: user_recast_membranes
+  error_class: protected_token_coverage
+  expected_behavior: "Preserve the full solvent list DMF/DMSO/NMP/EtOH/DMAc and prefer recast Nafion casting-solvent evidence."
+  regression_guard: "Do not let EC/SL or generic Nafion solvent evidence outrank the Dai 2017 recast-solvent article for this solvent-list class."
   query: "Где сравниваются DMF, DMSO, NMP, EtOH и DMAc для recast Nafion?"
   expected:
     articles:
@@ -86,6 +101,9 @@
 - id: user_reg_006_mixed_solution_casting_morphology
   language: mixed
   category: user_solution_casting
+  error_class: method_title_intent
+  expected_behavior: "Prefer the article whose title/evidence matches solution casting plus morphology."
+  regression_guard: "Do not confuse solution casting morphology with casting solvent/annealing or generic recast Nafion references."
   query: "Как solvent casting влияет на морфологию и свойства мембран Nafion?"
   expected:
     articles:
@@ -102,6 +120,9 @@
 - id: user_reg_007_ru_mixing_temperature_swelling
   language: ru
   category: user_ec_sl_swelling
+  error_class: method_title_intent
+  expected_behavior: "Prefer EC/SL Li-Nafion swelling evidence tied to mixing temperature and physicochemical properties."
+  regression_guard: "Do not let broad EC/SL conductivity or phase-diagram evidence hide Istomina 2021 for mixing-temperature swelling wording."
   query: "Как температура смешения влияет на набухание литированной мембраны Nafion в EC/SL?"
   expected:
     articles:
@@ -119,17 +140,25 @@
 - id: user_reg_008_en_water_sorption_thermodynamics
   language: en
   category: user_water_thermodynamics
+  error_class: source_type_ambiguity
+  expected_behavior: "Prefer DOI-bearing standalone Chernyuk 2023 main-text evidence for English 'Russian paper' wording while keeping dissertation context visible."
+  regression_guard: "Do not let dissertation bibliography/reference-like chunks hide the standalone Chernyuk 2023 article for Nafion-water sorption thermodynamics."
   query: "Which Russian paper discusses Nafion-water sorption thermodynamics?"
   expected:
     articles:
+      - doi: "10.31857/s2308112023700463"
+        relevance: 3
       - title_contains: "Диссертация Чернюк"
-        relevance: 2
+        relevance: 1
     chunks: []
-  notes: "Known ambiguous query: current retrieval surfaces the dissertation context rather than the standalone Chernyuk 2023 paper."
+  notes: "Source-type ambiguity regression: standalone article should rank first, while dissertation context remains visible in top-k."
 
 - id: user_reg_009_mixed_solvent_parameters
   language: mixed
   category: user_solvent_parameters
+  error_class: mixed_language_protected_tokens
+  expected_behavior: "Preserve English solvent-parameter terms inside mixed Russian/English queries."
+  regression_guard: "Do not normalize away donor number, acceptor number, or dielectric constant evidence."
   query: "Какие donor number, acceptor number и dielectric constant важны для растворителей Nafion?"
   expected:
     articles:
@@ -146,6 +175,9 @@
 - id: user_reg_010_ru_phase_diagram_ec_sl
   language: ru
   category: user_phase_diagram
+  error_class: compound_intent_ambiguity
+  expected_behavior: "Treat EC/SL plus phase-diagram wording as phase-equilibrium evidence, not conductivity or swelling evidence."
+  regression_guard: "Do not demote Reznitskikh 2021 below generic EC/SL transport results for phase-diagram queries."
   query: "Где построена фазовая диаграмма системы этиленкарбонат-сульфолан?"
   expected:
     articles:

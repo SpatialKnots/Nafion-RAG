@@ -70,6 +70,9 @@ class ExtendedEvaluationQuestion:
     answerable: bool = True
     language: str | None = None
     category: str | None = None
+    error_class: str | None = None
+    expected_behavior: str | None = None
+    regression_guard: str | None = None
     filters: dict[str, object] | None = None
     notes: str | None = None
 
@@ -193,6 +196,9 @@ def load_extended_questions(path: Path) -> list[ExtendedEvaluationQuestion]:
         notes = _optional_string(item.get("notes"), "notes", question_id)
         language = _optional_string(item.get("language"), "language", question_id)
         category = _optional_string(item.get("category"), "category", question_id)
+        error_class = _optional_string(item.get("error_class"), "error_class", question_id)
+        expected_behavior = _optional_string(item.get("expected_behavior"), "expected_behavior", question_id)
+        regression_guard = _optional_string(item.get("regression_guard"), "regression_guard", question_id)
         filters = item.get("filters")
         if filters is not None and not isinstance(filters, dict):
             raise ValueError(f"{question_id}.filters must be a mapping when provided")
@@ -232,6 +238,9 @@ def load_extended_questions(path: Path) -> list[ExtendedEvaluationQuestion]:
                     answerable=answerable,
                     language=language,
                     category=category,
+                    error_class=error_class,
+                    expected_behavior=expected_behavior,
+                    regression_guard=regression_guard,
                     filters=cast(dict[str, object] | None, filters),
                     notes=old_question.notes,
                 )
@@ -248,6 +257,9 @@ def load_extended_questions(path: Path) -> list[ExtendedEvaluationQuestion]:
                     answerable=answerable,
                     language=language,
                     category=category,
+                    error_class=error_class,
+                    expected_behavior=expected_behavior,
+                    regression_guard=regression_guard,
                     filters=cast(dict[str, object] | None, filters),
                     notes=notes,
                 )
@@ -709,6 +721,9 @@ def _evaluate_extended_question(
         "query": question.query,
         "language": question.language,
         "category": question.category,
+        "error_class": question.error_class,
+        "expected_behavior": question.expected_behavior,
+        "regression_guard": question.regression_guard,
         "answerable": question.answerable,
         "passed": passed,
         "rank_of_first_relevant": first_rank,
@@ -812,6 +827,7 @@ def run_extended_retrieval_evaluation(
         "p95_latency_ms": _percentile(latencies, 95),
         "by_language": _extended_breakdown(evaluated, "language"),
         "by_category": _extended_breakdown(evaluated, "category"),
+        "by_error_class": _extended_breakdown(evaluated, "error_class"),
     }
     return {
         "created_at": datetime.now(UTC).isoformat(),
