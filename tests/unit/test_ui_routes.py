@@ -185,12 +185,24 @@ def test_dashboard_returns_html(monkeypatch) -> None:
     response = dashboard(_override_session())
 
     assert response.status_code == 200
-    assert "Corpus Dashboard" in response.body.decode()
-    assert "ARIADNE Research Workbench" in response.body.decode()
-    assert "Tables / Facts diagnostics" in response.body.decode()
-    assert "Articles" in response.body.decode()
-    assert "Retrieval Evaluation" in response.body.decode()
-    assert "Extended Retrieval Evaluation" in response.body.decode()
+    body = response.body.decode()
+    assert "Corpus Dashboard" in body
+    assert "ARIADNE Research Workbench" in body
+    assert 'method="post" action="/ui/answer"' in body
+    assert 'data-async-result="/ui/answer/result"' in body
+    assert 'name="question"' in body
+    assert 'value="mini_review"' in body
+    assert 'id="home-answer-result"' in body
+    assert "Prepare request parameters" in body
+    assert "Render answer and citations" in body
+    assert ">Home</a>" in body
+    assert ">Search</a>" not in body
+    assert "main_text" not in body
+    assert "Main text" in body
+    assert "Tables / Facts diagnostics" in body
+    assert "Articles" in body
+    assert "Retrieval Evaluation" in body
+    assert "Extended Retrieval Evaluation" in body
 
 
 def test_search_page_returns_results(monkeypatch) -> None:
@@ -241,6 +253,42 @@ def test_search_page_returns_results(monkeypatch) -> None:
     assert "/ui/articles/11111111-1111-1111-1111-111111111111/chunks/22222222-2222-2222-2222-222222222222/context" in body
     assert "hybrid_rrf" in body
     assert "value='hybrid' selected" in body
+
+
+def test_search_page_ignores_blank_numeric_filters(monkeypatch) -> None:
+    def fake_search_chunks(
+        session: object,
+        query: str,
+        collection_name: str,
+        top_k: int,
+        *,
+        method: str,
+        source_type: str | None = None,
+        filters: object | None = None,
+        group_by: str = "none",
+        chunks_per_article: int | None = None,
+        settings: object | None = None,
+    ) -> object:
+        normalized = cast(SearchFilters, filters)
+        assert normalized.year is None
+        assert normalized.year_from is None
+        assert normalized.year_to is None
+        assert chunks_per_article is None
+        return SimpleNamespace(results=[])
+
+    monkeypatch.setattr("app.ui.search_chunks", fake_search_chunks)
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+    response = search_page(
+        _override_session(),
+        q="Термодинамика Nafion в воде",
+        year="",
+        year_from="",
+        year_to="",
+        chunks_per_article="",
+    )
+
+    assert response.status_code == 200
+    assert "No results" in response.body.decode()
 
 
 def test_answer_page_renders_form() -> None:

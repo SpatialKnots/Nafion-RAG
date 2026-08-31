@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -28,10 +28,34 @@ from app.retrieval.vector_index import VectorIndexUnavailableError
 
 SessionDep = Annotated[Session, Depends(get_session)]
 router = APIRouter()
+BRAND_ASSET_DIR = Path(__file__).resolve().parent / "static" / "brand"
+BRAND_ASSETS = {
+    "ariadne-logo-horizontal.png": "ariadne-logo-horizontal.png",
+    "ariadne-logo-vertical.png": "ariadne-logo-vertical.png",
+    "ariadne-logo-mark.png": "ariadne-logo-mark.png",
+}
 
 
 def _html(value: object) -> str:
     return escape("" if value is None else str(value), quote=True)
+
+
+def _brand_asset_url(name: str) -> str:
+    return f"/ui/assets/brand/{_html(name)}"
+
+
+def _optional_int_filter(name: str, value: str | int | None) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    stripped = value.strip()
+    if not stripped:
+        return None
+    try:
+        return int(stripped)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"{name} must be an integer") from exc
 
 
 def _truncate(text: str | None, limit: int = 500) -> str:
@@ -45,6 +69,26 @@ def _counter_rows(counter: Counter[str]) -> str:
     if not counter:
         return "<tr><td colspan='2'>No data</td></tr>"
     return "".join(f"<tr><td>{_html(key)}</td><td class='num'>{value}</td></tr>" for key, value in sorted(counter.items()))
+
+
+def _dashboard_counter_rows(counter: Counter[str]) -> str:
+    if not counter:
+        return "<tr><td colspan='2'>No data</td></tr>"
+    return "".join(
+        f"<tr><td>{_html(_dashboard_label(key))}</td><td class='num'>{value}</td></tr>" for key, value in sorted(counter.items())
+    )
+
+
+def _dashboard_label(value: str) -> str:
+    labels = {
+        "figure_caption": "Figure caption",
+        "main_text": "Main text",
+        "method": "Method",
+        "table": "Table",
+        "original": "Original",
+        "ocr": "OCR",
+    }
+    return labels.get(value, value.replace("_", " ").strip().capitalize())
 
 
 def _counter_from_rows(rows: object) -> Counter[str]:
@@ -176,7 +220,11 @@ def _layout(title: str, body: str) -> HTMLResponse:
       min-height:calc(100vh - 24px); padding:20px 14px; border-radius:14px; background:#203B4A; color:#F7FBFC;
       display:flex; flex-direction:column; gap:22px;
     }
-    .brand-lockup { display:flex; gap:12px; align-items:center; font-weight:800; letter-spacing:.02em; font-size:18px; }
+    .brand-lockup {
+      display:block; border-radius:8px; padding:8px; text-decoration:none;
+    }
+    .brand-lockup:hover, .brand-lockup:focus { outline:2px solid var(--aqua); outline-offset:2px; }
+    .sidebar-logo { display:block; width:150px; max-width:100%; height:auto; }
     .ariadne-mark {
       position:relative; width:58px; height:74px; flex:0 0 auto;
     }
@@ -303,29 +351,111 @@ def _layout(title: str, body: str) -> HTMLResponse:
     .answer-controls label { display:block; margin:0; color:#213846; }
     .answer-controls input, .answer-controls select { width:100%; min-height:40px; background:#fff; }
     .answer-surface {
-      display:grid; grid-template-columns:minmax(420px, 1.35fr) minmax(320px, .9fr); gap:24px; align-items:start;
+      display:grid; grid-template-columns:minmax(0, 1.85fr) minmax(300px, .75fr); gap:20px; align-items:start;
     }
     .answer-card, .evidence-card {
-      border:1px solid #D1E0E7; border-radius:14px; background:#fff; padding:24px;
+      min-width:0; border:1px solid #D1E0E7; border-radius:14px; background:#fff; padding:24px;
     }
     .answer-card > h2, .evidence-card > h2 { margin-top:0; }
     .section-kicker { color:#486F88; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.02em; margin:0 0 12px; }
-    .answer-lede { font-size:20px; line-height:1.25; font-weight:800; margin:0 0 24px; color:#213846; white-space:pre-wrap; }
+    .answer-lede {
+      font-size:16px; line-height:1.55; font-weight:600; margin:0 0 24px; color:#213846;
+      white-space:pre-wrap; overflow-wrap:break-word;
+    }
     .citation-chip { border-radius:7px; }
+    .start-page {
+      min-height:calc(100vh - 68px); display:grid; align-content:start; gap:28px;
+      padding:7vh 0 0;
+    }
+    .start-hero {
+      width:min(820px, 100%); margin:0 auto; text-align:center;
+    }
+    .start-logo {
+      width:min(420px, 78vw); height:auto; display:block; margin:0 auto 18px;
+    }
+    .start-hero h1 { font-size:36px; margin:0 0 8px; color:var(--graphite); }
+    .start-hero .page-kicker { max-width:620px; margin:0 auto 22px; color:var(--slate); }
+    .start-search {
+      width:100%; display:block; margin:0;
+    }
+    .start-search-row {
+      display:grid; grid-template-columns:minmax(0, 1fr) 48px 118px; gap:8px; align-items:center;
+      padding:8px; border:1px solid var(--line); border-radius:12px; background:var(--paper);
+    }
+    .start-search-row input[name="question"] {
+      width:100%; min-height:46px; border:0; padding:0 12px; background:transparent; font-size:16px;
+    }
+    .start-search-row input[name="question"]:focus { outline:2px solid var(--aqua); outline-offset:2px; border-radius:8px; }
+    .advanced-toggle { position:absolute; opacity:0; pointer-events:none; }
+    .icon-button {
+      width:46px; min-width:46px; min-height:46px; display:inline-grid; place-items:center;
+      padding:0; border-radius:8px; background:var(--paper); color:var(--graphite); border:1px solid var(--line);
+      cursor:pointer;
+    }
+    .icon-button:hover, .icon-button:focus, .advanced-toggle:focus + .icon-button {
+      border-color:var(--aqua); outline:0;
+    }
+    .advanced-toggle:checked + .icon-button { box-shadow:inset 0 0 0 2px var(--aqua); }
+    .start-search-row button[type="submit"] { min-height:46px; border-radius:8px; }
+    .advanced-panel {
+      display:none; grid-column:1 / -1; text-align:left; border:1px solid var(--line); border-radius:12px;
+      background:#F8FBFC; padding:12px; border-left:4px solid var(--aqua);
+    }
+    .advanced-toggle:checked ~ .advanced-panel { display:block; }
+    .advanced-grid {
+      display:grid; grid-template-columns:repeat(4, minmax(120px, 1fr)); gap:10px;
+    }
+    .advanced-grid label { display:block; color:var(--graphite); font-size:12px; font-weight:700; }
+    .advanced-grid input, .advanced-grid select { width:100%; min-height:38px; margin-top:4px; background:var(--paper); }
+    .start-result {
+      width:min(1320px, 100%); margin:18px auto 0; text-align:left;
+    }
+    .start-result:empty { display:none; }
+    .start-thread {
+      width:min(620px, 100%); margin:16px auto 0; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:0; align-items:center; color:var(--slate); font-size:12px; font-weight:700; text-transform:uppercase;
+    }
+    .start-thread span {
+      position:relative; display:grid; place-items:center; min-height:34px; border:1px solid var(--line);
+      background:var(--paper);
+    }
+    .start-thread span + span { border-left:0; }
+    .start-thread span + span::before {
+      content:""; position:absolute; left:-14px; top:50%; width:28px; height:3px; background:var(--aqua);
+      transform:translateY(-50%);
+    }
+    .start-thread span:last-child::after {
+      content:""; position:absolute; right:-6px; top:50%; width:12px; height:12px; border-radius:50%;
+      background:var(--coral); transform:translateY(-50%);
+    }
+    .dashboard-section { width:min(1180px, 100%); margin:0 auto; }
+    .dashboard-section > h2 { color:var(--graphite); }
     a { color: var(--accent); }
     @media (max-width: 900px) {
       .app-shell { grid-template-columns:1fr; padding:8px; }
-      .sidebar { min-height:auto; }
+      .sidebar { min-height:auto; padding:12px; gap:10px; border-radius:10px; }
+      .sidebar-card { display:none; }
+      .brand-lockup { min-height:28px; padding:0; }
+      .sidebar-logo { width:118px; }
       nav { grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); }
-      .sidebar-card { margin-top:0; }
       .workbench-grid, .evidence-grid, .answer-surface { grid-template-columns:1fr; }
       .answer-controls { grid-template-columns:1fr 1fr; }
       .answer-search { grid-template-columns:1fr; }
+      main { padding:12px 0 32px; }
+      .start-page { min-height:auto; padding-top:18px; }
+      .start-logo { width:min(270px, 72vw); margin-bottom:14px; }
+      .start-hero h1 { font-size:32px; }
+      .start-search-row { grid-template-columns:1fr 46px; }
+      .start-search-row button[type="submit"] { grid-column:1 / -1; }
+      .advanced-grid { grid-template-columns:1fr 1fr; }
+      .start-thread { grid-template-columns:1fr; }
+      .start-thread span + span { border-left:1px solid var(--line); border-top:0; }
+      .start-thread span + span::before { display:none; }
+      .start-thread span:last-child::after { right:12px; }
     }
     """
     nav_items = (
-        ("Library", "/", {"Dashboard", "Articles", "Article", "Text Layers"}),
-        ("Search", "/ui/search", {"Search", "Answer"}),
+        ("Home", "/", {"Dashboard", "Articles", "Article", "Text Layers", "Answer"}),
         (
             "Evidence",
             "/ui/reports/retrieval",
@@ -349,12 +479,9 @@ def _layout(title: str, body: str) -> HTMLResponse:
 <body>
 <div class="app-shell">
 <aside class="sidebar">
-  <div class="brand-lockup">
-    <div class="ariadne-mark" aria-hidden="true">
-      <span class="thread-line"></span><span class="thread-line"></span><span class="thread-line"></span>
-    </div>
-    <span>ARIADNE</span>
-  </div>
+  <a class="brand-lockup" href="/" aria-label="ARIADNE home">
+    <img class="sidebar-logo" src="{_brand_asset_url('ariadne-logo-horizontal.png')}" alt="ARIADNE">
+  </a>
   <nav>{nav}</nav>
   <div class="sidebar-card"><small>Local collection</small><strong>Nafion profile</strong></div>
 </aside>
@@ -362,6 +489,14 @@ def _layout(title: str, body: str) -> HTMLResponse:
 </div>
 </body></html>"""
     return HTMLResponse(html)
+
+
+@router.get("/ui/assets/brand/{asset_name}")
+def brand_asset(asset_name: str) -> FileResponse:
+    filename = BRAND_ASSETS.get(asset_name)
+    if filename is None:
+        raise HTTPException(status_code=404, detail="Unknown brand asset")
+    return FileResponse(BRAND_ASSET_DIR / filename)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -401,9 +536,9 @@ def dashboard(session: SessionDep) -> HTMLResponse:
         f'<tr><td>Chunks</td><td class="num">{chunk_count}</td></tr>'
         f'<tr><td>Text layers</td><td class="num">{layer_count}</td></tr>'
     )
-    selected_rows = _counter_rows(selected_layers)
-    source_rows = _counter_rows(source_types)
-    text_layer_rows = _counter_rows(text_layers)
+    selected_rows = _dashboard_counter_rows(selected_layers)
+    source_rows = _dashboard_counter_rows(source_types)
+    text_layer_rows = _dashboard_counter_rows(text_layers)
     eval_command = "python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10"
     extended_eval_command = (
         "python -m app.evaluation.cli retrieval-extended docs/evaluation_questions_extended.yaml --top-k 10 --method exact"
@@ -422,49 +557,60 @@ def dashboard(session: SessionDep) -> HTMLResponse:
         f'<table><tr><th>Layer</th><th class="num">Chunks</th></tr>{text_layer_rows}</table></section>'
     )
     body = f"""
-    <h1>ARIADNE Research Workbench</h1>
-    <section class="workspace-band">
-      <form method="get" action="/ui/answer">
-        <label>Question<br><input name="question" size="56" value="Li-Nafion conductivity"></label>
-        <label>Collection<br><input name="collection" value="literature"></label>
-        <label>Method<br><select name="method">
-          <option value="hybrid_cross_lingual">hybrid_cross_lingual</option>
-          <option value="hybrid">hybrid</option>
-          <option value="exact">exact</option>
-        </select></label>
-        <button type="submit">Answer</button>
-      </form>
-      <div class="status-strip">
-        <a class="status-pill" href="/ui/search">Search</a>
-        <a class="status-pill" href="/ui/answer">Claims</a>
-        <a class="status-pill" href="/ui/answer">Evidence</a>
-        <a class="status-pill" href="/ui/articles">Documents</a>
-        <a class="status-pill" href="/ui/reports/text-quality">Tables / Facts diagnostics</a>
-      </div>
-    </section>
-    <h2>Corpus Dashboard</h2>
-    <div class="grid">
-      <section class="panel"><h2>Corpus</h2><table>{corpus_rows}</table></section>
-      {selected_panel}
-      {source_panel}
-      {text_layer_panel}
-      <section class="panel"><h2>Retrieval Evaluation</h2>{retrieval_report_link}{_command_hint(eval_command)}</section>
-      <section class="panel"><h2>Extended Retrieval Evaluation</h2>
-      {extended_retrieval_report_link}{_command_hint(extended_eval_command)}</section>
-      <section class="panel"><h2>Text Quality</h2>{text_quality_report_link}{_command_hint(text_quality_command)}</section>
+    <div class="start-page">
+      <section class="start-hero" aria-labelledby="start-title">
+        <img class="start-logo" src="{_brand_asset_url('ariadne-logo-horizontal.png')}" alt="ARIADNE">
+        <h1 id="start-title">ARIADNE Research Workbench</h1>
+        <p class="page-kicker">Ask a literature question and trace the answer to source fragments and the original PDF.</p>
+        <form class="start-search" method="post" action="/ui/answer" data-async-result="/ui/answer/result">
+          <div class="start-search-row">
+            <input name="question" value="" placeholder="Ask for a literature review" aria-label="Question" autofocus>
+            <input class="advanced-toggle" id="start-answer-options" type="checkbox" aria-label="Show answer parameters">
+            <label class="icon-button" for="start-answer-options" aria-label="Answer parameters" title="Answer parameters">&#9881;</label>
+            <button type="submit">Answer</button>
+            <div class="advanced-panel">
+              <div class="advanced-grid">
+                <label>Collection<input name="collection" value="literature"></label>
+                <label>Method<select name="method">
+                  <option value="hybrid_cross_lingual">hybrid_cross_lingual</option>
+                  <option value="hybrid">hybrid</option>
+                  <option value="semantic">semantic</option>
+                  <option value="exact">exact</option>
+                </select></label>
+                <label>Answer style<select name="answer_style">
+                  <option value="mini_review">mini_review</option>
+                  <option value="claims">claims</option>
+                </select></label>
+                <label>Answer language<select name="answer_language">
+                  <option value="auto">auto</option>
+                  <option value="ru">ru</option>
+                  <option value="en">en</option>
+                </select></label>
+                <label>Top K<input name="top_k" type="number" value="10" min="1"></label>
+              </div>
+            </div>
+          </div>
+        </form>
+        <div class="start-result" id="home-answer-result" aria-live="polite"></div>
+        <div class="start-thread" aria-label="Evidence path">
+          <span>Question</span><span>Retrieve</span><span>Review</span><span>Original PDF</span>
+        </div>
+        {_answer_progress_script("home-answer-result")}
+      </section>
+      <section class="dashboard-section" aria-labelledby="corpus-dashboard">
+        <h2 id="corpus-dashboard">Corpus Dashboard</h2>
+        <div class="grid">
+          <section class="panel"><h2>Corpus</h2><table>{corpus_rows}</table></section>
+          {selected_panel}
+          {source_panel}
+          {text_layer_panel}
+          <section class="panel"><h2>Retrieval Evaluation</h2>{retrieval_report_link}{_command_hint(eval_command)}</section>
+          <section class="panel"><h2>Extended Retrieval Evaluation</h2>
+          {extended_retrieval_report_link}{_command_hint(extended_eval_command)}</section>
+          <section class="panel"><h2>Tables / Facts diagnostics</h2>{text_quality_report_link}{_command_hint(text_quality_command)}</section>
+        </div>
+      </section>
     </div>
-    <h2>Quick Search</h2>
-    <form method="get" action="/ui/search">
-      <input name="q" size="42" value="Li-Nafion conductivity">
-      <input name="collection" value="literature">
-      <input name="top_k" type="number" value="10" min="1">
-      <select name="method">
-        <option value="exact">exact</option>
-        <option value="semantic">semantic</option>
-        <option value="hybrid">hybrid</option>
-      </select>
-      <button type="submit">Search</button>
-    </form>
     """
     return _layout("Dashboard", body)
 
@@ -693,48 +839,12 @@ def _answer_error_panel(exc: Exception) -> str:
     )
 
 
-def _answer_body(
-    question: str = "",
-    collection: str = "literature",
-    top_k: int = 5,
-    method: str = "hybrid_cross_lingual",
-    answer_style: str = "claims",
-    answer_language: str = "auto",
-    result: str = "",
-) -> str:
-    method_options = "".join(
-        f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>"
-        for value in ("exact", "semantic", "hybrid", "hybrid_cross_lingual")
-    )
-    style_options = "".join(
-        f"<option value='{value}' {'selected' if answer_style == value else ''}>{label}</option>"
-        for value, label in (("claims", "Claims"), ("mini_review", "Mini-review by article"))
-    )
-    language_options = "".join(
-        f"<option value='{value}' {'selected' if answer_language == value else ''}>{label}</option>"
-        for value, label in (("auto", "Auto"), ("en", "English"), ("ru", "Russian"))
-    )
+def _answer_progress_script(result_id: str) -> str:
     return f"""
-    <h1>Search the literature</h1>
-    <p class="page-kicker">Every claim should lead back to a source fragment.</p>
-    <form method="post" action="/ui/answer" data-async-result="/ui/answer/result">
-      <div class="answer-search">
-        <label><span class="section-kicker">Question</span><br><textarea name="question" rows="1">{_html(question)}</textarea></label>
-        <button type="submit">Search</button>
-      </div>
-      <div class="answer-controls">
-        <label>Collection<br><input name="collection" value="{_html(collection)}"></label>
-        <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
-        <label>Method<br><select name="method">{method_options}</select></label>
-        <label>Style<br><select name="answer_style">{style_options}</select></label>
-        <label>Answer language<br><select name="answer_language">{language_options}</select></label>
-      </div>
-    </form>
-    <div id="answer-result" aria-live="polite">{result}</div>
     <script>
     (() => {{
-      const form = document.querySelector('form[data-async-result]');
-      const result = document.getElementById('answer-result');
+      const result = document.getElementById('{_html(result_id)}');
+      const form = result ? result.closest('main').querySelector('form[data-async-result]') : null;
       if (!form || !result || !window.fetch) return;
       const steps = [
         ['prepare', 'Prepare request parameters'],
@@ -818,7 +928,7 @@ def _answer_body(
       result.addEventListener('click', (event) => {{
         const target = event.target;
         if (!(target instanceof HTMLElement) || !target.dataset.suggestedQuery) return;
-        const question = form.querySelector('textarea[name="question"]');
+        const question = form.querySelector('[name="question"]');
         if (question) {{
           question.value = target.dataset.suggestedQuery;
           form.requestSubmit();
@@ -826,6 +936,48 @@ def _answer_body(
       }});
     }})();
     </script>
+    """
+
+
+def _answer_body(
+    question: str = "",
+    collection: str = "literature",
+    top_k: int = 5,
+    method: str = "hybrid_cross_lingual",
+    answer_style: str = "claims",
+    answer_language: str = "auto",
+    result: str = "",
+) -> str:
+    method_options = "".join(
+        f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>"
+        for value in ("exact", "semantic", "hybrid", "hybrid_cross_lingual")
+    )
+    style_options = "".join(
+        f"<option value='{value}' {'selected' if answer_style == value else ''}>{label}</option>"
+        for value, label in (("claims", "Claims"), ("mini_review", "Mini-review by article"))
+    )
+    language_options = "".join(
+        f"<option value='{value}' {'selected' if answer_language == value else ''}>{label}</option>"
+        for value, label in (("auto", "Auto"), ("en", "English"), ("ru", "Russian"))
+    )
+    return f"""
+    <h1>Search the literature</h1>
+    <p class="page-kicker">Every claim should lead back to a source fragment.</p>
+    <form method="post" action="/ui/answer" data-async-result="/ui/answer/result">
+      <div class="answer-search">
+        <label><span class="section-kicker">Question</span><br><textarea name="question" rows="1">{_html(question)}</textarea></label>
+        <button type="submit">Search</button>
+      </div>
+      <div class="answer-controls">
+        <label>Collection<br><input name="collection" value="{_html(collection)}"></label>
+        <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
+        <label>Method<br><select name="method">{method_options}</select></label>
+        <label>Style<br><select name="answer_style">{style_options}</select></label>
+        <label>Answer language<br><select name="answer_language">{language_options}</select></label>
+      </div>
+    </form>
+    <div id="answer-result" aria-live="polite">{result}</div>
+    {_answer_progress_script("answer-result")}
     """
 
 
@@ -944,7 +1096,6 @@ def vector_index_rebuild_action(session: SessionDep, collection: str, embedding_
     return vector_indexes_page(session)
 
 
-@router.get("/ui/search", response_class=HTMLResponse)
 def search_page(
     session: SessionDep,
     q: str = "",
@@ -952,9 +1103,9 @@ def search_page(
     top_k: int = Query(default=10, ge=1),
     article_id: UUID | None = None,
     doi: str = "",
-    year: int | None = None,
-    year_from: int | None = None,
-    year_to: int | None = None,
+    year: str | int | None = "",
+    year_from: str | int | None = "",
+    year_to: str | int | None = "",
     journal: str = "",
     source_type: str = "",
     text_layer: str = "",
@@ -962,17 +1113,21 @@ def search_page(
     tag_value: str = "",
     method: str = "exact",
     group_by: str = "none",
-    chunks_per_article: int | None = None,
+    chunks_per_article: str | int | None = "",
 ) -> HTMLResponse:
     rows = ""
-    if chunks_per_article is not None and chunks_per_article <= 0:
+    year_filter = _optional_int_filter("year", year)
+    year_from_filter = _optional_int_filter("year_from", year_from)
+    year_to_filter = _optional_int_filter("year_to", year_to)
+    chunks_per_article_filter = _optional_int_filter("chunks_per_article", chunks_per_article)
+    if chunks_per_article_filter is not None and chunks_per_article_filter <= 0:
         raise HTTPException(status_code=400, detail="chunks_per_article must be positive")
     filters = SearchFilters.normalize(
         article_id=article_id,
         doi=doi,
-        year=year,
-        year_from=year_from,
-        year_to=year_to,
+        year=year_filter,
+        year_from=year_from_filter,
+        year_to=year_to_filter,
         journal=journal,
         source_type=source_type,
         text_layer=text_layer,
@@ -989,7 +1144,7 @@ def search_page(
                 method=method,
                 filters=filters,
                 group_by=group_by,
-                chunks_per_article=chunks_per_article,
+                chunks_per_article=chunks_per_article_filter,
                 settings=get_settings(),
             )
         except ValueError as exc:
@@ -1048,7 +1203,10 @@ def search_page(
     group_options = "".join(
         f"<option value='{value}' {'selected' if group_by == value else ''}>{value}</option>" for value in ("none", "article")
     )
-    chunks_value = "" if chunks_per_article is None else str(chunks_per_article)
+    year_value = "" if year_filter is None else str(year_filter)
+    year_from_value = "" if year_from_filter is None else str(year_from_filter)
+    year_to_value = "" if year_to_filter is None else str(year_to_filter)
+    chunks_value = "" if chunks_per_article_filter is None else str(chunks_per_article_filter)
     table_header = (
         '<tr><th>Article</th><th class="num">Best pages</th><th class="num">Best score</th>'
         '<th class="num">Chunks</th><th>Method</th><th>Best snippet</th><th>PDF</th></tr>'
@@ -1066,9 +1224,9 @@ def search_page(
       <label>Method<br><select name="method">{method_options}</select></label>
       <label>Top K<br><input name="top_k" type="number" value="{top_k}" min="1"></label>
       <label>DOI<br><input name="doi" value="{_html(doi)}"></label>
-      <label>Year<br><input name="year" type="number" value="{_html(year)}"></label>
-      <label>Year from<br><input name="year_from" type="number" value="{_html(year_from)}"></label>
-      <label>Year to<br><input name="year_to" type="number" value="{_html(year_to)}"></label>
+      <label>Year<br><input name="year" type="number" value="{_html(year_value)}"></label>
+      <label>Year from<br><input name="year_from" type="number" value="{_html(year_from_value)}"></label>
+      <label>Year to<br><input name="year_to" type="number" value="{_html(year_to_value)}"></label>
       <label>Journal<br><input name="journal" value="{_html(journal)}"></label>
       <label>Tag type<br><input name="tag_type" value="{_html(tag_type)}"></label>
       <label>Tag value<br><input name="tag_value" value="{_html(tag_value)}"></label>
