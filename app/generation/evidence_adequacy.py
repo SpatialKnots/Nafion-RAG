@@ -115,15 +115,24 @@ def assess_evidence_adequacy(
     top_matched_terms = [term for term in distinctive_terms if term_matches_text(term, top_text)]
     coverage = len(matched_terms) / len(distinctive_terms)
     top_coverage = len(top_matched_terms) / len(distinctive_terms)
+    concept_coverage = _concept_coverage(all_text, concept_terms or {})
+    concept_coverage_value = concept_coverage.get("coverage")
+    concept_adequate = isinstance(concept_coverage_value, float) and concept_coverage_value >= 0.6
     if len(distinctive_terms) <= 2:
-        adequate = len(matched_terms) >= 1
+        term_adequate = len(matched_terms) >= 1
     else:
-        adequate = (
+        term_adequate = (
             (len(matched_terms) >= 2 and coverage >= 0.6)
             or (len(top_matched_terms) >= 2 and top_coverage >= 0.5)
             or (len(matched_terms) >= 5 and len(top_matched_terms) >= 2)
         )
-    reason = "sufficient_distinctive_term_coverage" if adequate else "insufficient_distinctive_term_coverage"
+    adequate = term_adequate or concept_adequate
+    if term_adequate:
+        reason = "sufficient_distinctive_term_coverage"
+    elif concept_adequate:
+        reason = "sufficient_concept_coverage"
+    else:
+        reason = "insufficient_distinctive_term_coverage"
     return EvidenceAdequacy(
         adequate=adequate,
         query_terms=query_terms,
@@ -133,7 +142,7 @@ def assess_evidence_adequacy(
         coverage=coverage,
         top_coverage=top_coverage,
         reason=reason,
-        concept_coverage=_concept_coverage(all_text, concept_terms or {}),
+        concept_coverage=concept_coverage,
     )
 
 

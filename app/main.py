@@ -54,7 +54,7 @@ class AnswerRequest(BaseModel):
     question: str = Field(min_length=1)
     collection: str = "literature"
     top_k: int = Field(default=5, ge=1)
-    method: str = "hybrid"
+    method: str = "hybrid_cross_lingual"
     answer_style: str = "claims"
     answer_language: str = "auto"
 

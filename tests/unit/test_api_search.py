@@ -288,8 +288,8 @@ def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:
             answer=None,
             claims=[],
             citations=[],
-            retrieval_method="hybrid",
-            generation_provider="extractive",
+            retrieval_method="hybrid_cross_lingual",
+            generation_provider="openai",
             generation_model=None,
             metadata={},
         )
@@ -303,7 +303,8 @@ def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:
     payload = main.answer(object(), main.AnswerRequest(question="question", answer_style="mini_review"))
 
     assert payload["status"] == "insufficient_evidence"
-    assert payload["retrieval_method"] == "hybrid"
+    assert payload["retrieval_method"] == "hybrid_cross_lingual"
+    assert captured_kwargs["method"] == "hybrid_cross_lingual"
     assert captured_kwargs["answer_style"] == "mini_review"
     assert captured_kwargs["answer_language"] == "auto"
 

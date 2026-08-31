@@ -57,12 +57,21 @@ entries:
       - "равновесная степень набухания"
   - concept: solution_casting_morphology
     en:
+      - "dependence morphology solvent"
+      - "solvent nature film morphology"
       - "solution casting morphology properties"
       - "nafion membranes prepared by solution casting"
       - "solvent casting morphology properties"
       - "solution casting"
       - "solvent casting"
-    ru: []
+    ru:
+      - "зависимость морфологии растворителя"
+      - "природа растворителя морфология пленок"
+      - "природа растворителя морфология плёнок"
+      - "получение пленок морфология"
+      - "получение плёнок морфология"
+      - "влияние растворителя на морфологию"
+      - "морфология мембран"
   - concept: casting_annealing
     en:
       - "casting solvent annealing temperature"

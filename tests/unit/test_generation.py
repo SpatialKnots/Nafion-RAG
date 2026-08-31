@@ -9,13 +9,11 @@ from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.generation.evidence_selection import select_answer_evidence
 from app.generation.providers import (
     SCIENTIFIC_ANSWER_SYSTEM_PROMPT,
-    DeepSeekAnswerProvider,
     Evidence,
     ExtractiveAnswerProvider,
     GeneratedClaim,
     GenerationOutputError,
     GenerationUnavailableError,
-    OllamaAnswerProvider,
     OpenAIAnswerProvider,
     ProviderResult,
 )
@@ -52,6 +50,8 @@ def test_answer_question_returns_source_linked_extractive_claims(monkeypatch) ->
     assert response.answer == "Conductivity was measured by impedance spectroscopy. [E1]"
     assert payload["citations"][0]["chunk_id"] == search_result.chunk_id  # type: ignore[index]
     assert payload["citations"][0]["page_start"] == 2  # type: ignore[index]
+    assert payload["citations"][0]["pdf_page_url"] == f"/articles/{search_result.article_id}/pdf?layer=original#page=2"  # type: ignore[index]
+    assert payload["citations"][0]["context_url"].endswith("?before=1&after=1")  # type: ignore[index]
     assert payload["citations"][0]["method_ranks"] == {"exact_ilike": 1, "semantic_cosine": 2}  # type: ignore[index]
 
 
@@ -97,6 +97,45 @@ def test_answer_question_uses_full_text_as_generation_evidence(monkeypatch) -> N
 
     assert provider.evidence_texts == ["Full table text: DMF row separates temperature range and conductivity at 25 C."]
     assert response.citations[0].text == "Truncated table row with DMF."
+
+
+def test_answer_question_uses_display_snippets_for_extractive_provider(monkeypatch) -> None:
+    search_result = _search_result()
+    search_result = SearchResult(
+        article_id=search_result.article_id,
+        chunk_id=search_result.chunk_id,
+        title=search_result.title,
+        doi=search_result.doi,
+        page_start=search_result.page_start,
+        page_end=search_result.page_end,
+        source_type="body",
+        snippet="Small-angle X-ray scattering found ionic clusters in hydrated Nafion.",
+        full_text=(
+            "Small-angle X-ray scattering found ionic clusters in hydrated Nafion. "
+            + "Long OCR body text unrelated to the displayed answer. " * 50
+        ),
+        score=search_result.score,
+        retrieval_method=search_result.retrieval_method,
+    )
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="small-angle X-ray scattering Nafion",
+            results=[search_result],
+            metadata={"fusion": "reciprocal_rank_fusion"},
+        ),
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "small-angle X-ray scattering Nafion",
+        provider=ExtractiveAnswerProvider(max_claims=3),
+    )
+
+    assert response.status == "answered"
+    assert response.answer == "Small-angle X-ray scattering found ionic clusters in hydrated Nafion. [E1]"
+    assert "Long OCR body text" not in response.answer
 
 
 def test_answer_question_displays_marker_centered_citation_excerpt(monkeypatch) -> None:
@@ -168,6 +207,88 @@ def test_answer_question_passes_mini_review_style_to_provider(monkeypatch) -> No
     assert response.metadata["answer_style"] == "mini_review"
 
 
+def test_answer_question_merges_mini_review_claims_by_article(monkeypatch) -> None:
+    first_article_id = str(uuid.UUID(int=41))
+    second_article_id = str(uuid.UUID(int=42))
+    results = [
+        SearchResult(
+            article_id=first_article_id,
+            chunk_id=str(uuid.UUID(int=43)),
+            title="Nafion casting paper",
+            doi="10.1000/casting",
+            page_start=2,
+            page_end=2,
+            source_type="body",
+            snippet="Nafion conductivity was measured after solution casting.",
+            full_text="Nafion conductivity was measured after solution casting.",
+            score=0.03,
+            retrieval_method="hybrid_rrf",
+        ),
+        SearchResult(
+            article_id=first_article_id,
+            chunk_id=str(uuid.UUID(int=44)),
+            title="Nafion casting paper",
+            doi="10.1000/casting",
+            page_start=4,
+            page_end=4,
+            source_type="body",
+            snippet="Nafion morphology changed with solvent composition.",
+            full_text="Nafion morphology changed with solvent composition.",
+            score=0.02,
+            retrieval_method="hybrid_rrf",
+        ),
+        SearchResult(
+            article_id=second_article_id,
+            chunk_id=str(uuid.UUID(int=45)),
+            title="Second Nafion paper",
+            doi="10.1000/second",
+            page_start=1,
+            page_end=1,
+            source_type="body",
+            snippet="A separate Nafion study reports conductivity trends.",
+            full_text="A separate Nafion study reports conductivity trends.",
+            score=0.01,
+            retrieval_method="hybrid_rrf",
+        ),
+    ]
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(query="Nafion conductivity morphology", results=results),
+    )
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[
+                GeneratedClaim(text="The casting paper reports conductivity.", citation_ids=["E1"]),
+                GeneratedClaim(text="The casting paper also reports morphology.", citation_ids=["E2"]),
+                GeneratedClaim(text="The second paper reports a separate trend.", citation_ids=["E3"]),
+            ],
+            provider="openai",
+            model="test-model",
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "Nafion conductivity morphology",
+        answer_style="mini_review",
+        provider=provider,
+    )
+
+    assert response.claims == [
+        GeneratedClaim(
+            text="The casting paper reports conductivity. The casting paper also reports morphology.",
+            citation_ids=["E1", "E2"],
+        ),
+        GeneratedClaim(text="The second paper reports a separate trend.", citation_ids=["E3"]),
+    ]
+    assert response.answer == (
+        "The casting paper reports conductivity. The casting paper also reports morphology. [E1] [E2]\n\n"
+        "The second paper reports a separate trend. [E3]"
+    )
+
+
 def test_answer_question_passes_answer_language_to_provider(monkeypatch) -> None:
     search_result = _search_result()
     monkeypatch.setattr(
@@ -234,6 +355,28 @@ def test_evidence_adequacy_accepts_inflected_russian_plasticizer_conductivity_qu
     assert adequacy.adequate is True
     assert "пластификаторах" in adequacy.matched_terms
     assert "наибольшую" in adequacy.matched_terms
+
+
+def test_evidence_adequacy_accepts_cross_lingual_concept_coverage() -> None:
+    adequacy = assess_evidence_adequacy(
+        "Nafion зависимость морфологии от природы растворителя при получении плёнок",
+        [
+            _evidence(
+                "Morphology and properties of Nafion membranes prepared by solution casting "
+                "depend on solvent processing conditions."
+            )
+        ],
+        concept_terms={
+            "solution_casting_morphology": {
+                "en": ["nafion membranes prepared by solution casting", "solution casting"],
+                "ru": ["природа растворителя морфология плёнок"],
+            }
+        },
+    )
+
+    assert adequacy.adequate is True
+    assert adequacy.reason == "sufficient_concept_coverage"
+    assert adequacy.concept_coverage["matched"] == ["solution_casting_morphology"]
 
 
 def test_answer_question_refuses_when_retrieval_returns_no_evidence(monkeypatch) -> None:
@@ -676,6 +819,89 @@ def test_answer_question_uses_cross_lingual_variant_terms_for_evidence_selection
     assert response.citations[0].title == "Диссертация Чернюк С.Д."
 
 
+def test_answer_question_deduplicates_near_duplicate_article_evidence(monkeypatch) -> None:
+    article_id = str(uuid.UUID(int=30))
+    first = SearchResult(
+        article_id=article_id,
+        chunk_id=str(uuid.UUID(int=31)),
+        title="Moore and Martin 1988",
+        doi=None,
+        page_start=3,
+        page_end=4,
+        source_type="body",
+        snippet="Small-angle X-ray scattering found a peak assigned to ionic clusters in hydrated Nafion.",
+        full_text=(
+            "Wide- and Small-Angle X-ray Studies used small-angle X-ray scattering for Nafion. "
+            "A large scattering peak was attributed to ionic clusters in hydrated Nafion."
+        ),
+        score=0.02,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    duplicate = SearchResult(
+        article_id=article_id,
+        chunk_id=str(uuid.UUID(int=32)),
+        title="Moore and Martin 1988",
+        doi=None,
+        page_start=3,
+        page_end=3,
+        source_type="body",
+        snippet="Small-angle X-ray scattering found a peak assigned to ionic clusters in hydrated Nafion.",
+        full_text=(
+            "Wide- and Small-Angle X-ray Studies used small-angle X-ray scattering for Nafion. "
+            "A large scattering peak was attributed to ionic clusters in hydrated Nafion."
+        ),
+        score=0.019,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    other = SearchResult(
+        article_id=str(uuid.UUID(int=33)),
+        chunk_id=str(uuid.UUID(int=34)),
+        title="Welch 2012",
+        doi=None,
+        page_start=1,
+        page_end=2,
+        source_type="body",
+        snippet="Small angle scattering studies reported Nafion dispersion morphology in solvent systems.",
+        full_text="Small angle scattering studies reported Nafion dispersion morphology in solvent systems.",
+        score=0.018,
+        retrieval_method="hybrid_cross_lingual_rrf",
+    )
+    monkeypatch.setattr(
+        "app.generation.service.search_chunks",
+        lambda *args, **kwargs: SearchResponse(
+            query="small-angle X-ray scattering Nafion",
+            results=[first, duplicate, other],
+            metadata={"fusion": "reciprocal_rank_fusion"},
+        ),
+    )
+    provider = CapturingProvider(
+        ProviderResult(
+            answerable=True,
+            claims=[
+                GeneratedClaim(text="SAXS evidence supports ionic cluster discussion.", citation_ids=["E1"]),
+                GeneratedClaim(text="Additional scattering evidence is available.", citation_ids=["E2"]),
+            ],
+            provider="openai",
+            model="test-model",
+        )
+    )
+
+    response = answer_question(
+        object(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        "small-angle X-ray scattering Nafion",
+        provider=provider,
+    )
+
+    assert response.status == "answered"
+    assert len(provider.evidence_texts) == 2
+    assert [citation.chunk_id for citation in response.citations] == [first.chunk_id, other.chunk_id]
+    deduplication = response.metadata["answer_evidence_deduplication"]  # type: ignore[index]
+    assert deduplication["input_count"] == 3  # type: ignore[index]
+    assert deduplication["kept_count"] == 2  # type: ignore[index]
+    assert deduplication["dropped_count"] == 1  # type: ignore[index]
+
+
 def test_answer_question_prioritizes_swelling_comparison_table_for_generation() -> None:
     generic = SearchResult(
         article_id=str(uuid.UUID(int=20)),
@@ -838,25 +1064,8 @@ def test_build_answer_provider_rejects_unknown_provider() -> None:
     settings = _settings()
     settings.rag_provider = "unknown"
 
-    with pytest.raises(ValueError, match="Unsupported RAG provider"):
+    with pytest.raises(ValueError, match="Supported provider: openai"):
         build_answer_provider(settings)  # type: ignore[arg-type]
-
-
-def test_ollama_provider_requires_configured_model() -> None:
-    with pytest.raises(GenerationUnavailableError, match="RAG_MODEL"):
-        OllamaAnswerProvider(base_url="http://127.0.0.1:11434", model="", timeout_seconds=10)
-
-
-def test_ollama_provider_parses_structured_claims() -> None:
-    provider = OllamaAnswerProvider(base_url="http://127.0.0.1:11434", model="test-model", timeout_seconds=10)
-
-    result = provider._parse_response(  # noqa: SLF001 - direct parser unit test
-        {"message": {"content": '{"answerable":true,"claims":[{"text":"Supported","citation_ids":["E1"]}]}'}}
-    )
-
-    assert result.answerable is True
-    assert result.claims == [GeneratedClaim(text="Supported", citation_ids=["E1"])]
-    assert result.model == "test-model"
 
 
 def test_openai_provider_requires_api_key() -> None:
@@ -890,12 +1099,14 @@ def test_openai_provider_parses_structured_claims() -> None:
 
 
 def test_provider_system_prompt_preserves_table_semantics() -> None:
+    assert "Do not write citation IDs in claim text" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
     assert "preserve row and column meaning" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
     assert "enumerate all supported matching rows" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
     assert "Compare numeric table cells arithmetically" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
     assert "Do not merge a temperature range" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
     assert "at-25-C conductivity columns" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
     assert "same cited row" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
+    assert "no more than one claim per article/work" in SCIENTIFIC_ANSWER_SYSTEM_PROMPT
 
 
 def test_extractive_provider_collapses_pdf_line_breaks_in_answer_text() -> None:
@@ -928,20 +1139,10 @@ def test_llm_provider_prompts_collapse_pdf_line_breaks_in_evidence() -> None:
         timeout_seconds=10,
         max_tokens=100,
     )
-    deepseek_provider = DeepSeekAnswerProvider(
-        base_url="https://api.deepseek.com",
-        api_key="test-key",
-        model="deepseek-v4-flash",
-        timeout_seconds=10,
-        max_tokens=100,
-    )
-    ollama_provider = OllamaAnswerProvider(base_url="http://127.0.0.1:11434", model="test-model", timeout_seconds=10)
 
     expected = "Подставляя для Li-Nafion в ДМФА ЭВ = 1100 г/моль"
 
     assert expected in openai_provider._user_prompt("question", evidence)  # noqa: SLF001 - prompt normalization test
-    assert expected in deepseek_provider._user_prompt("question", evidence)  # noqa: SLF001 - prompt normalization test
-    assert expected in ollama_provider._user_prompt("question", evidence)  # noqa: SLF001 - prompt normalization test
 
 
 def test_build_answer_provider_accepts_openai() -> None:
@@ -952,36 +1153,6 @@ def test_build_answer_provider_accepts_openai() -> None:
     provider = build_answer_provider(settings)  # type: ignore[arg-type]
 
     assert isinstance(provider, OpenAIAnswerProvider)
-
-
-def test_deepseek_provider_requires_api_key() -> None:
-    with pytest.raises(GenerationUnavailableError, match="DEEPSEEK_API_KEY"):
-        DeepSeekAnswerProvider(
-            base_url="https://api.deepseek.com",
-            api_key="",
-            model="deepseek-v4-flash",
-            timeout_seconds=10,
-            max_tokens=100,
-        )
-
-
-def test_deepseek_provider_parses_structured_claims() -> None:
-    provider = DeepSeekAnswerProvider(
-        base_url="https://api.deepseek.com",
-        api_key="test-key",
-        model="deepseek-v4-flash",
-        timeout_seconds=10,
-        max_tokens=100,
-    )
-
-    result = provider._parse_response(  # noqa: SLF001 - direct parser unit test
-        {"choices": [{"message": {"content": '{"answerable":true,"claims":[{"text":"Supported","citation_ids":["E1"]}]}'}}]}
-    )
-
-    assert result.answerable is True
-    assert result.claims == [GeneratedClaim(text="Supported", citation_ids=["E1"])]
-    assert result.provider == "deepseek"
-    assert result.model == "deepseek-v4-flash"
 
 
 class StaticProvider:
@@ -1025,17 +1196,12 @@ def _settings() -> SimpleNamespace:
         default_collection="literature",
         rag_top_k=5,
         rag_retrieval_method="hybrid",
-        rag_provider="extractive",
+        rag_provider="openai",
         rag_max_claims=5,
-        rag_ollama_url="http://127.0.0.1:11434",
         rag_openai_base_url="https://api.openai.com/v1",
         rag_openai_api_key="",
         rag_openai_model="gpt-4.1-mini",
         rag_openai_max_tokens=1200,
-        rag_deepseek_url="https://api.deepseek.com",
-        rag_deepseek_api_key="",
-        rag_deepseek_model="deepseek-v4-flash",
-        rag_deepseek_max_tokens=1200,
         rag_model="",
         rag_timeout_seconds=120,
     )

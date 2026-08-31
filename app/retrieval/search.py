@@ -734,7 +734,13 @@ def hybrid_cross_lingual_search(
         window_size=_cross_lingual_rerank_window_size(bundle, top_k=top_k, candidate_window=variant_top_k),
     )
     fused_results = reranked.results
-    limited_results = _diversify_cross_lingual_results(fused_results, preferred_per_article=2)[:top_k]
+    diversified_results = _diversify_cross_lingual_results(fused_results, preferred_per_article=2)
+    language_diverse_results, language_diversity_metadata = _ensure_cross_language_presence(
+        diversified_results,
+        query_language=bundle.language,
+        top_k=top_k,
+    )
+    limited_results = language_diverse_results[:top_k]
     metadata = _metadata(
         normalized_filters,
         {
@@ -744,6 +750,7 @@ def hybrid_cross_lingual_search(
             "component_methods": ["hybrid_rrf", "exact_ilike_glossary"],
             "cross_lingual": query_bundle_metadata(bundle, variant_hits),
             "reranking": reranked.metadata,
+            "language_diversity": language_diversity_metadata,
         },
     )
     if normalized_group_by == "article":
@@ -957,6 +964,36 @@ def _diversify_cross_lingual_results(results: list[SearchResult], *, preferred_p
             deferred.append(result)
         article_counts[result.article_id] = count + 1
     return [*selected, *deferred]
+
+
+def _ensure_cross_language_presence(
+    results: list[SearchResult],
+    *,
+    query_language: str,
+    top_k: int,
+) -> tuple[list[SearchResult], dict[str, object]]:
+    if query_language not in {"en", "ru"} or top_k <= 1 or len(results) <= top_k:
+        return results, {"applied": False, "reason": "not_applicable"}
+    visible = results[:top_k]
+    if any(_cross_language_result_bonus(query_language, result) for result in visible):
+        return results, {"applied": False, "reason": "already_present"}
+    replacement_index = next(
+        (index for index, result in enumerate(results[top_k:], start=top_k) if _cross_language_result_bonus(query_language, result)),
+        None,
+    )
+    if replacement_index is None:
+        return results, {"applied": False, "reason": "no_cross_language_candidate"}
+
+    replacement = results[replacement_index]
+    adjusted = [*visible[:-1], replacement, *results[top_k:replacement_index], visible[-1], *results[replacement_index + 1 :]]
+    return adjusted, {
+        "applied": True,
+        "query_language": query_language,
+        "inserted_chunk_id": replacement.chunk_id,
+        "inserted_article_id": replacement.article_id,
+        "inserted_from_rank": replacement_index + 1,
+        "inserted_at_rank": top_k,
+    }
 
 
 def concrete_retrieval_method(method: str) -> str:

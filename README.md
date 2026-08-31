@@ -39,10 +39,7 @@ evidence check
   |
   v
 answer provider
-  - extractive
   - OpenAI
-  - Ollama
-  - DeepSeek
   |
   v
 answer with citations
@@ -68,6 +65,8 @@ Main entry points:
 - Search by exact, semantic, or hybrid retrieval.
 - Build a local FastEmbed vector index.
 - Answer questions with source-linked citations.
+- Produce OpenAI mini-reviews grouped by article.
+- Link answer citation markers to the cited PDF page.
 - Refuse answers when the retrieved evidence is too weak.
 - Suggest likely domain query fixes, for example `litation -> lithiation`.
 - Evaluate retrieval and answer behavior with YAML question sets.
@@ -137,14 +136,14 @@ The UI should suggest a corrected query:
 Li-Nafion membrane lithiation protocol
 ```
 
-After using the suggestion, the answer layer searches the corpus, checks whether the evidence is strong enough, and returns a cited answer or a refusal.
+After using the suggestion, the answer layer searches the corpus with cross-lingual query variants, checks whether the evidence is strong enough, and returns a cited answer or a refusal.
 
 API example:
 
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/answer `
   -ContentType application/json `
-  -Body '{"question":"Li-Nafion membrane lithiation protocol","method":"hybrid","top_k":5,"answer_style":"mini_review"}'
+  -Body '{"question":"Li-Nafion membrane lithiation protocol","method":"hybrid_cross_lingual","top_k":5,"answer_style":"mini_review"}'
 ```
 
 Search example:
@@ -183,24 +182,17 @@ Build the local semantic index:
 python -m app.retrieval.cli build --embedding-model BAAI/bge-small-en-v1.5 --batch-size 64
 ```
 
-Then use semantic or hybrid retrieval:
+Then use semantic, hybrid, or cross-lingual hybrid retrieval:
 
 ```text
 GET /search?q=proton%20transport&collection=literature&top_k=10&method=semantic
 GET /search?q=proton%20transport&collection=literature&top_k=10&method=hybrid
+GET /search?q=proton%20transport&collection=literature&top_k=10&method=hybrid_cross_lingual
 ```
 
 ## Answer Providers
 
-Default:
-
-```text
-RAG_PROVIDER=extractive
-```
-
-The extractive provider returns evidence snippets without calling an external model.
-
-Optional providers:
+Supported provider:
 
 ```text
 RAG_PROVIDER=openai
@@ -208,18 +200,9 @@ RAG_OPENAI_API_KEY=...
 RAG_OPENAI_MODEL=...
 ```
 
-```text
-RAG_PROVIDER=ollama
-RAG_MODEL=...
-```
+OpenAI generates structured evidence-grounded claims from retrieved source fragments. Generated claims are rejected if they omit citations or cite unknown evidence IDs.
 
-```text
-RAG_PROVIDER=deepseek
-RAG_DEEPSEEK_API_KEY=...
-RAG_DEEPSEEK_MODEL=...
-```
-
-Generated claims are rejected if they omit citations or cite unknown evidence IDs.
+For `answer_style=mini_review`, the answer layer keeps the output article-centered: evidence from the same article is consolidated into one article/work claim with all relevant citation IDs attached once. Citation markers such as `[E1]` and `[E2]` resolve to the original PDF page where the cited fragment starts, while the UI still exposes context links for inspecting neighboring chunks.
 
 ## Evaluation
 

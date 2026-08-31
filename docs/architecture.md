@@ -80,15 +80,17 @@ Successful upload ingestion updates PostgreSQL evidence immediately. Semantic an
 
 ```text
 question
-  -> configured retrieval method (hybrid by default for /answer)
+  -> configured retrieval method (hybrid_cross_lingual by default for /answer)
+  -> original query plus validated English/Russian glossary variants
   -> evidence IDs E1..En with article/chunk/page provenance
-  -> configured answer provider
+  -> near-duplicate evidence removal and citation renumbering
+  -> OpenAI answer provider
   -> structured claims with citation IDs
   -> reject empty claims, uncited claims, and unknown citation IDs
   -> answer text plus claims and source-linked citations
 ```
 
-The default provider is `extractive`: each claim is an exact returned evidence excerpt. The optional `ollama` provider requests structured claims from an operator-configured local Ollama endpoint. Retrieved text is marked as untrusted data in the generation prompt. Provider output is structurally validated, but citation presence alone does not prove semantic entailment for generated prose.
+The supported runtime provider is `openai`. Retrieved text is marked as untrusted data in the generation prompt. Provider output is structurally validated, but citation presence alone does not prove semantic entailment for generated prose.
 
 ## Not Implemented
 

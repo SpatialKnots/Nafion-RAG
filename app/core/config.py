@@ -30,19 +30,14 @@ class Settings(BaseSettings):
     default_top_k: int = 10
     search_max_top_k: int = Field(default=100, ge=1)
     result_page_size_max: int = Field(default=100, ge=1)
-    rag_provider: str = "extractive"
-    rag_retrieval_method: str = "hybrid"
+    rag_provider: str = "openai"
+    rag_retrieval_method: str = "hybrid_cross_lingual"
     rag_top_k: int = Field(default=5, ge=1)
     rag_max_claims: int = Field(default=5, ge=1)
-    rag_ollama_url: str = "http://127.0.0.1:11434"
     rag_openai_base_url: str = "https://api.openai.com/v1"
     rag_openai_api_key: str = ""
     rag_openai_model: str = "gpt-4.1-mini"
     rag_openai_max_tokens: int = Field(default=1200, ge=1)
-    rag_deepseek_url: str = "https://api.deepseek.com"
-    rag_deepseek_api_key: str = ""
-    rag_deepseek_model: str = "deepseek-v4-flash"
-    rag_deepseek_max_tokens: int = Field(default=1200, ge=1)
     rag_model: str = ""
     rag_timeout_seconds: int = Field(default=120, ge=1)
     enable_external_metadata_lookup: bool = False

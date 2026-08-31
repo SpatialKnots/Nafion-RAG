@@ -302,6 +302,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
                     "doi": "10.1000/example",
                     "page_start": 1,
                     "page_end": 1,
+                    "pdf_page_url": f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1",
                     "text": "Nafion conductivity evidence.",
                     "score": 2.5,
                     "original_language": "en",
@@ -351,6 +352,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
     assert "source-fragment" in body
     assert "translation=not_requested" in body
     assert ">[E1]</a>" in body
+    assert f"href='/articles/{ARTICLE_ID}/pdf?layer=original#page=1'" in body
     assert ">Evidence</a>" in body
     assert "highlight_query=Nafion+conductivity+evidence." in body
     assert "highlight_mode=phrase" in body

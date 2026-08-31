@@ -1,6 +1,6 @@
 # Phase 4 Evidence-Grounded Answers
 
-Date: 2026-08-04
+Date: 2026-08-31
 
 ## Implemented Contract
 
@@ -11,50 +11,45 @@ Date: 2026-08-04
 - structured claims;
 - citation IDs attached to every claim;
 - article, DOI, chunk, page range, source type, and exact returned excerpt;
-- retrieval and generation metadata.
+- retrieval, evidence selection, evidence deduplication, adequacy, and generation metadata.
 
 Unknown citations, uncited claims, empty answerable output, and malformed provider output are rejected rather than returned to the caller.
 
-## Providers
+## Provider
 
-`extractive` is the verified default. It copies retrieved snippets into claims, so each claim is exactly present in its cited evidence. It is an evidence presentation mode, not synthesized scientific prose.
+OpenAI is the supported answer provider:
 
-`ollama` is implemented as an optional structured-output provider. No Ollama executable, running model service, or configured model was found in the local environment during this gate. Therefore Ollama generation is not reported as runtime-verified.
+```text
+RAG_PROVIDER=openai
+RAG_OPENAI_BASE_URL=https://api.openai.com/v1
+RAG_OPENAI_API_KEY=<operator-provided-key>
+RAG_OPENAI_MODEL=gpt-4.1-mini
+RAG_OPENAI_MAX_TOKENS=1200
+RAG_TIMEOUT_SECONDS=120
+```
+
+Retrieved text is supplied as untrusted evidence. The provider must return structured claims with known evidence IDs. The application validates the returned structure and citation IDs before rendering.
+
+## Evidence Deduplication
+
+Before adequacy assessment and generation, the answer layer removes duplicate or near-duplicate evidence chunks from the same article/title and renumbers citation IDs. This avoids sending repeated neighboring chunks such as overlapping SAXS passages from the same paper as separate evidence items.
 
 ## Evaluation
 
-Configuration:
+Run structural and gold-target answer evaluation with:
 
-- retrieval: `hybrid_rrf`;
-- `top_k`: 5;
-- provider: `extractive`;
-- questions: 24.
+```powershell
+python -m app.evaluation.cli answers docs/evaluation_questions.yaml --top-k 5 --method hybrid
+```
 
-Result from `data/exports/answer_eval_20260804T053433Z.json`:
-
-| Metric | Result |
-| --- | ---: |
-| Gold-target PASS | 22/24 |
-| Answered | 24/24 |
-| Refused | 0/24 |
-| Claims | 120 |
-| Citation coverage | 1.0 |
-| Claims exactly equal to cited excerpts | 120/120 |
-
-Failures:
-
-- `q19_chernyuk_2024_enthalpy_solutions`: the target article/checksum and expected alcohol term were absent from the first five answer citations;
-- `q23_welch_broad_sans_morphology_2012`: `morphology` was absent from the first five answer excerpts.
-
-These are evidence-selection failures at `top_k=5`, not missing or invalid citations.
+This evaluation checks target articles, expected keywords, citation coverage, refusals, and provider output structure. It does not independently prove scientific entailment of generated prose.
 
 ## Limitations
 
-- Citation structure is validated, but semantic entailment of future generated prose is not yet independently verified.
-- The current refusal rule is structural: no retrieved evidence or provider-declared insufficiency. Semantic retrieval normally returns candidates, so refusal behavior needs a dedicated evidence-adequacy policy before generated prose is promoted.
-- No local generative runtime was available for an end-to-end Ollama evaluation.
-- This phase does not add conversational history or external metadata.
+- OpenAI API availability and key validity are runtime dependencies.
+- Citation structure is validated, but semantic entailment of generated prose still requires separate evaluation.
+- No external metadata lookup is performed.
 
 ## Verdict
 
-The answer API and fully traceable extractive mode are operational. Optional Ollama integration is implemented but remains unverified in this environment. Generated scientific prose must not be described as validated until a model is installed and a separate entailment/refusal evaluation is completed.
+The answer API is OpenAI-backed, evidence-grounded, citation-validated, and deduplicates near-identical evidence before generation.

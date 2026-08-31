@@ -4,22 +4,22 @@ import re
 from dataclasses import asdict, dataclass, replace
 from decimal import Decimal, InvalidOperation
 from typing import Any, cast
+from urllib.parse import urlencode
 
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.documents.service import build_pdf_url
 from app.generation.evidence_adequacy import LIGATURES, assess_evidence_adequacy
 from app.generation.evidence_selection import select_answer_evidence
 from app.generation.providers import (
     AnswerLanguage,
     AnswerProvider,
     AnswerStyle,
-    DeepSeekAnswerProvider,
     Evidence,
     ExtractiveAnswerProvider,
     GeneratedClaim,
     GenerationOutputError,
-    OllamaAnswerProvider,
     OpenAIAnswerProvider,
 )
 from app.generation.query_assist import query_assistance_to_dict, suggest_query_corrections
@@ -75,14 +75,6 @@ def normalize_answer_language(answer_language: str) -> AnswerLanguage:
 
 def build_answer_provider(settings: Settings) -> AnswerProvider:
     provider = settings.rag_provider.strip().lower()
-    if provider == "extractive":
-        return ExtractiveAnswerProvider(settings.rag_max_claims)
-    if provider == "ollama":
-        return OllamaAnswerProvider(
-            base_url=settings.rag_ollama_url,
-            model=settings.rag_model,
-            timeout_seconds=settings.rag_timeout_seconds,
-        )
     if provider == "openai":
         return OpenAIAnswerProvider(
             base_url=settings.rag_openai_base_url,
@@ -91,15 +83,7 @@ def build_answer_provider(settings: Settings) -> AnswerProvider:
             timeout_seconds=settings.rag_timeout_seconds,
             max_tokens=settings.rag_openai_max_tokens,
         )
-    if provider == "deepseek":
-        return DeepSeekAnswerProvider(
-            base_url=settings.rag_deepseek_url,
-            api_key=settings.rag_deepseek_api_key,
-            model=settings.rag_model or settings.rag_deepseek_model,
-            timeout_seconds=settings.rag_timeout_seconds,
-            max_tokens=settings.rag_deepseek_max_tokens,
-        )
-    raise ValueError(f"Unsupported RAG provider: {settings.rag_provider}. Supported providers: extractive, ollama, openai, deepseek")
+    raise ValueError(f"Unsupported RAG provider: {settings.rag_provider}. Supported provider: openai")
 
 
 def _evidence_from_response(response: SearchResponse, *, use_full_text: bool = False) -> list[Evidence]:
@@ -205,6 +189,7 @@ def answer_question(
         evidence,
         display_evidence,
     )
+    evidence, display_evidence, deduplication_metadata = _deduplicate_parallel_evidence(evidence, display_evidence)
     cross_lingual_concepts = _cross_lingual_matched_concepts(retrieval.metadata)
     adequacy = assess_evidence_adequacy(
         normalized_question,
@@ -226,6 +211,7 @@ def answer_question(
         "retrieval": retrieval.metadata,
         "retrieved_count": len(retrieval.results),
         "answer_evidence_selection": evidence_selection.metadata,
+        "answer_evidence_deduplication": deduplication_metadata,
         "evidence_adequacy": adequacy_metadata,
         "answer_style": active_answer_style,
         "answer_language": active_answer_language,
@@ -248,9 +234,10 @@ def answer_question(
             metadata=base_metadata,
         )
     active_provider = provider or build_answer_provider(settings)
+    generation_evidence = display_evidence if isinstance(active_provider, ExtractiveAnswerProvider) else evidence
     generated = active_provider.generate(
         normalized_question,
-        evidence,
+        generation_evidence,
         answer_style=active_answer_style,
         answer_language=active_answer_language,
     )
@@ -266,15 +253,21 @@ def answer_question(
             generation_model=generated.model,
             metadata=base_metadata,
         )
-    _validate_claims(generated.claims, evidence)
-    used_ids = {citation_id for claim in generated.claims for citation_id in claim.citation_ids}
+    _validate_claims(generated.claims, generation_evidence)
+    claims = (
+        _merge_mini_review_claims_by_article(generated.claims, generation_evidence)
+        if active_answer_style == "mini_review"
+        else generated.claims
+    )
+    _validate_claims(claims, generation_evidence)
+    used_ids = {citation_id for claim in claims for citation_id in claim.citation_ids}
     used_evidence = [item for item in display_evidence if item.citation_id in used_ids]
-    answer = "\n\n".join(f"{claim.text} {' '.join(f'[{citation_id}]' for citation_id in claim.citation_ids)}" for claim in generated.claims)
+    answer = "\n\n".join(f"{claim.text} {' '.join(f'[{citation_id}]' for citation_id in claim.citation_ids)}" for claim in claims)
     return AnswerResponse(
         query=normalized_question,
         status="answered",
         answer=answer,
-        claims=generated.claims,
+        claims=claims,
         citations=used_evidence,
         retrieval_method=active_method,
         generation_provider=generated.provider,
@@ -289,12 +282,28 @@ def answer_response_to_dict(response: AnswerResponse) -> dict[str, Any]:
         "status": response.status,
         "answer": response.answer,
         "claims": [asdict(claim) for claim in response.claims],
-        "citations": [asdict(citation) for citation in response.citations],
+        "citations": [_citation_to_dict(citation) for citation in response.citations],
         "retrieval_method": response.retrieval_method,
         "generation_provider": response.generation_provider,
         "generation_model": response.generation_model,
         "metadata": response.metadata,
     }
+
+
+def _citation_to_dict(citation: Evidence) -> dict[str, Any]:
+    payload = asdict(citation)
+    payload["pdf_url"] = build_pdf_url(citation.article_id, "original")
+    payload["pdf_page_url"] = build_pdf_url(citation.article_id, "original", citation.page_start)
+    payload["context_url"] = (
+        f"/articles/{citation.article_id}/chunks/{citation.chunk_id}/context"
+        "?before=1&after=1"
+    )
+    context_params: dict[str, object] = {"before": 1, "after": 1}
+    if citation.text.strip():
+        context_params["highlight_query"] = citation.text
+        context_params["highlight_mode"] = "phrase"
+    payload["ui_context_url"] = f"/ui/articles/{citation.article_id}/chunks/{citation.chunk_id}/context?{urlencode(context_params)}"
+    return payload
 
 
 def _cross_lingual_selection_queries(metadata: dict[str, object]) -> list[str]:
@@ -335,6 +344,94 @@ def _citation_language_coverage(evidence: list[Evidence]) -> dict[str, int]:
         language = item.original_language or "unknown"
         counts[language] = counts.get(language, 0) + 1
     return counts
+
+
+def _merge_mini_review_claims_by_article(claims: list[GeneratedClaim], evidence: list[Evidence]) -> list[GeneratedClaim]:
+    evidence_by_id = {item.citation_id: item for item in evidence}
+    grouped: dict[tuple[str, ...], GeneratedClaim] = {}
+    order: list[tuple[str, ...]] = []
+    for claim in claims:
+        key = _claim_article_key(claim, evidence_by_id)
+        existing = grouped.get(key)
+        if existing is None:
+            grouped[key] = claim
+            order.append(key)
+            continue
+        texts = [existing.text]
+        if claim.text not in texts:
+            texts.append(claim.text)
+        citation_ids = list(existing.citation_ids)
+        for citation_id in claim.citation_ids:
+            if citation_id not in citation_ids:
+                citation_ids.append(citation_id)
+        grouped[key] = GeneratedClaim(text=" ".join(texts), citation_ids=citation_ids)
+    return [grouped[key] for key in order]
+
+
+def _claim_article_key(claim: GeneratedClaim, evidence_by_id: dict[str, Evidence]) -> tuple[str, ...]:
+    article_ids: list[str] = []
+    for citation_id in claim.citation_ids:
+        evidence = evidence_by_id.get(citation_id)
+        if evidence is None:
+            continue
+        if evidence.article_id not in article_ids:
+            article_ids.append(evidence.article_id)
+    return tuple(article_ids) if article_ids else tuple(claim.citation_ids)
+
+
+def _deduplicate_parallel_evidence(
+    evidence: list[Evidence],
+    display_evidence: list[Evidence],
+) -> tuple[list[Evidence], list[Evidence], dict[str, object]]:
+    kept_generation: list[Evidence] = []
+    kept_display: list[Evidence] = []
+    dropped: list[dict[str, object]] = []
+    for generation_item, display_item in zip(evidence, display_evidence, strict=False):
+        duplicate_of = _find_duplicate_evidence_index(generation_item, kept_generation)
+        if duplicate_of is None:
+            kept_generation.append(generation_item)
+            kept_display.append(display_item)
+            continue
+        dropped.append(
+            {
+                "chunk_id": generation_item.chunk_id,
+                "duplicate_of_chunk_id": kept_generation[duplicate_of].chunk_id,
+                "article_id": generation_item.article_id,
+            }
+        )
+    renumbered_generation = _renumber_evidence(kept_generation)
+    renumbered_display = _renumber_evidence(kept_display)
+    return renumbered_generation, renumbered_display, {
+        "input_count": len(evidence),
+        "kept_count": len(renumbered_generation),
+        "dropped_count": len(dropped),
+        "dropped": dropped,
+    }
+
+
+def _find_duplicate_evidence_index(item: Evidence, kept: list[Evidence]) -> int | None:
+    for index, candidate in enumerate(kept):
+        if item.chunk_id == candidate.chunk_id:
+            return index
+        same_article = item.article_id == candidate.article_id
+        same_title = item.title is not None and item.title == candidate.title
+        if (same_article or same_title) and _text_similarity(item.text, candidate.text) >= 0.82:
+            return index
+    return None
+
+
+def _text_similarity(left: str, right: str) -> float:
+    left_tokens = _deduplication_tokens(left)
+    right_tokens = _deduplication_tokens(right)
+    if not left_tokens or not right_tokens:
+        return 0.0
+    overlap = len(left_tokens & right_tokens)
+    return overlap / min(len(left_tokens), len(right_tokens))
+
+
+def _deduplication_tokens(text: str) -> set[str]:
+    normalized = text.lower().translate(LIGATURES)
+    return {term for term in re.findall(r"[\w-]+", normalized, flags=re.UNICODE) if len(term.strip("-")) >= 4}
 
 
 def _augment_swelling_comparison_evidence(

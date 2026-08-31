@@ -89,15 +89,25 @@ def _context_link(article_id: UUID | str, chunk_id: UUID | str, query: str, labe
     return f"<a href='{_html(_context_url(article_id, chunk_id, query, highlight_mode))}'>{_html(label)}</a>"
 
 
+def _citation_href(citation: dict[str, object]) -> str | None:
+    pdf_page_url = citation.get("pdf_page_url")
+    if isinstance(pdf_page_url, str) and pdf_page_url.strip():
+        return pdf_page_url
+    article_id = citation.get("article_id")
+    chunk_id = citation.get("chunk_id")
+    if article_id and chunk_id:
+        evidence_text = str(citation.get("text") or "")
+        return _context_url(str(article_id), str(chunk_id), evidence_text, "phrase")
+    return None
+
+
 def _linked_answer_text(answer: str, citations: list[dict[str, object]]) -> str:
     by_id: dict[str, str] = {}
     for citation in citations:
         citation_id = citation.get("citation_id")
-        article_id = citation.get("article_id")
-        chunk_id = citation.get("chunk_id")
-        evidence_text = str(citation.get("text") or "")
-        if citation_id and article_id and chunk_id:
-            by_id[str(citation_id)] = _context_url(str(article_id), str(chunk_id), evidence_text, "phrase")
+        href = _citation_href(citation)
+        if citation_id and href:
+            by_id[str(citation_id)] = href
     if not by_id:
         return _html(answer)
 
@@ -109,7 +119,7 @@ def _linked_answer_text(answer: str, citations: list[dict[str, object]]) -> str:
         if href is None:
             continue
         parts.append(_html(answer[cursor : match.start()]))
-        parts.append(f"<a href='{_html(href)}'>{_html(match.group(0))}</a>")
+        parts.append(f"<a href='{_html(href)}' target='_blank' rel='noopener'>{_html(match.group(0))}</a>")
         cursor = match.end()
     parts.append(_html(answer[cursor:]))
     return "".join(parts)
@@ -551,12 +561,10 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
             chips = []
             for citation_id in citation_ids:
                 citation = citation_by_id.get(citation_id)
-                article_id = citation.get("article_id") if citation else None
-                chunk_id = citation.get("chunk_id") if citation else None
-                evidence_text = str(citation.get("text") or "") if citation else ""
-                if article_id and chunk_id:
+                href = _citation_href(citation) if citation else None
+                if href:
                     chips.append(
-                        f"<a class='citation-chip' href='{_html(_context_url(str(article_id), str(chunk_id), evidence_text, 'phrase'))}'>"
+                        f"<a class='citation-chip' href='{_html(href)}' target='_blank' rel='noopener'>"
                         f"{_html(citation_id)}</a>"
                     )
                 else:
@@ -661,7 +669,7 @@ def _answer_error_panel(exc: Exception) -> str:
         title = "Generation provider unavailable"
         hint = (
             "Retrieval may have succeeded, but answer generation could not reach the configured provider. "
-            "Check RAG_PROVIDER, API keys, local network permissions, or intentionally switch provider."
+            "Check RAG_PROVIDER=openai, OpenAI API key, OpenAI base URL, and local network permissions."
         )
     elif isinstance(exc, GenerationOutputError):
         title = "Generation output rejected"

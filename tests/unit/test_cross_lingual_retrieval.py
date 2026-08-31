@@ -94,6 +94,22 @@ def test_query_bundle_distinguishes_solvent_casting_from_casting_solvent() -> No
     assert any(variant.language == "en" and "solution casting morphology properties" in variant.text for variant in bundle.variants)
 
 
+def test_query_bundle_maps_english_solvent_nature_film_morphology_to_russian_terms() -> None:
+    bundle = build_query_bundle("Nafion dependence of morphology on the nature of the solvent in obtaining films")
+
+    assert "solution_casting_morphology" in bundle.matched_concepts
+    assert any(variant.language == "ru" and "природа растворителя" in variant.text for variant in bundle.variants)
+    assert any(variant.language == "en" and "dependence morphology solvent" in variant.text for variant in bundle.variants)
+
+
+def test_query_bundle_maps_russian_solvent_nature_film_morphology_to_english_terms() -> None:
+    bundle = build_query_bundle("Зависимость морфологии Nafion от природы растворителя при получении пленок")
+
+    assert "solution_casting_morphology" in bundle.matched_concepts
+    assert any(variant.language == "en" and "solvent nature film morphology" in variant.text for variant in bundle.variants)
+    assert any(variant.language == "ru" and "зависимость морфологии растворителя" in variant.text for variant in bundle.variants)
+
+
 def test_query_bundle_maps_istomina_temperature_property_terms() -> None:
     bundle = build_query_bundle("Как температура смешения влияет на физико-химические свойства Li-Nafion?")
 
@@ -193,6 +209,61 @@ def test_hybrid_cross_lingual_search_uses_article_diverse_feature_window(monkeyp
 
     assert response.results[0].title == "Dai 2017"
     assert response.metadata["reranking"]["feature_window_selection"] == "article_diverse"  # type: ignore[index]
+
+
+def test_hybrid_cross_lingual_search_keeps_cross_language_candidate_visible(monkeypatch) -> None:
+    english_results = [
+        SearchResult(
+            article_id=str(uuid.UUID(int=700 + index)),
+            chunk_id=str(uuid.UUID(int=700 + index)),
+            title=f"English article {index}",
+            doi=None,
+            page_start=1,
+            page_end=1,
+            source_type="body",
+            snippet="Nafion solution casting morphology and solvent nature evidence.",
+            full_text="Nafion solution casting morphology and solvent nature evidence.",
+            score=1.0,
+            retrieval_method="hybrid_rrf",
+        )
+        for index in range(5)
+    ]
+    russian_result = SearchResult(
+        article_id=str(uuid.UUID(int=800)),
+        chunk_id=str(uuid.UUID(int=800)),
+        title="Диссертация Чернюк С.Д.",
+        doi=None,
+        page_start=42,
+        page_end=43,
+        source_type="body",
+        snippet="Природа растворителя влияет на морфологию мембран Nafion.",
+        full_text="Природа растворителя влияет на морфологию мембран Nafion.",
+        score=1.0,
+        retrieval_method="exact_ilike",
+    )
+
+    monkeypatch.setattr(
+        "app.retrieval.search.hybrid_search",
+        lambda *args, **kwargs: SearchResponse(query=args[1], results=english_results),
+    )
+
+    def fake_exact(*args, **kwargs) -> SearchResponse:
+        query = args[1]
+        if "природа растворителя" in query:
+            return SearchResponse(query=query, results=[russian_result])
+        return SearchResponse(query=query, results=[])
+
+    monkeypatch.setattr("app.retrieval.search.exact_search", fake_exact)
+
+    response = hybrid_cross_lingual_search(
+        object(),  # type: ignore[arg-type]
+        "Nafion dependence of morphology on the nature of the solvent in obtaining films",
+        top_k=5,
+        settings=SimpleNamespace(search_max_top_k=100, hybrid_rrf_k=60),
+    )
+
+    assert any(result.title == "Диссертация Чернюк С.Д." for result in response.results)
+    assert response.metadata["language_diversity"]["applied"] is True  # type: ignore[index]
 
 
 def test_hybrid_cross_lingual_search_uses_wide_window_for_water_thermodynamics(monkeypatch) -> None:

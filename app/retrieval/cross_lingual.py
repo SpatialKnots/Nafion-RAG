@@ -184,7 +184,7 @@ def _glossary_variants(entries: list[GlossaryEntry], language: str) -> list[Quer
         phrases: list[str] = []
         for entry in entries:
             terms = entry.ru if target_language == "ru" else entry.en
-            phrases.extend(terms[:2])
+            phrases.extend(terms[:4])
         if phrases:
             variants.append(
                 QueryVariant(
