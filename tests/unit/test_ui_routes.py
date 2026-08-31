@@ -28,6 +28,7 @@ from app.ui import (
     retrieval_report_page,
     search_page,
     text_quality_report_page,
+    vector_indexes_page,
 )
 
 ARTICLE_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -262,6 +263,18 @@ def test_answer_page_renders_form() -> None:
     assert "hybrid_cross_lingual_v2" not in body
     assert "Answer language" in body
     assert "value='auto' selected" in body
+
+
+def test_vector_indexes_page_marks_only_settings_nav_active(monkeypatch) -> None:
+    monkeypatch.setattr("app.ui.list_vector_index_states", lambda session: [])
+
+    response = vector_indexes_page(_override_session())
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "class='active' href='/ui/vector-indexes'>Settings</a>" in body
+    assert "class='active' href='/ui/ingestion'>Sessions</a>" not in body
+    assert body.count("class='active'") == 1
 
 
 def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:

@@ -331,7 +331,7 @@ def _layout(title: str, body: str) -> HTMLResponse:
             "/ui/reports/retrieval",
             {"Retrieval Evaluation Report", "Extended Retrieval Evaluation Report", "Text Quality Report", "Classification Report"},
         ),
-        ("Sessions", "/ui/ingestion", {"Ingestion", "Vector Indexes"}),
+        ("Sessions", "/ui/ingestion", {"Ingestion"}),
         ("Settings", "/ui/vector-indexes", {"Vector Indexes"}),
     )
     nav = "".join(
