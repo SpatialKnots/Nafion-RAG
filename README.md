@@ -1,12 +1,29 @@
-# Nafion RAG
+<p align="center">
+  <img src="app/static/brand/ariadne-logo-horizontal.png" alt="ARIADNE" width="520">
+</p>
 
-Nafion RAG is a local-first tool for working with a small scientific PDF corpus about Nafion, PFSA membranes, and related lithium-ion battery literature.
+# ARIADNE
 
-It ingests PDFs, stores source-preserving text evidence, searches the corpus, and can produce evidence-grounded answers with article, chunk, and page citations.
+ARIADNE is a local-first research system for building a trustworthy scientific memory from a focused PDF corpus about Nafion, PFSA membranes, and related lithium-ion battery literature.
 
-The project is intentionally conservative: original PDFs are kept immutable, generated answers must cite retrieved evidence, and weak evidence is refused instead of silently inventing an answer.
+The project is built around a simple principle: every answer must remain connected to the document that supports it. ARIADNE takes raw scientific PDFs, preserves the original files, extracts page-level text, breaks the corpus into stable source-linked fragments, and lets the user search or ask questions against that evidence. When the system answers, it returns citations back to the article, chunk, and page instead of treating generated text as a source of truth.
 
-## Project Map
+This makes ARIADNE useful as a local research companion for careful literature work: it helps inspect a specialized corpus, compare evidence across articles, catch weak or missing support, and keep scientific claims traceable. The system is intentionally conservative: if the retrieved evidence is not strong enough, it should refuse or expose the limitation rather than invent a confident answer.
+
+## How It Works
+
+ARIADNE turns a folder of PDFs into an auditable retrieval and answer pipeline:
+
+1. Original PDFs are copied into local storage and kept immutable.
+2. Page text is extracted from the PDF text layer, with OCR available for scanned documents.
+3. Extracted text is stored in PostgreSQL with article, page, chunk, source type, and text-layer provenance.
+4. Search can use exact matching, a local semantic vector index, or a hybrid of both.
+5. Answer generation receives only retrieved evidence fragments and must cite known evidence IDs.
+6. The API and local HTML UI expose search results, citations, PDF page links, and answer diagnostics.
+
+The result is not a generic chatbot over PDFs. It is a source-preserving workflow where ingestion, retrieval, generation, and evaluation each leave evidence that can be inspected.
+
+## Technical Map
 
 ```text
 PDF files
