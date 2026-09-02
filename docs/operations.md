@@ -149,7 +149,9 @@ LIBRARY_SCAN_BATCH_SIZE=500
 WORKER_ROLE=all
 ```
 
-`WORKER_ROLE=library` runs only periodic library scans. `WORKER_ROLE=all` runs ingestion jobs, vector rebuilds, and due library scans. Each worker loop processes at most one due library source and queues at most `LIBRARY_SCAN_BATCH_SIZE` discovered files from that source.
+`WORKER_ROLE=library` runs only periodic library scans. `WORKER_ROLE=all` runs ingestion jobs, vector rebuilds, and due library scans, in that order. This keeps queued ingestion ahead of vector rebuild work so a bulk library scan can finish text ingestion before the vector worker claims a rebuild. Each worker loop processes at most one due library source and queues at most `LIBRARY_SCAN_BATCH_SIZE` discovered files from that source.
+
+Vector rebuild requests are coalesced per collection and embedding model in `vector_index_states`. Repeated successful ingestions increment `desired_revision` and refresh `requested_at` on the existing row rather than creating per-PDF rebuild jobs. `VECTOR_REBUILD_DEBOUNCE_SECONDS` delays claiming the rebuild until the latest stale mark is old enough.
 
 Library ingestion jobs keep `input_path` pointed at the external PDF until the worker copies it into immutable storage. The worker must not delete watched-folder PDFs after processing. Missing folders are recorded as `missing` with diagnostics.
 

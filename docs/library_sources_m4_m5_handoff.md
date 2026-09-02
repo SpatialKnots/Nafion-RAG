@@ -21,11 +21,15 @@ Date: 2026-09-01
 
 `indexed` maps to `text_ready` because vector index readiness is tracked separately by `vector_index_states`.
 
-## Remaining Work
-
-- Add vector rebuild debounce behavior specific to bulk library scan batches if current ingestion-level stale marking proves too noisy.
-
 ## Follow-up Completed
+
+- M6 vector sync hardening is covered by the existing vector-index lifecycle:
+  repeated ingestion-level stale marks update one `vector_index_states` row per collection/model and refresh `requested_at`;
+  `VECTOR_REBUILD_DEBOUNCE_SECONDS` delays rebuild claiming after the latest stale mark.
+- `WORKER_ROLE=all` processes ingestion before vector rebuilds and library scans, so queued PDFs from a bulk scan are consumed before a rebuild is claimed.
+- Regression tests cover repeated stale-mark coalescing and worker loop ordering.
+
+## API/UI Follow-up Completed
 
 - JSON API routes are available at `GET /libraries`, `POST /libraries`, `GET /libraries/{library_id}`,
   `GET /libraries/{library_id}/files`, and `POST /libraries/{library_id}/scan`.

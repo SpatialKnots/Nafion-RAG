@@ -84,6 +84,24 @@ def test_mark_vector_index_stale_increments_desired_revision() -> None:
     assert state.building_revision is None
 
 
+def test_repeated_stale_marks_coalesce_into_one_state_for_bulk_ingestion() -> None:
+    state = _state(status=VECTOR_INDEX_READY, desired_revision=4, active_revision=4)
+    session = FakeSession(state)
+
+    for _index in range(5):
+        updated = mark_vector_index_stale(
+            session,  # type: ignore[arg-type]
+            collection_id=state.collection_id,
+            embedding_model=state.embedding_model,
+        )
+
+    assert updated is state
+    assert session.added == []
+    assert state.status == VECTOR_INDEX_STALE
+    assert state.desired_revision == 9
+    assert state.building_revision is None
+
+
 def test_mark_vector_index_stale_preserves_rebuilding_claim() -> None:
     state = _state(status=VECTOR_INDEX_REBUILDING, desired_revision=4, building_revision=4)
     state.worker_id = "worker-1"
