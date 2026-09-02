@@ -36,6 +36,7 @@ from app.generation.providers import GenerationOutputError, GenerationUnavailabl
 from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import job_to_response
 from app.library.service import (
+    DuplicateLibrarySourceError,
     create_library_source,
     delete_library_source,
     list_library_source_files,
@@ -1957,6 +1958,10 @@ def create_library_action(
             collection_name=collection,
             recursive=recursive,
         )
+    except DuplicateLibrarySourceError as exc:
+        response = RedirectResponse(f"/ui/libraries?library_id={exc.source.id}", status_code=303)
+        response.set_cookie("ariadne_library_id", str(exc.source.id), httponly=False, samesite="lax")
+        return response
     except (FileNotFoundError, NotADirectoryError, PermissionError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     session.commit()

@@ -139,8 +139,11 @@ def test_create_library_api_rejects_duplicate_source(monkeypatch, tmp_path) -> N
             LibrarySourceCreateRequest(name="Duplicate", path=session.source.path, collection="literature"),
         )
 
-    assert exc_info.value.status_code == 400
-    assert "already exists" in str(exc_info.value.detail)
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == {
+        "message": f"Library source already exists for collection '{session.source.collection_id}' and path: {session.source.path}",
+        "existing_library_source_id": str(session.source.id),
+    }
 
 
 def test_update_library_api_can_disable_source(monkeypatch, tmp_path) -> None:

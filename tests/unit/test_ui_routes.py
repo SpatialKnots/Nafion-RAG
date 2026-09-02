@@ -16,6 +16,7 @@ from app.db.models import Article, Chunk, LibrarySource, LibrarySourceFile, Stru
 from app.db.session import get_session
 from app.documents.context import ChunkContext, ChunkContextItem
 from app.generation.providers import GenerationUnavailableError
+from app.library.service import DuplicateLibrarySourceError
 from app.main import app
 from app.retrieval.search import SearchFilters
 from app.ui import (
@@ -757,6 +758,23 @@ def test_create_library_action_redirects_after_commit(monkeypatch, tmp_path) -> 
     assert response.headers["location"] == "/ui/libraries?library_id=88888888-8888-8888-8888-888888888888"
     assert response.headers["set-cookie"].startswith("ariadne_library_id=88888888-8888-8888-8888-888888888888")
     assert session.commits == 1
+
+
+def test_create_library_action_redirects_to_existing_duplicate(monkeypatch, tmp_path) -> None:
+    session = _override_session()
+    existing = session.library_source
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+    def duplicate_source(*args: object, **kwargs: object) -> object:
+        raise DuplicateLibrarySourceError(existing)
+
+    monkeypatch.setattr("app.ui.create_library_source", duplicate_source)
+
+    response = create_library_action(session, "cellosolve", str(tmp_path), "literature", True)  # type: ignore[arg-type]
+
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/ui/libraries?library_id={existing.id}"
+    assert response.headers["set-cookie"].startswith(f"ariadne_library_id={existing.id}")
+    assert session.commits == 0
 
 
 def test_pick_folder_action_returns_selected_path(monkeypatch) -> None:

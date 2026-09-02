@@ -20,6 +20,13 @@ ACTIVE_INGESTION_STATUSES = {"queued", "processing"}
 ACTIVE_LIBRARY_FILE_STATUSES = {"queued", "ingesting"}
 
 
+class DuplicateLibrarySourceError(ValueError):
+    def __init__(self, source: LibrarySource) -> None:
+        self.source = source
+        collection = source.collection.name if source.collection is not None else source.collection_id
+        super().__init__(f"Library source already exists for collection '{collection}' and path: {source.path}")
+
+
 def create_library_source(
     session: Session,
     settings: Settings,
@@ -34,7 +41,7 @@ def create_library_source(
     normalized_path = _validate_existing_directory(path)
     existing = _get_source_by_collection_path(session, collection.id, str(normalized_path))
     if existing is not None:
-        raise ValueError(f"Library source already exists for collection '{collection.name}' and path: {normalized_path}")
+        raise DuplicateLibrarySourceError(existing)
     now = datetime.now(UTC)
     source = LibrarySource(
         id=uuid.uuid4(),

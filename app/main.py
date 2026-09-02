@@ -47,6 +47,7 @@ from app.library.schemas import (
     LibrarySourceUpdateRequest,
 )
 from app.library.service import (
+    DuplicateLibrarySourceError,
     create_library_source,
     delete_library_source,
     get_library_source,
@@ -198,6 +199,11 @@ def create_library(session: SessionDep, request: LibrarySourceCreateRequest) -> 
             collection_name=request.collection,
             recursive=request.recursive,
         )
+    except DuplicateLibrarySourceError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": str(exc), "existing_library_source_id": str(exc.source.id)},
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
