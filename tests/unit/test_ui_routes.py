@@ -28,6 +28,7 @@ from app.ui import (
     chunk_context_page,
     create_library_action,
     dashboard,
+    delete_library_action,
     disable_library_action,
     enable_library_action,
     extended_retrieval_report_page,
@@ -716,6 +717,7 @@ def test_libraries_page_renders_sources_and_files(monkeypatch) -> None:
     assert "Open Failed Files" in body
     assert "Save Library" in body
     assert "/ui/libraries/66666666-6666-6666-6666-666666666666/disable" in body
+    assert "Delete Source" in body
     assert "class='active' href='/ui/libraries'>Libraries</a>" in body
     assert "Nafion profile" not in body
 
@@ -784,6 +786,20 @@ def test_enable_disable_library_actions_redirect_after_commit(monkeypatch) -> No
     assert enable_response.status_code == 303
     assert calls == [False, True]
     assert session.commits == 2
+
+
+def test_delete_library_action_redirects_after_commit(monkeypatch) -> None:
+    session = _override_session()
+    library_id = uuid.UUID("66666666-6666-6666-6666-666666666666")
+    deleted: list[uuid.UUID] = []
+    monkeypatch.setattr("app.ui.delete_library_source", lambda active_session, active_library_id: deleted.append(active_library_id))
+
+    response = delete_library_action(session, library_id)  # type: ignore[arg-type]
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/ui/libraries"
+    assert deleted == [library_id]
+    assert session.commits == 1
 
 
 def test_unknown_article_returns_404() -> None:

@@ -37,6 +37,7 @@ from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import job_to_response
 from app.library.service import (
     create_library_source,
+    delete_library_source,
     list_library_source_files,
     list_library_sources,
     scan_and_queue_library_source,
@@ -1662,6 +1663,8 @@ def _library_source_rows(session: Session, sources: list[LibrarySource]) -> str:
             "<button type='submit'>Scan Now</button></form>"
             f"<form method='post' action='/ui/libraries/{_html(source.id)}/{toggle_action}'>"
             f"<button type='submit'>{toggle_label}</button></form>"
+            f"<form method='post' action='/ui/libraries/{_html(source.id)}/delete'>"
+            "<button type='submit'>Delete Source</button></form>"
             "</td>"
             "</tr>"
         )
@@ -1955,6 +1958,17 @@ def _set_library_enabled(session: Session, library_id: UUID, *, enabled: bool) -
     response = RedirectResponse(f"/ui/libraries?library_id={library_id}", status_code=303)
     response.set_cookie("ariadne_library_id", str(library_id), httponly=False, samesite="lax")
     return response
+
+
+@router.post("/ui/libraries/{library_id}/delete")
+def delete_library_action(session: SessionDep, library_id: UUID) -> RedirectResponse:
+    try:
+        delete_library_source(session, library_id)
+    except ValueError as exc:
+        status_code = 404 if str(exc).startswith("Unknown library source") else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    session.commit()
+    return RedirectResponse("/ui/libraries", status_code=303)
 
 
 @router.post("/ui/libraries/{library_id}/scan")

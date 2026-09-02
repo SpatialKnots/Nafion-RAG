@@ -17,6 +17,7 @@ from app.retrieval.index_lifecycle import VECTOR_INDEX_READY
 
 TEMPORARY_PDF_PREFIXES = ("~$", ".~")
 ACTIVE_INGESTION_STATUSES = {"queued", "processing"}
+ACTIVE_LIBRARY_FILE_STATUSES = {"queued", "ingesting"}
 
 
 def create_library_source(
@@ -106,6 +107,20 @@ def update_library_source(
     source.updated_at = now
     session.flush()
     return source
+
+
+def delete_library_source(session: Session, library_source_id: UUID) -> dict[str, object]:
+    source = get_library_source(session, library_source_id)
+    if source is None:
+        raise ValueError(f"Unknown library source: {library_source_id}")
+    files = list_library_source_files(session, library_source_id)
+    active = [row for row in files if row.status in ACTIVE_LIBRARY_FILE_STATUSES]
+    if active:
+        raise ValueError("Cannot delete library source while files are queued or ingesting")
+    payload = {"id": str(source.id), "deleted_files": len(files)}
+    session.delete(source)
+    session.flush()
+    return payload
 
 
 def library_source_to_response(source: LibrarySource) -> dict[str, object]:

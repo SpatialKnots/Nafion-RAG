@@ -75,6 +75,11 @@ class FakeSession:
         if isinstance(value, LibrarySource):
             self.sources.append(value)
 
+    def delete(self, value: object) -> None:
+        if value is self.source:
+            self.sources.remove(self.source)
+            self.files.clear()
+
     def flush(self) -> None:
         return None
 
@@ -152,6 +157,28 @@ def test_library_files_api_accepts_status_filter() -> None:
     payload = main.library_files(session, session.source.id, status="failed")  # type: ignore[arg-type]
 
     assert payload["items"][0]["filename"] == "paper.pdf"
+
+
+def test_delete_library_api_removes_source_and_files() -> None:
+    session = FakeSession()
+    session.file.status = "duplicate"
+
+    payload = main.delete_library(session, session.source.id)  # type: ignore[arg-type]
+
+    assert payload == {"id": str(session.source.id), "deleted_files": 1}
+    assert session.sources == []
+    assert session.files == []
+    assert session.commits == 1
+
+
+def test_delete_library_api_rejects_active_file() -> None:
+    session = FakeSession()
+
+    with pytest.raises(HTTPException) as exc_info:
+        main.delete_library(session, session.source.id)  # type: ignore[arg-type]
+
+    assert exc_info.value.status_code == 400
+    assert "queued or ingesting" in str(exc_info.value.detail)
 
 
 def test_library_scan_api_commits_scan(monkeypatch) -> None:

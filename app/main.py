@@ -48,6 +48,7 @@ from app.library.schemas import (
 )
 from app.library.service import (
     create_library_source,
+    delete_library_source,
     get_library_source,
     library_scan_result_to_response,
     library_source_file_to_response,
@@ -243,6 +244,17 @@ def update_library(session: SessionDep, library_id: UUID, request: LibrarySource
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     session.commit()
     return LibrarySourceResponse.model_validate(library_source_to_response(source)).model_dump()
+
+
+@app.delete("/libraries/{library_id}")
+def delete_library(session: SessionDep, library_id: UUID) -> dict[str, object]:
+    try:
+        payload = delete_library_source(session, library_id)
+    except ValueError as exc:
+        status_code = 404 if str(exc).startswith("Unknown library source") else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    session.commit()
+    return payload
 
 
 @app.get("/libraries/{library_id}/files")

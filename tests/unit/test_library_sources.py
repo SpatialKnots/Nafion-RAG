@@ -8,6 +8,7 @@ from app.db.models import Article, Collection, IngestionJob, LibrarySource, Libr
 from app.ingestion.checksum import sha256_file
 from app.library.service import (
     create_library_source,
+    delete_library_source,
     list_library_sources,
     reconcile_library_source_file_statuses,
     reconcile_library_source_vector_readiness,
@@ -107,6 +108,11 @@ class FakeSession:
         if isinstance(value, IngestionJob):
             self.jobs.append(value)
 
+    def delete(self, value: object) -> None:
+        if isinstance(value, LibrarySource):
+            self.sources = [source for source in self.sources if source.id != value.id]
+            self.files = [row for row in self.files if row.library_source_id != value.id]
+
     def flush(self) -> None:
         self.flushed += 1
 
@@ -178,6 +184,71 @@ def test_update_library_source_changes_flags_and_validates_path(tmp_path) -> Non
     assert source.watch_enabled is False
     assert source.recursive is False
     assert source.status == "disabled"
+
+
+def test_delete_library_source_removes_source_files_without_articles(tmp_path) -> None:
+    session = _session_with_source(tmp_path)
+    source_id = session.sources[0].id
+    article = Article(
+        id=uuid.uuid4(),
+        collection_id=session.collection.id,
+        title="paper",
+        authors=None,
+        year=None,
+        journal=None,
+        doi=None,
+        abstract=None,
+        language=None,
+        publication_type=None,
+        pdf_original_path=str(tmp_path / "paper.pdf"),
+        pdf_ocr_path=None,
+        source_url=None,
+        access_source="manual",
+        license=None,
+        checksum_sha256="a" * 64,
+        zotero_key=None,
+        status="indexed",
+    )
+    session.articles.append(article)
+    session.files.append(
+        LibrarySourceFile(
+            id=uuid.uuid4(),
+            library_source_id=session.sources[0].id,
+            external_path=str((tmp_path / "paper.pdf").resolve()),
+            relative_path="paper.pdf",
+            filename="paper.pdf",
+            article_id=article.id,
+            status="duplicate",
+        )
+    )
+
+    payload = delete_library_source(session, source_id)  # type: ignore[arg-type]
+
+    assert payload == {"id": str(source_id), "deleted_files": 1}
+    assert session.sources == []
+    assert session.files == []
+    assert session.articles == [article]
+
+
+def test_delete_library_source_rejects_queued_files(tmp_path) -> None:
+    session = _session_with_source(tmp_path)
+    session.files.append(
+        LibrarySourceFile(
+            id=uuid.uuid4(),
+            library_source_id=session.sources[0].id,
+            external_path=str((tmp_path / "paper.pdf").resolve()),
+            relative_path="paper.pdf",
+            filename="paper.pdf",
+            status="queued",
+        )
+    )
+
+    try:
+        delete_library_source(session, session.sources[0].id)  # type: ignore[arg-type]
+    except ValueError as exc:
+        assert "queued or ingesting" in str(exc)
+    else:
+        raise AssertionError("Expected active library file deletion to fail")
 
 
 def test_scan_missing_folder_sets_source_status(tmp_path) -> None:
