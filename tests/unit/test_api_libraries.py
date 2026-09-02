@@ -52,6 +52,11 @@ class FakeSession:
         params = dict(statement.compile().params)  # type: ignore[attr-defined]
         if "FROM collections" in text:
             return self.collection
+        if "FROM library_sources" in text:
+            collection_id = _first_param(params, "collection_id")
+            path = _first_param(params, "path")
+            if collection_id == self.source.collection_id and path == self.source.path:
+                return self.source
         if "FROM library_source_files" in text:
             job_id = _first_param(params, "ingestion_job_id")
             if job_id is not None:
@@ -121,6 +126,21 @@ def test_create_library_api_rejects_missing_folder(monkeypatch, tmp_path) -> Non
 
     assert exc_info.value.status_code == 400
     assert "unavailable" in str(exc_info.value.detail)
+
+
+def test_create_library_api_rejects_duplicate_source(monkeypatch, tmp_path) -> None:
+    session = FakeSession()
+    session.source.path = str(tmp_path.resolve())
+    monkeypatch.setattr(main, "get_settings", lambda: SimpleNamespace())
+
+    with pytest.raises(HTTPException) as exc_info:
+        main.create_library(  # type: ignore[arg-type]
+            session,
+            LibrarySourceCreateRequest(name="Duplicate", path=session.source.path, collection="literature"),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "already exists" in str(exc_info.value.detail)
 
 
 def test_update_library_api_can_disable_source(monkeypatch, tmp_path) -> None:

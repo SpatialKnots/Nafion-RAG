@@ -59,6 +59,17 @@ class FakeSession:
                 ),
                 None,
             )
+        if "FROM library_sources" in text:
+            collection_id = _first_param(params, "collection_id")
+            path = _first_param(params, "path")
+            return next(
+                (
+                    source
+                    for source in self.sources
+                    if (collection_id is None or source.collection_id == collection_id) and (path is None or source.path == path)
+                ),
+                None,
+            )
         if "FROM ingestion_jobs" in text:
             checksum = _first_param(params, "checksum_sha256")
             return next((job for job in self.jobs if job.checksum_sha256 == checksum and job.status in {"queued", "processing"}), None)
@@ -146,6 +157,30 @@ def test_list_library_sources_returns_registered_sources(tmp_path) -> None:
     )
 
     assert list_library_sources(session)[0] is source  # type: ignore[arg-type]
+
+
+def test_create_library_source_rejects_duplicate_collection_path(tmp_path) -> None:
+    session = FakeSession()
+    create_library_source(
+        session,  # type: ignore[arg-type]
+        SimpleNamespace(),
+        name="Nafion papers",
+        path=tmp_path,
+        collection_name="literature",
+    )
+
+    try:
+        create_library_source(  # type: ignore[arg-type]
+            session,
+            SimpleNamespace(),
+            name="Same folder",
+            path=tmp_path,
+            collection_name="literature",
+        )
+    except ValueError as exc:
+        assert "already exists" in str(exc)
+    else:
+        raise AssertionError("Expected duplicate library source creation to fail")
 
 
 def test_scan_discovers_pdf_and_ignores_non_pdf(tmp_path) -> None:

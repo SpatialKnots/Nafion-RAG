@@ -32,6 +32,9 @@ def create_library_source(
     del settings
     collection = _get_collection(session, collection_name)
     normalized_path = _validate_existing_directory(path)
+    existing = _get_source_by_collection_path(session, collection.id, str(normalized_path))
+    if existing is not None:
+        raise ValueError(f"Library source already exists for collection '{collection.name}' and path: {normalized_path}")
     now = datetime.now(UTC)
     source = LibrarySource(
         id=uuid.uuid4(),
@@ -483,6 +486,12 @@ def _get_source_file_by_path(session: Session, library_source_id: UUID, external
         select(LibrarySourceFile)
         .where(LibrarySourceFile.library_source_id == library_source_id)
         .where(LibrarySourceFile.external_path == external_path)
+    )
+
+
+def _get_source_by_collection_path(session: Session, collection_id: UUID, path: str) -> LibrarySource | None:
+    return session.scalar(
+        select(LibrarySource).where(LibrarySource.collection_id == collection_id).where(LibrarySource.path == path).limit(1)
     )
 
 
