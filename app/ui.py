@@ -1806,6 +1806,7 @@ def libraries_page(session: SessionDep, library_id: UUID | None = None, file_sta
           <form method="post" action="/ui/libraries/{_html(selected.id)}">
             <label>Name<br><input name="name" required value="{_html(selected.name)}"></label>
             <label>Folder path<br><input name="path" required class="path" size="48" value="{_html(selected.path)}"></label>
+            <button type="button" data-folder-picker>Browse Folder</button>
             <label>Collection<br><select name="collection">{edit_options}</select></label>
             <label>Enabled<br><select name="enabled">
               <option value="true" {'selected' if selected.enabled else ''}>yes</option>
@@ -1832,6 +1833,7 @@ def libraries_page(session: SessionDep, library_id: UUID | None = None, file_sta
       <form method="post" action="/ui/libraries">
         <label>Name<br><input name="name" required></label>
         <label>Folder path<br><input name="path" required class="path" size="48"></label>
+        <button type="button" data-folder-picker>Browse Folder</button>
         <label>Collection<br><select name="collection">{collection_options}</select></label>
         <label>Recursive<br><select name="recursive">
           <option value="true" selected>yes</option>
@@ -1849,6 +1851,7 @@ def libraries_page(session: SessionDep, library_id: UUID | None = None, file_sta
     <table><tr><th>File</th><th>Status</th><th class="num">Bytes</th><th>SHA-256</th>
     <th>Last seen</th><th>Last ingested</th><th>Links</th></tr>{_library_file_rows(selected_files)}</table>
     {selection_script}
+    {_folder_picker_script()}
     """
     response = _layout("Libraries", body)
     if selected is not None:
@@ -1875,6 +1878,66 @@ def _remember_library_script(source: LibrarySource) -> str:
     }})();
     </script>
     """
+
+
+def _folder_picker_script() -> str:
+    return """
+    <script>
+    (() => {
+      document.querySelectorAll('[data-folder-picker]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const form = button.closest('form');
+          const input = form ? form.querySelector('input[name="path"]') : null;
+          if (!input) return;
+          button.disabled = true;
+          try {
+            const body = new URLSearchParams();
+            body.set('initial_path', input.value || '');
+            const response = await fetch('/ui/pick-folder', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body
+            });
+            if (!response.ok) return;
+            const payload = await response.json();
+            if (payload.path) input.value = payload.path;
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+    })();
+    </script>
+    """
+
+
+def _pick_local_directory(initial_path: str = "") -> str | None:
+    import tkinter as tk
+    from tkinter import TclError, filedialog
+
+    initial = initial_path.strip()
+    root = tk.Tk()
+    try:
+        root.withdraw()
+        root.attributes("-topmost", True)
+        selected = filedialog.askdirectory(
+            initialdir=initial or None,
+            mustexist=True,
+            title="Select Library Folder",
+        )
+    except TclError as exc:
+        raise RuntimeError("Local folder picker is unavailable") from exc
+    finally:
+        root.destroy()
+    return selected or None
+
+
+@router.post("/ui/pick-folder")
+def pick_folder_action(initial_path: Annotated[str, Form()] = "") -> dict[str, object]:
+    try:
+        return {"path": _pick_local_directory(initial_path)}
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/ui/libraries")

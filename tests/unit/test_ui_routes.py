@@ -34,6 +34,7 @@ from app.ui import (
     extended_retrieval_report_page,
     ingestion_page,
     libraries_page,
+    pick_folder_action,
     retrieval_report_page,
     scan_library_action,
     search_page,
@@ -718,6 +719,9 @@ def test_libraries_page_renders_sources_and_files(monkeypatch) -> None:
     assert "Save Library" in body
     assert "/ui/libraries/66666666-6666-6666-6666-666666666666/disable" in body
     assert "Delete Source" in body
+    assert "Browse Folder" in body
+    assert "data-folder-picker" in body
+    assert "fetch('/ui/pick-folder'" in body
     assert "class='active' href='/ui/libraries'>Libraries</a>" in body
     assert "Nafion profile" not in body
 
@@ -753,6 +757,14 @@ def test_create_library_action_redirects_after_commit(monkeypatch, tmp_path) -> 
     assert response.headers["location"] == "/ui/libraries?library_id=88888888-8888-8888-8888-888888888888"
     assert response.headers["set-cookie"].startswith("ariadne_library_id=88888888-8888-8888-8888-888888888888")
     assert session.commits == 1
+
+
+def test_pick_folder_action_returns_selected_path(monkeypatch) -> None:
+    monkeypatch.setattr("app.ui._pick_local_directory", lambda initial_path="": "D:\\Research\\Nafion")
+
+    payload = pick_folder_action("D:\\Research")
+
+    assert payload == {"path": "D:\\Research\\Nafion"}
 
 
 def test_scan_library_action_redirects_after_commit(monkeypatch) -> None:
