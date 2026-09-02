@@ -30,6 +30,8 @@ from app.documents.service import (
     page_evidence_to_dict,
     resolve_article_pdf,
 )
+from app.facts.schemas import StructuredFactResponse, StructuredFactsResponse
+from app.facts.service import list_structured_facts, structured_fact_summary, structured_fact_to_response
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
 from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import enqueue_upload, job_to_response
@@ -233,6 +235,29 @@ def library_scan(session: SessionDep, library_id: UUID) -> dict[str, object]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     session.commit()
     return LibraryScanResponse.model_validate(library_scan_result_to_response(result)).model_dump()
+
+
+@app.get("/facts")
+def facts(
+    session: SessionDep,
+    collection: str = "literature",
+    article_id: UUID | None = None,
+    field_name: str | None = None,
+    unit: str | None = None,
+    source: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> dict[str, object]:
+    rows = list_structured_facts(
+        session,
+        collection_name=collection,
+        article_id=article_id,
+        field_name=field_name,
+        unit=unit,
+        source=source,
+        limit=limit,
+    )
+    items = [StructuredFactResponse.model_validate(structured_fact_to_response(session, row)) for row in rows]
+    return StructuredFactsResponse(items=items, summary=structured_fact_summary(rows)).model_dump()
 
 
 @app.get("/articles/{article_id}/pdf")

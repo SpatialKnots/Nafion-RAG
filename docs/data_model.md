@@ -87,3 +87,5 @@ Library management is exposed through JSON routes under `/libraries` and an HTML
 The first extractor source is `rule_based_numeric_v1`. It records only numeric fragments with explicit units found in existing chunks, such as conductivity, temperature, percentage, length, mass/density, energy, and pressure/modulus values. It does not infer table cells, row labels, comparisons, or scientific conclusions.
 
 The source of truth remains the original chunk text and PDF/page provenance. Structured facts are derived evidence aids and can be regenerated from chunks.
+
+Structured facts are inspectable through read-only API/UI routes. They are not yet part of retrieval scoring or answer generation.

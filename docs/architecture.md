@@ -97,6 +97,7 @@ Library scanning is a discovery and queueing layer only. It does not extract tex
 persisted chunks
   -> deterministic numeric-with-unit fragment extraction
   -> structured_facts rows with article_id and source_chunk_id provenance
+  -> read-only /facts API and /ui/facts inspection page
   -> later fact/table evidence retrieval and numeric comparison workflows
 ```
 

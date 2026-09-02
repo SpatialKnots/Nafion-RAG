@@ -26,10 +26,12 @@ from app.db.models import (
     Page,
     PageTextLayer,
     Section,
+    StructuredFact,
 )
 from app.db.session import get_session
 from app.documents.context import ContextNotFoundError, get_chunk_context, get_page_range_context
 from app.documents.service import PageEvidenceNotFoundError, build_pdf_url
+from app.facts.service import list_structured_facts, structured_fact_summary, structured_fact_to_response
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
 from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import job_to_response
@@ -507,6 +509,7 @@ def _layout(title: str, body: str) -> HTMLResponse:
     """
     nav_items = (
         ("Home", "/", {"Dashboard", "Articles", "Article", "Text Layers", "Answer"}),
+        ("Facts", "/ui/facts", {"Structured Facts"}),
         (
             "Evidence",
             "/ui/reports/retrieval",
@@ -1678,6 +1681,96 @@ def _library_file_rows(files: list[LibrarySourceFile]) -> str:
             "</tr>"
         )
     return "".join(rows) or "<tr><td colspan='7'>No discovered files</td></tr>"
+
+
+def _fact_rows(session: Session, facts: list[StructuredFact]) -> str:
+    rows = []
+    for fact in facts:
+        payload = structured_fact_to_response(session, fact)
+        article_id = payload.get("article_id")
+        source_chunk_id = payload.get("source_chunk_id")
+        raw_page_start = payload.get("page_start")
+        raw_page_end = payload.get("page_end")
+        page_start = raw_page_start if isinstance(raw_page_start, int) else None
+        page_end = raw_page_end if isinstance(raw_page_end, int) else None
+        value_text = str(payload.get("field_value_text") or "")
+        context_query = value_text or str(payload.get("field_name") or "")
+        links = []
+        if article_id:
+            links.append(f"<a href='/ui/articles/{_html(article_id)}'>Article</a>")
+        if article_id and source_chunk_id:
+            links.append(_context_link(str(article_id), str(source_chunk_id), context_query, "Context"))
+        if article_id:
+            links.append(_pdf_link(str(article_id), page_start))
+        rows.append(
+            "<tr>"
+            f"<td>{_html(payload.get('field_name'))}<div class='muted'>{_html(payload.get('entity_type'))}</div></td>"
+            f"<td>{_html(payload.get('field_value_text'))}</td>"
+            f"<td class='num'>{_html(payload.get('field_value_numeric'))}</td>"
+            f"<td>{_html(payload.get('unit'))}</td>"
+            f"<td>{_html(payload.get('title'))}<div class='muted'>{_html(payload.get('doi'))}</div></td>"
+            f"<td class='num'>{_html(_page_range(page_start, page_end))}</td>"
+            f"<td>{_html(payload.get('source'))}<div class='muted'>confidence={_html(payload.get('confidence'))}</div></td>"
+            f"<td class='actions'>{' '.join(links)}</td>"
+            "</tr>"
+        )
+    return "".join(rows) or "<tr><td colspan='8'>No structured facts</td></tr>"
+
+
+@router.get("/ui/facts", response_class=HTMLResponse)
+def structured_facts_page(
+    session: SessionDep,
+    collection: str = "literature",
+    article_id: UUID | None = None,
+    field_name: str = "",
+    unit: str = "",
+    source: str = "",
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> HTMLResponse:
+    facts = list_structured_facts(
+        session,
+        collection_name=collection,
+        article_id=article_id,
+        field_name=field_name,
+        unit=unit,
+        source=source,
+        limit=limit,
+    )
+    summary = structured_fact_summary(facts)
+    collections = list(session.scalars(select(Collection).order_by(Collection.name)))
+    collection_options = "".join(
+        f"<option value='{_html(row.name)}' {'selected' if row.name == collection else ''}>{_html(row.name)}</option>"
+        for row in collections
+    )
+    by_field_rows = _counter_rows(Counter(cast(dict[str, int], summary.get("by_field", {}))))
+    by_unit_rows = _counter_rows(Counter(cast(dict[str, int], summary.get("by_unit", {}))))
+    by_source_rows = _counter_rows(Counter(cast(dict[str, int], summary.get("by_source", {}))))
+    body = f"""
+    <h1>Structured Facts</h1>
+    <p class="page-kicker">Derived numeric evidence candidates linked back to chunks and original PDFs.</p>
+    <section class="panel">
+      <form method="get" action="/ui/facts">
+        <label>Collection<br><select name="collection">{collection_options}</select></label>
+        <label>Article ID<br><input name="article_id" value="{_html(article_id or '')}" size="36"></label>
+        <label>Field<br><input name="field_name" value="{_html(field_name)}" placeholder="conductivity"></label>
+        <label>Unit<br><input name="unit" value="{_html(unit)}" placeholder="S cm-1"></label>
+        <label>Source<br><input name="source" value="{_html(source)}" placeholder="rule_based_numeric_v1"></label>
+        <label>Limit<br><input name="limit" value="{_html(limit)}" size="5"></label>
+        <button type="submit">Filter</button>
+      </form>
+      <p><strong>Rows shown:</strong> {_html(summary.get("count"))}</p>
+      {_command_hint('python -m app.ingestion.cli extract-facts --apply')}
+    </section>
+    <div class="grid">
+      <section class="panel"><h2>By Field</h2><table><tr><th>Field</th><th class="num">Facts</th></tr>{by_field_rows}</table></section>
+      <section class="panel"><h2>By Unit</h2><table><tr><th>Unit</th><th class="num">Facts</th></tr>{by_unit_rows}</table></section>
+      <section class="panel"><h2>By Source</h2><table><tr><th>Source</th><th class="num">Facts</th></tr>{by_source_rows}</table></section>
+    </div>
+    <h2>Facts</h2>
+    <table><tr><th>Field</th><th>Text value</th><th class="num">Numeric</th><th>Unit</th>
+    <th>Article</th><th class="num">Pages</th><th>Source</th><th>Links</th></tr>{_fact_rows(session, facts)}</table>
+    """
+    return _layout("Structured Facts", body)
 
 
 @router.get("/ui/libraries", response_class=HTMLResponse)

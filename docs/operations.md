@@ -362,6 +362,16 @@ The extractor source is `rule_based_numeric_v1`. Apply mode replaces only rows f
 
 Current scope is explicit numeric fragments with units. The extractor does not infer table row/column semantics or perform scientific comparisons.
 
+Inspect extracted facts through:
+
+```text
+GET /facts
+GET /facts?field_name=conductivity&unit=S%20cm-1
+GET /ui/facts
+```
+
+The facts API and UI are read-only inspection surfaces. They expose article, chunk, page, source, value text, numeric value, unit, confidence, and links back to context/PDF evidence.
+
 Write the tracked corpus manifest after intentional corpus changes:
 
 ```powershell

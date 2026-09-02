@@ -12,7 +12,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from app.db.models import LibrarySource, LibrarySourceFile
+from app.db.models import Article, Chunk, LibrarySource, LibrarySourceFile, StructuredFact
 from app.db.session import get_session
 from app.documents.context import ChunkContext, ChunkContextItem
 from app.generation.providers import GenerationUnavailableError
@@ -34,6 +34,7 @@ from app.ui import (
     retrieval_report_page,
     scan_library_action,
     search_page,
+    structured_facts_page,
     text_quality_report_page,
     vector_indexes_page,
 )
@@ -86,6 +87,18 @@ class FakeSession:
             source_type="main_text",
             text_layer="original",
             text="Nafion conductivity in NMP was measured.",
+        )
+        self.fact = StructuredFact(
+            id=uuid.UUID("99999999-9999-9999-9999-999999999999"),
+            article_id=ARTICLE_ID,
+            source_chunk_id=self.chunk.id,
+            entity_type="numeric_measurement",
+            field_name="conductivity",
+            field_value_text="1.2e-3 S cm-1",
+            field_value_numeric=Decimal("0.0012"),
+            unit="S cm-1",
+            confidence=Decimal("0.80"),
+            source="rule_based_numeric_v1",
         )
         self.layers = [
             SimpleNamespace(
@@ -170,6 +183,8 @@ class FakeSession:
         text = str(statement)
         if "FROM library_source_files" in text:
             return FakeScalarResult([self.library_file])
+        if "FROM structured_facts" in text:
+            return FakeScalarResult([self.fact])
         if "FROM library_sources" in text:
             return FakeScalarResult([self.library_source])
         if "FROM articles" in text:
@@ -195,6 +210,10 @@ class FakeSession:
     def get(self, model: type[object], row_id: object) -> object | None:
         if model is LibrarySource and row_id == self.library_source.id:
             return self.library_source
+        if model is Article and row_id == ARTICLE_ID:
+            return self.article
+        if model is Chunk and row_id == self.chunk.id:
+            return self.chunk
         return None
 
     def add(self, value: object) -> None:
@@ -693,6 +712,23 @@ def test_libraries_page_renders_sources_and_files(monkeypatch) -> None:
     assert "Scan Now" in body
     assert "class='active' href='/ui/libraries'>Libraries</a>" in body
     assert "Nafion profile" not in body
+
+
+def test_structured_facts_page_renders_fact_candidates() -> None:
+    response = structured_facts_page(_override_session(), field_name="conductivity")
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "Structured Facts" in body
+    assert "Derived numeric evidence candidates" in body
+    assert "conductivity" in body
+    assert "1.2e-3 S cm-1" in body
+    assert "0.0012" in body
+    assert "rule_based_numeric_v1" in body
+    assert "Li-Nafion evidence paper" in body
+    assert f"/ui/articles/{ARTICLE_ID}/chunks/22222222-2222-2222-2222-222222222222/context" in body
+    assert f"/articles/{ARTICLE_ID}/pdf?layer=original#page=1" in body
+    assert "class='active' href='/ui/facts'>Facts</a>" in body
 
 
 def test_create_library_action_redirects_after_commit(monkeypatch, tmp_path) -> None:
