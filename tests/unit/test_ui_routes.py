@@ -716,6 +716,7 @@ def test_libraries_page_renders_sources_and_files(monkeypatch) -> None:
     assert "stage-dot running" in body
     assert "stage-spinner" in body
     assert "stage-check" in body
+    assert "window.location.reload()" in body
     assert "Scan Now" in body
     assert "Open Articles" in body
     assert "Open Failed Files" in body
@@ -727,6 +728,18 @@ def test_libraries_page_renders_sources_and_files(monkeypatch) -> None:
     assert "fetch('/ui/pick-folder'" in body
     assert "class='active' href='/ui/libraries'>Libraries</a>" in body
     assert "Nafion profile" not in body
+
+
+def test_libraries_page_does_not_auto_refresh_ready_files(monkeypatch) -> None:
+    session = _override_session()
+    session.library_file.status = "duplicate"
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+
+    response = libraries_page(session)
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "window.location.reload()" not in body
 
 
 def test_structured_facts_page_renders_fact_candidates() -> None:

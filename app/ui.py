@@ -1862,6 +1862,7 @@ def libraries_page(session: SessionDep, library_id: UUID | None = None, file_sta
     <th>Last seen</th><th>Last ingested</th><th>Links</th></tr>{_library_file_rows(selected_files)}</table>
     {selection_script}
     {_folder_picker_script()}
+    {_library_auto_refresh_script(selected_files)}
     """
     response = _layout("Libraries", body)
     if selected is not None:
@@ -1917,6 +1918,18 @@ def _folder_picker_script() -> str:
         });
       });
     })();
+    </script>
+    """
+
+
+def _library_auto_refresh_script(files: list[LibrarySourceFile]) -> str:
+    if not any(row.status in {"discovered", "queued", "ingesting", "embedding"} for row in files):
+        return ""
+    return """
+    <script>
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 3000);
     </script>
     """
 
