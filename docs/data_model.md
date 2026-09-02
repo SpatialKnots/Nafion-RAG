@@ -15,7 +15,7 @@ The initial schema follows the implementation plan while keeping vector search o
 - `ingestion_jobs`: also acts as the local PostgreSQL-backed upload queue.
 - `library_sources`: persistent user-selected PDF folders attached to a collection.
 - `library_source_files`: discovered external PDF files and their scan/ingestion linkage state.
-- `structured_facts`: source-linked scientific facts for later extraction work.
+- `structured_facts`: source-linked deterministic fact candidates derived from persisted chunks.
 
 ## Traceability
 
@@ -79,3 +79,11 @@ When an ingestion job changes state, reconciliation maps linked `library_source_
 - `failed` -> `failed`
 
 Library management is exposed through JSON routes under `/libraries` and an HTML workbench at `/ui/libraries`.
+
+## Structured Facts
+
+`structured_facts` stores extracted fact candidates with `article_id`, optional `source_chunk_id`, `entity_type`, `field_name`, text value, numeric value, unit, confidence, and extractor source.
+
+The first extractor source is `rule_based_numeric_v1`. It records only numeric fragments with explicit units found in existing chunks, such as conductivity, temperature, percentage, length, mass/density, energy, and pressure/modulus values. It does not infer table cells, row labels, comparisons, or scientific conclusions.
+
+The source of truth remains the original chunk text and PDF/page provenance. Structured facts are derived evidence aids and can be regenerated from chunks.

@@ -273,6 +273,66 @@ def test_reprocess_article_apply_backs_up_reselects_and_commits(monkeypatch, tmp
     assert session.committed is True
 
 
+def test_extract_facts_defaults_to_dry_run_and_writes_report(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    session = FakeSession()
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: session)
+    monkeypatch.setattr(ingestion_cli, "get_settings", lambda: SimpleNamespace(data_root=tmp_path))
+    monkeypatch.setattr(
+        ingestion_cli,
+        "build_structured_fact_report",
+        lambda active_session, collection_name, article_ids: {
+            "status": "dry_run",
+            "collection": collection_name,
+            "source": "rule_based_numeric_v1",
+            "chunk_count": 2,
+            "candidate_count": 3,
+            "by_field": {"conductivity": 1, "temperature": 2},
+            "by_unit": {"S cm-1": 1, "°C": 2},
+            "sample": [],
+        },
+    )
+
+    result = runner.invoke(ingestion_cli.cli, ["extract-facts"])
+
+    assert result.exit_code == 0
+    payload = _json_lines(result.output)[0]
+    assert payload["status"] == "dry_run"
+    assert payload["output_path"].endswith(".json")
+    assert Path(str(payload["output_path"])).exists()
+    assert payload["candidate_count"] == 3
+    assert session.committed is False
+
+
+def test_extract_facts_apply_refreshes_and_commits(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    session = FakeSession()
+    monkeypatch.setattr(ingestion_cli, "SessionLocal", lambda: session)
+    monkeypatch.setattr(ingestion_cli, "get_settings", lambda: SimpleNamespace(data_root=tmp_path))
+    monkeypatch.setattr(
+        ingestion_cli,
+        "refresh_structured_facts",
+        lambda active_session, collection_name, article_ids: {
+            "status": "applied",
+            "collection": collection_name,
+            "source": "rule_based_numeric_v1",
+            "chunk_count": 2,
+            "candidate_count": 3,
+            "by_field": {"conductivity": 1, "temperature": 2},
+            "by_unit": {"S cm-1": 1, "°C": 2},
+            "sample": [],
+        },
+    )
+
+    result = runner.invoke(ingestion_cli.cli, ["extract-facts", "--apply"])
+
+    assert result.exit_code == 0
+    payload = _json_lines(result.output)[0]
+    assert payload["status"] == "applied"
+    assert payload["candidate_count"] == 3
+    assert session.committed is True
+
+
 def test_latest_retrieval_eval_loads_newest_summary(tmp_path) -> None:
     export_dir = tmp_path / "exports"
     export_dir.mkdir()

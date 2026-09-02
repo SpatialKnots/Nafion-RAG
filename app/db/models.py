@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -274,7 +275,7 @@ class StructuredFact(Base):
     entity_type: Mapped[str] = mapped_column(Text, nullable=False)
     field_name: Mapped[str] = mapped_column(Text, nullable=False)
     field_value_text: Mapped[str | None] = mapped_column(Text)
-    field_value_numeric: Mapped[float | None] = mapped_column(Numeric)
+    field_value_numeric: Mapped[Decimal | None] = mapped_column(Numeric)
     unit: Mapped[str | None] = mapped_column(Text)
     source_chunk_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chunks.id", ondelete="SET NULL"))
     confidence: Mapped[float | None] = mapped_column(Numeric)

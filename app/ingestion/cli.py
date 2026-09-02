@@ -17,6 +17,7 @@ from app.db.models import Article, ArticleTag, Chunk, Collection, Note, Page, Pa
 from app.db.session import SessionLocal
 from app.diagnostics.doctor import run_doctor
 from app.extraction.text_quality_report import build_reprocess_text_quality_dry_run, build_text_quality_report
+from app.facts.extraction import build_structured_fact_report, refresh_structured_facts
 from app.ingestion.service import IngestionResult, ingest_pdf, reselect_article_text
 from app.ingestion.text_layers import article_text_layer_summary
 from app.retrieval.index_lifecycle import mark_vector_index_stale
@@ -308,6 +309,15 @@ def _write_reprocess_report(report: dict[str, object], data_root: Path, article_
     return output_path
 
 
+def _write_structured_fact_report(report: dict[str, object], data_root: Path) -> Path:
+    export_dir = data_root / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    output_path = export_dir / f"structured_fact_extraction_{timestamp}.json"
+    output_path.write_text(json.dumps(_json_ready(report), ensure_ascii=False, indent=2), encoding="utf-8")
+    return output_path
+
+
 def _backup_article_content(session: Session, article: Article, backup_dir: Path, reason: str) -> Path:
     payload: dict[str, object] = {
         "created_at": datetime.now(UTC).isoformat(),
@@ -579,6 +589,34 @@ def reprocess_article(
             "mode": mode,
             "current_counts": report["current_counts"],
             "candidate_actions": report["candidate_actions"],
+        }
+    )
+
+
+@cli.command("extract-facts")
+def extract_facts(
+    target: Annotated[str, typer.Argument(help="'all' or an article UUID")] = "all",
+    collection: str = "literature",
+    apply: bool = False,
+) -> None:
+    settings = get_settings()
+    with SessionLocal() as session:
+        article_ids = None if target == "all" else [article.id for article in _articles_for_target(session, target)]
+        if apply:
+            report = refresh_structured_facts(session, collection_name=collection, article_ids=article_ids)
+            session.commit()
+        else:
+            report = build_structured_fact_report(session, collection_name=collection, article_ids=article_ids)
+    output_path = _write_structured_fact_report(report, settings.data_root)
+    _echo_payload(
+        {
+            "status": report["status"],
+            "output_path": str(output_path),
+            "collection": report["collection"],
+            "source": report["source"],
+            "chunk_count": report["chunk_count"],
+            "candidate_count": report["candidate_count"],
+            "by_field": report["by_field"],
         }
     )
 

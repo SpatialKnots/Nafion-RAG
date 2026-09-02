@@ -337,6 +337,31 @@ python -m app.ingestion.cli corpus-report
 
 Corpus reports are written to `data/exports/corpus_report_*.json`. They include article and DOI coverage, page/chunk/text-layer totals, chunk source/text-layer distributions, missing original/OCR file counts, missing-DOI titles, and the latest retrieval evaluation summary when present.
 
+## Structured Fact Extraction
+
+Run a dry-run extraction report from existing chunks:
+
+```powershell
+python -m app.ingestion.cli extract-facts
+```
+
+Apply the deterministic numeric-with-unit candidates to `structured_facts`:
+
+```powershell
+python -m app.ingestion.cli extract-facts --apply
+```
+
+Scope to one article when needed:
+
+```powershell
+python -m app.ingestion.cli extract-facts ARTICLE_UUID
+python -m app.ingestion.cli extract-facts ARTICLE_UUID --apply
+```
+
+The extractor source is `rule_based_numeric_v1`. Apply mode replaces only rows from that source for the selected articles, then inserts candidates regenerated from current chunks. It does not mutate PDFs, pages, chunks, text layers, retrieval scoring, or vector index state.
+
+Current scope is explicit numeric fragments with units. The extractor does not infer table row/column semantics or perform scientific comparisons.
+
 Write the tracked corpus manifest after intentional corpus changes:
 
 ```powershell

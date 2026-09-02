@@ -16,9 +16,15 @@ Acceptance smoke на текущем локальном корпусе:
 - `python -m app.evaluation.cli retrieval docs\evaluation_questions_priority6.yaml --top-k 10 --method hybrid`
   - 6/6 PASS, Recall@10 1.0.
 
-Изменения extraction/chunking, новая storage schema для extracted evidence,
-bbox extraction и symbolic formula parsing не выполнялись и остаются отдельными
-будущими решениями.
+Новая storage schema не потребовалась: таблица `structured_facts` уже есть в
+исходной схеме. Добавлен первый deterministic extractor `rule_based_numeric_v1`
+для numeric-with-unit fragments из уже сохранённых chunks. Он заполняет
+`structured_facts` через явный CLI dry-run/apply и сохраняет provenance через
+`article_id` и `source_chunk_id`.
+
+Изменения extraction/chunking, bbox extraction, full table row/column parsing и
+symbolic formula parsing не выполнялись и остаются отдельными будущими
+решениями.
 
 Этот этап научно рискованнее предыдущих: он может изменить состав chunks и
 retrieval evidence. Поэтому любые изменения extraction/chunking должны иметь

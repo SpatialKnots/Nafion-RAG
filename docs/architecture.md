@@ -91,6 +91,17 @@ external PDF folder
 
 Library scanning is a discovery and queueing layer only. It does not extract text, run OCR, write article evidence, or treat the external folder as the source of truth. Same-checksum files reuse existing articles or active ingestion jobs where possible.
 
+## Structured Fact Flow
+
+```text
+persisted chunks
+  -> deterministic numeric-with-unit fragment extraction
+  -> structured_facts rows with article_id and source_chunk_id provenance
+  -> later fact/table evidence retrieval and numeric comparison workflows
+```
+
+The current extractor records explicit numeric fragments with units from stored chunk text. It does not parse table cell boundaries, infer row labels, compare values, or alter retrieval scoring. `structured_facts` rows are rebuildable derived evidence; chunks and original PDFs remain the auditable source of truth.
+
 ## Answer Flow
 
 ```text
@@ -111,4 +122,4 @@ The supported runtime provider is `openai`. Retrieved text is marked as untruste
 
 - Runtime verification of generated prose with an installed language model.
 - External metadata lookup.
-- Complex frontend.
+- Full table structure extraction with row/column semantics.
