@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.config import Settings, get_settings
-from app.db.models import Article, ArticleTag, Chunk, Collection
+from app.db.models import Article, ArticleTag, Chunk, Collection, LibrarySourceFile
 from app.documents.service import build_pdf_url
 from app.retrieval.cross_lingual import QueryBundle, build_query_bundle, detect_query_language, query_bundle_metadata
 from app.retrieval.reranking import rerank_cross_lingual_results as feature_rerank_cross_lingual_results
@@ -62,6 +62,7 @@ GroupBy = Literal["none", "article"]
 @dataclass(frozen=True)
 class SearchFilters:
     article_id: uuid.UUID | None = None
+    library_source_id: uuid.UUID | None = None
     doi: str | None = None
     year: int | None = None
     year_from: int | None = None
@@ -77,6 +78,7 @@ class SearchFilters:
         cls,
         *,
         article_id: uuid.UUID | str | None = None,
+        library_source_id: uuid.UUID | str | None = None,
         doi: str | None = None,
         year: int | None = None,
         year_from: int | None = None,
@@ -90,8 +92,10 @@ class SearchFilters:
         if year is not None and (year_from is not None or year_to is not None):
             raise ValueError("year cannot be combined with year_from or year_to")
         normalized_article_id = uuid.UUID(str(article_id)) if article_id is not None else None
+        normalized_library_source_id = uuid.UUID(str(library_source_id)) if library_source_id is not None else None
         return cls(
             article_id=normalized_article_id,
+            library_source_id=normalized_library_source_id,
             doi=_blank_to_none(doi),
             year=year,
             year_from=year_from,
@@ -106,6 +110,7 @@ class SearchFilters:
     def as_metadata(self) -> dict[str, object]:
         values = {
             "article_id": str(self.article_id) if self.article_id is not None else None,
+            "library_source_id": str(self.library_source_id) if self.library_source_id is not None else None,
             "doi": self.doi,
             "year": self.year,
             "year_from": self.year_from,
@@ -172,6 +177,13 @@ def _blank_to_none(value: str | None) -> str | None:
 def apply_search_filters(statement: Select[Any], filters: SearchFilters) -> Select[Any]:
     if filters.article_id is not None:
         statement = statement.where(Article.id == filters.article_id)
+    if filters.library_source_id is not None:
+        library_clause = (
+            select(LibrarySourceFile.id)
+            .where(LibrarySourceFile.article_id == Article.id)
+            .where(LibrarySourceFile.library_source_id == filters.library_source_id)
+        )
+        statement = statement.where(exists(library_clause))
     if filters.doi is not None:
         statement = statement.where(func.lower(Article.doi) == filters.doi.lower())
     if filters.year is not None:
@@ -1183,7 +1195,7 @@ def _index_row_matches_filters(chunk: Chunk, article: Article, filters: SearchFi
 
 
 def _semantic_filtered_chunk_ids(session: Session, collection_name: str, filters: SearchFilters) -> set[str] | None:
-    if filters.tag_type is None and filters.tag_value is None:
+    if filters.tag_type is None and filters.tag_value is None and filters.library_source_id is None:
         return None
     collection = session.scalar(select(Collection).where(Collection.name == collection_name))
     if collection is None:

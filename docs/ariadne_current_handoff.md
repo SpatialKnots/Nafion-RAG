@@ -2,15 +2,15 @@
 
 > Это handoff-файл для передачи контекста в новую сессию. Прочитай, подтверди коротким "принял", и жди следующего сообщения пользователя.
 
-**TL;DR:** Nafion-RAG доведен до воспроизводимого Phase 2 exact retrieval baseline: добавлен tracked corpus manifest, DOI-less eval support, ranking metrics, eval расширен до 24 вопросов, все проверено и закоммичено в `8da27f7`.
+**TL;DR:** ARIADNE доведен до воспроизводимого Phase 2 exact retrieval baseline: добавлен tracked corpus manifest, DOI-less eval support, ranking metrics, eval расширен до 24 вопросов, все проверено и закоммичено в `8da27f7`.
 
 ## О чем был чат
 
-Работа шла в репозитории `D:\Nafion-RAG`. Проект - локальная научная ingestion/retrieval система для Nafion/PFSA литературы.
+Работа шла в репозитории `D:\ARIADNE`. Проект - локальная научная ingestion/retrieval система для Nafion/PFSA литературы.
 
 По `AGENTS.md` это не ORCAVEDA: нельзя переносить ORCA/VEDA/PED-логику и нельзя заявлять embeddings, semantic search, hybrid search или RAG answers как реализованные, пока это не подтверждено source.
 
-Пользователь дал handoff `D:\Nafion-RAG\docs\nafion_rag_next_steps_handoff.md` и попросил ознакомиться с инструкцией и приступить к реализации. Реализованы первые четыре практических шага из плана до Phase 3 gate.
+Пользователь дал handoff `D:\ARIADNE\docs\ariadne_next_steps_handoff.md` и попросил ознакомиться с инструкцией и приступить к реализации. Реализованы первые четыре практических шага из плана до Phase 3 gate.
 
 ## Главное, что сделано
 
@@ -63,10 +63,10 @@ create mode 100644 docs/corpus_manifest.json
 Текущий `git status --short` после commit:
 
 ```text
-?? docs/nafion_rag_next_steps_handoff.md
+?? docs/ariadne_next_steps_handoff.md
 ```
 
-`docs/nafion_rag_next_steps_handoff.md` оставлен untracked специально: это исходный handoff-файл, не включался в commit.
+`docs/ariadne_next_steps_handoff.md` оставлен untracked специально: это исходный handoff-файл, не включался в commit.
 
 ## Последние проверки, которые реально запускались
 
@@ -105,7 +105,7 @@ create mode 100644 docs/corpus_manifest.json
   - tests для corpus report/manifest.
 - `tests/unit/test_evaluation.py`
   - tests для DOI-less targets и ranking metrics.
-- `docs/nafion_rag_next_steps_handoff.md`
+- `docs/ariadne_next_steps_handoff.md`
   - untracked исходный handoff/план; не коммитился.
 
 ## Ключевые решения и ограничения
@@ -146,4 +146,4 @@ create mode 100644 docs/corpus_manifest.json
 - Не удалять diagnostics ради "чистого" вывода.
 - Не трогать original PDFs после ingestion.
 - Сохранять source traceability: article, PDF path/page range/source type/text layer/snippet where applicable.
-- Рабочее дерево после commit было чистое по tracked files; единственный untracked файл на тот момент - `docs/nafion_rag_next_steps_handoff.md`.
+- Рабочее дерево после commit было чистое по tracked files; единственный untracked файл на тот момент - `docs/ariadne_next_steps_handoff.md`.

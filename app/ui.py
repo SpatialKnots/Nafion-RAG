@@ -9,19 +9,36 @@ from typing import Annotated, Any, cast
 from urllib.parse import urlencode
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import APIRouter, Cookie, Depends, Form, HTTPException, Query
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.models import Article, ArticleTag, Chunk, Collection, IngestionJob, Page, PageTextLayer, Section
+from app.db.models import (
+    Article,
+    ArticleTag,
+    Chunk,
+    Collection,
+    IngestionJob,
+    LibrarySource,
+    LibrarySourceFile,
+    Page,
+    PageTextLayer,
+    Section,
+)
 from app.db.session import get_session
 from app.documents.context import ContextNotFoundError, get_chunk_context, get_page_range_context
 from app.documents.service import PageEvidenceNotFoundError, build_pdf_url
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
 from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import job_to_response
+from app.library.service import (
+    create_library_source,
+    list_library_source_files,
+    list_library_sources,
+    scan_and_queue_library_source,
+)
 from app.retrieval.index_lifecycle import list_vector_index_states, request_vector_rebuild, vector_index_state_to_response
 from app.retrieval.search import SearchFilters, search_chunks
 from app.retrieval.vector_index import VectorIndexUnavailableError
@@ -56,6 +73,15 @@ def _optional_int_filter(name: str, value: str | int | None) -> int | None:
         return int(stripped)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"{name} must be an integer") from exc
+
+
+def _cookie_uuid(value: str | None) -> UUID | None:
+    if value is None or not value.strip():
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
 
 
 def _truncate(text: str | None, limit: int = 500) -> str:
@@ -250,10 +276,24 @@ def _layout(title: str, body: str) -> HTMLResponse:
     nav a.active { background:#365B6D; color:#fff; }
     nav a.active::before { background:#5BD4D3; border-color:#5BD4D3; }
     .sidebar-card {
-      margin-top:auto; border:1px solid rgba(145,222,219,.28); border-radius:8px; padding:12px; background:#173341;
+      margin-top:auto; border:1px solid rgba(145,222,219,.28); border-radius:8px; padding:8px; background:#173341;
     }
     .sidebar-card small { display:block; color:#5DE1DF; font-size:10px; font-weight:700; text-transform:uppercase; margin-bottom:8px; }
     .sidebar-card strong { display:block; font-size:15px; font-weight:500; }
+    .library-switch { position:relative; }
+    .library-switch button {
+      width:100%; display:grid; grid-template-columns:24px minmax(0, 1fr); gap:8px; align-items:center;
+      background:transparent; border:0; color:#fff; padding:4px; text-align:left;
+    }
+    .library-plus { width:22px; height:22px; display:grid; place-items:center; border:1px solid #5DE1DF; border-radius:50%; }
+    .library-menu {
+      display:none; position:absolute; left:0; right:0; bottom:calc(100% + 8px); z-index:5;
+      border:1px solid rgba(145,222,219,.38); border-radius:8px; background:#102C39; padding:6px;
+      box-shadow:0 10px 24px rgba(16,44,57,.24);
+    }
+    .library-switch.open .library-menu { display:grid; gap:4px; }
+    .library-menu a { color:#EAFBFC; text-decoration:none; padding:7px 8px; border-radius:6px; overflow-wrap:anywhere; }
+    .library-menu a:hover, .library-menu a:focus { background:#365B6D; }
     main { min-width:0; padding:16px 12px 40px; max-width: none; margin: 0; }
     h1 { font-size: 28px; line-height:1.1; margin: 0 0 6px; color:#213846; }
     h2 { font-size: 17px; margin: 22px 0 8px; }
@@ -319,6 +359,17 @@ def _layout(title: str, body: str) -> HTMLResponse:
     .progress-step.error .marker { background:#9b5a00; border-color:#9b5a00; color:#fff; }
     .progress-step.running .marker { border:2px solid #c7d0dd; border-top-color:var(--accent);
       animation: spin .8s linear infinite; }
+    .pipeline-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin:10px 0 14px; }
+    .pipeline-meter { border:1px solid var(--line); border-radius:8px; padding:10px; background:#FBFCFD; }
+    .pipeline-meter strong { display:block; margin-bottom:6px; color:var(--graphite); }
+    .bar { height:9px; border-radius:999px; background:#E8EEF2; overflow:hidden; }
+    .bar span { display:block; height:100%; background:#247A82; }
+    .stage-line { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+    .stage-dot { min-width:22px; min-height:18px; display:inline-grid; place-items:center; border:1px solid var(--line);
+      border-radius:999px; color:var(--muted); background:#F8FBFC; font-size:11px; }
+    .stage-dot.done { border-color:#B8DCC7; color:var(--ok); background:#F4FBF7; }
+    .stage-dot.running { border-color:#B9DADC; color:#155E63; background:#F2FBFB; font-weight:700; }
+    .stage-dot.error { border-color:#E5C6B1; color:var(--warn); background:#FFF8F3; font-weight:700; }
     button[disabled] { opacity:.65; cursor:wait; }
     @keyframes spin { to { transform: rotate(360deg); } }
     mark { background:#fff1a8; padding:0 1px; }
@@ -462,6 +513,7 @@ def _layout(title: str, body: str) -> HTMLResponse:
             {"Retrieval Evaluation Report", "Extended Retrieval Evaluation Report", "Text Quality Report", "Classification Report"},
         ),
         ("Sessions", "/ui/ingestion", {"Ingestion"}),
+        ("Libraries", "/ui/libraries", {"Libraries"}),
         ("Settings", "/ui/vector-indexes", {"Vector Indexes"}),
     )
     nav = "".join(
@@ -483,12 +535,98 @@ def _layout(title: str, body: str) -> HTMLResponse:
     <img class="sidebar-logo" src="{_brand_asset_url('ariadne-logo-horizontal.png')}" alt="ARIADNE">
   </a>
   <nav>{nav}</nav>
-  <div class="sidebar-card"><small>Local collection</small><strong>Nafion profile</strong></div>
+  <div class="sidebar-card library-switch" data-library-switch>
+    <button type="button" data-library-toggle aria-expanded="false">
+      <span class="library-plus">+</span><strong data-current-library>Evidence library</strong>
+    </button>
+    <div class="library-menu" data-library-menu></div>
+  </div>
 </aside>
 <main>{body}</main>
 </div>
+{_library_switch_script()}
 </body></html>"""
     return HTMLResponse(html)
+
+
+def _library_switch_script() -> str:
+    return """
+    <script>
+    (() => {
+      const key = 'ariadne:selectedLibraries';
+      const currentKey = 'ariadne:currentLibrary';
+      const switcher = document.querySelector('[data-library-switch]');
+      if (!switcher) return;
+      const label = switcher.querySelector('[data-current-library]');
+      const menu = switcher.querySelector('[data-library-menu]');
+      const toggle = switcher.querySelector('[data-library-toggle]');
+      const read = (name) => {
+        const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+        return match ? decodeURIComponent(match[1]) : '';
+      };
+      const write = (name, value) => {
+        document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; samesite=lax';
+      };
+      const loadList = () => {
+        try { return JSON.parse(sessionStorage.getItem(key) || '[]'); } catch (_) { return []; }
+      };
+      const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[char]);
+      const saveList = (items) => sessionStorage.setItem(key, JSON.stringify(items.slice(-12)));
+      const current = (() => {
+        try { return JSON.parse(sessionStorage.getItem(currentKey) || 'null'); } catch (_) { return null; }
+      })();
+      const cookieId = read('ariadne_library_id');
+      let items = loadList();
+      if (current && current.id) {
+        items = [...items.filter((item) => item.id !== current.id), current];
+        saveList(items);
+      }
+      const active = current || items.find((item) => item.id === cookieId) || items[items.length - 1];
+      if (active && active.name) label.textContent = active.name;
+      const render = () => {
+        const latest = loadList();
+        menu.innerHTML = latest.length
+          ? latest.map((item) => '<a href="/ui/libraries?library_id=' + encodeURIComponent(item.id) +
+              '" data-library-id="' + esc(item.id) + '">' + esc(item.name) + '</a>').join('')
+          : '<a href="/ui/libraries">Add Library</a>';
+      };
+      render();
+      toggle.addEventListener('click', () => {
+        switcher.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', switcher.classList.contains('open') ? 'true' : 'false');
+        render();
+      });
+      menu.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.dataset.libraryId) return;
+        const item = loadList().find((value) => value.id === target.dataset.libraryId);
+        if (item) {
+          sessionStorage.setItem(currentKey, JSON.stringify(item));
+          write('ariadne_library_id', item.id);
+        }
+      });
+      document.querySelectorAll('form[data-library-scoped]').forEach((form) => {
+        form.addEventListener('submit', () => {
+          const activeItem = (() => {
+            try { return JSON.parse(sessionStorage.getItem(currentKey) || 'null'); } catch (_) { return null; }
+          })();
+          const id = (activeItem && activeItem.id) || read('ariadne_library_id');
+          if (!id) return;
+          let input = form.querySelector('input[name="library_source_id"]');
+          if (!input) {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'library_source_id';
+            form.appendChild(input);
+          }
+          input.value = id;
+        });
+      });
+    })();
+    </script>
+    """
 
 
 @router.get("/ui/assets/brand/{asset_name}")
@@ -499,6 +637,7 @@ def brand_asset(asset_name: str) -> FileResponse:
     return FileResponse(BRAND_ASSET_DIR / filename)
 
 
+@router.get("/ui/", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 def dashboard(session: SessionDep) -> HTMLResponse:
     settings = get_settings()
@@ -562,7 +701,7 @@ def dashboard(session: SessionDep) -> HTMLResponse:
         <img class="start-logo" src="{_brand_asset_url('ariadne-logo-horizontal.png')}" alt="ARIADNE">
         <h1 id="start-title">ARIADNE Research Workbench</h1>
         <p class="page-kicker">Ask a literature question and trace the answer to source fragments and the original PDF.</p>
-        <form class="start-search" method="post" action="/ui/answer" data-async-result="/ui/answer/result">
+        <form class="start-search" method="post" action="/ui/answer" data-async-result="/ui/answer/result" data-library-scoped>
           <div class="start-search-row">
             <input name="question" value="" placeholder="Ask for a literature review" aria-label="Question" autofocus>
             <input class="advanced-toggle" id="start-answer-options" type="checkbox" aria-label="Show answer parameters">
@@ -600,6 +739,7 @@ def dashboard(session: SessionDep) -> HTMLResponse:
       <section class="dashboard-section" aria-labelledby="corpus-dashboard">
         <h2 id="corpus-dashboard">Corpus Dashboard</h2>
         <div class="grid">
+          {_project_analysis_progress_panel(session)}
           <section class="panel"><h2>Corpus</h2><table>{corpus_rows}</table></section>
           {selected_panel}
           {source_panel}
@@ -607,7 +747,8 @@ def dashboard(session: SessionDep) -> HTMLResponse:
           <section class="panel"><h2>Retrieval Evaluation</h2>{retrieval_report_link}{_command_hint(eval_command)}</section>
           <section class="panel"><h2>Extended Retrieval Evaluation</h2>
           {extended_retrieval_report_link}{_command_hint(extended_eval_command)}</section>
-          <section class="panel"><h2>Tables / Facts diagnostics</h2>{text_quality_report_link}{_command_hint(text_quality_command)}</section>
+          <section class="panel"><h2>Tables / Facts diagnostics</h2>
+          {text_quality_report_link}{_command_hint(text_quality_command)}</section>
         </div>
       </section>
     </div>
@@ -890,9 +1031,21 @@ def _answer_progress_script(result_id: str) -> str:
         setStep('prepare');
         try {{
           setStep('send', ['prepare']);
+          const data = new FormData(form);
+          const readCookie = (name) => {{
+            const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+            return match ? decodeURIComponent(match[1]) : '';
+          }};
+          const activeLibrary = (() => {{
+            try {{ return JSON.parse(sessionStorage.getItem('ariadne:currentLibrary') || 'null'); }} catch (_) {{ return null; }}
+          }})();
+          const activeLibraryId = (activeLibrary && activeLibrary.id) || readCookie('ariadne_library_id');
+          if (activeLibraryId && !data.get('library_source_id')) {{
+            data.set('library_source_id', activeLibraryId);
+          }}
           const responsePromise = fetch(form.dataset.asyncResult, {{
             method: 'POST',
-            body: new FormData(form),
+            body: data,
             headers: {{'X-Requested-With': 'fetch'}}
           }});
           setStep('wait', ['prepare', 'send']);
@@ -947,6 +1100,7 @@ def _answer_body(
     answer_style: str = "claims",
     answer_language: str = "auto",
     result: str = "",
+    library_source_id: UUID | str | None = None,
 ) -> str:
     method_options = "".join(
         f"<option value='{value}' {'selected' if method == value else ''}>{value}</option>"
@@ -963,7 +1117,8 @@ def _answer_body(
     return f"""
     <h1>Search the literature</h1>
     <p class="page-kicker">Every claim should lead back to a source fragment.</p>
-    <form method="post" action="/ui/answer" data-async-result="/ui/answer/result">
+    <form method="post" action="/ui/answer" data-async-result="/ui/answer/result" data-library-scoped>
+      <input type="hidden" name="library_source_id" value="{_html(library_source_id or '')}">
       <div class="answer-search">
         <label><span class="section-kicker">Question</span><br><textarea name="question" rows="1">{_html(question)}</textarea></label>
         <button type="submit">Search</button>
@@ -985,12 +1140,18 @@ def _answer_body(
 def answer_page(
     question: str = "",
     collection: str = "literature",
+    library_source_id: UUID | None = None,
+    ariadne_library_id: Annotated[str | None, Cookie()] = None,
     top_k: int = Query(default=5, ge=1),
     method: str = "hybrid_cross_lingual",
     answer_style: str = "claims",
     answer_language: str = "auto",
 ) -> HTMLResponse:
-    return _layout("Answer", _answer_body(question, collection, top_k, method, answer_style, answer_language))
+    active_library_id = library_source_id or _cookie_uuid(ariadne_library_id)
+    return _layout(
+        "Answer",
+        _answer_body(question, collection, top_k, method, answer_style, answer_language, library_source_id=active_library_id),
+    )
 
 
 def _answer_result_fragment(
@@ -1001,6 +1162,7 @@ def _answer_result_fragment(
     method: str,
     answer_style: str,
     answer_language: str,
+    library_source_id: UUID | None = None,
 ) -> str:
     if top_k <= 0:
         return "<section class='panel'><p class='warn'>top_k must be positive.</p></section>"
@@ -1014,6 +1176,7 @@ def _answer_result_fragment(
             method=method,
             answer_style=answer_style,
             answer_language=answer_language,
+            library_source_id=library_source_id,
         )
         payload = answer_response_to_dict(response)
         return _answer_payload_panel(payload, question)
@@ -1030,9 +1193,13 @@ def answer_action(
     method: Annotated[str, Form()] = "hybrid_cross_lingual",
     answer_style: Annotated[str, Form()] = "claims",
     answer_language: Annotated[str, Form()] = "auto",
+    library_source_id: Annotated[UUID | None, Form()] = None,
 ) -> HTMLResponse:
-    result = _answer_result_fragment(session, question, collection, top_k, method, answer_style, answer_language)
-    return _layout("Answer", _answer_body(question, collection, top_k, method, answer_style, answer_language, result))
+    result = _answer_result_fragment(session, question, collection, top_k, method, answer_style, answer_language, library_source_id)
+    return _layout(
+        "Answer",
+        _answer_body(question, collection, top_k, method, answer_style, answer_language, result, library_source_id),
+    )
 
 
 @router.post("/ui/answer/result", response_class=HTMLResponse)
@@ -1044,8 +1211,11 @@ def answer_result_action(
     method: Annotated[str, Form()] = "hybrid_cross_lingual",
     answer_style: Annotated[str, Form()] = "claims",
     answer_language: Annotated[str, Form()] = "auto",
+    library_source_id: Annotated[UUID | None, Form()] = None,
 ) -> HTMLResponse:
-    return HTMLResponse(_answer_result_fragment(session, question, collection, top_k, method, answer_style, answer_language))
+    return HTMLResponse(
+        _answer_result_fragment(session, question, collection, top_k, method, answer_style, answer_language, library_source_id)
+    )
 
 
 @router.get("/ui/vector-indexes", response_class=HTMLResponse)
@@ -1100,6 +1270,8 @@ def search_page(
     session: SessionDep,
     q: str = "",
     collection: str = "literature",
+    library_source_id: UUID | None = None,
+    ariadne_library_id: Annotated[str | None, Cookie()] = None,
     top_k: int = Query(default=10, ge=1),
     article_id: UUID | None = None,
     doi: str = "",
@@ -1120,10 +1292,12 @@ def search_page(
     year_from_filter = _optional_int_filter("year_from", year_from)
     year_to_filter = _optional_int_filter("year_to", year_to)
     chunks_per_article_filter = _optional_int_filter("chunks_per_article", chunks_per_article)
+    active_library_id = library_source_id or _cookie_uuid(ariadne_library_id)
     if chunks_per_article_filter is not None and chunks_per_article_filter <= 0:
         raise HTTPException(status_code=400, detail="chunks_per_article must be positive")
     filters = SearchFilters.normalize(
         article_id=article_id,
+        library_source_id=active_library_id,
         doi=doi,
         year=year_filter,
         year_from=year_from_filter,
@@ -1216,7 +1390,8 @@ def search_page(
     )
     body = f"""
     <h1>Search</h1>
-    <form method="get" action="/ui/search">
+    <form method="get" action="/ui/search" data-library-scoped>
+      <input type="hidden" name="library_source_id" value="{_html(active_library_id or '')}">
       <label>Query<br><input name="q" size="52" value="{_html(q)}"></label>
       <label>Collection<br><input name="collection" value="{_html(collection)}"></label>
       <label>Source type<br><select name="source_type">{source_options}</select></label>
@@ -1356,6 +1531,254 @@ def page_context_page(
     return _layout("Page Context", body)
 
 
+def _library_status_class(status: str) -> str:
+    if status in {"active", "ready", "text_ready", "duplicate"}:
+        return "ok"
+    if status in {"missing", "failed", "error"}:
+        return "warn"
+    return ""
+
+
+def _progress_percent(done: int, total: int) -> int:
+    if total <= 0:
+        return 0
+    return round(done / total * 100)
+
+
+def _pipeline_meter(label: str, done: int, total: int) -> str:
+    percent = _progress_percent(done, total)
+    return (
+        "<div class='pipeline-meter'>"
+        f"<strong>{_html(label)}</strong>"
+        f"<div class='bar' aria-label='{_html(label)} {percent} percent'><span style='width:{percent}%'></span></div>"
+        f"<div class='muted'>{done} / {total}</div>"
+        "</div>"
+    )
+
+
+def _stage_line(status: str) -> str:
+    stages = (
+        ("discovered", "D"),
+        ("queued", "Q"),
+        ("ingesting", "T"),
+        ("text_ready", "R"),
+    )
+    order = [stage for stage, _label in stages]
+    if status == "failed":
+        active_index = min(order.index("ingesting"), len(stages) - 1)
+    elif status == "duplicate":
+        active_index = len(stages) - 1
+    elif status in order:
+        active_index = order.index(status)
+    elif status == "ready":
+        active_index = len(stages) - 1
+    else:
+        active_index = 0
+    dots = []
+    for index, (stage, label) in enumerate(stages):
+        css_class = "done" if index < active_index or status in {"duplicate", "ready"} else ""
+        if index == active_index and status not in {"duplicate", "ready"}:
+            css_class = "error" if status == "failed" else "running"
+        dots.append(f"<span class='stage-dot {css_class}' title='{_html(stage)}'>{_html(label)}</span>")
+    return "<div class='stage-line'>" + "".join(dots) + "</div>"
+
+
+def _library_progress_panel(files: list[LibrarySourceFile]) -> str:
+    total = len(files)
+    counts = Counter(row.status for row in files)
+    discovered = total
+    queued_or_later = sum(counts.get(status, 0) for status in ("queued", "ingesting", "text_ready", "ready", "duplicate"))
+    text_ready = counts.get("text_ready", 0) + counts.get("ready", 0) + counts.get("duplicate", 0)
+    failed = counts.get("failed", 0) + counts.get("missing", 0)
+    meters = "".join(
+        (
+            _pipeline_meter("Discovered", discovered, total),
+            _pipeline_meter("Queued", queued_or_later, total),
+            _pipeline_meter("Text/OCR ready", text_ready, total),
+            _pipeline_meter("Needs attention", failed, total),
+        )
+    )
+    return f"<section class='panel'><h2>Analysis Progress</h2><div class='pipeline-grid'>{meters}</div></section>"
+
+
+def _job_progress_panel(jobs: list[IngestionJob]) -> str:
+    total = len(jobs)
+    counts = Counter(job.status for job in jobs)
+    active = counts.get("queued", 0) + counts.get("processing", 0)
+    done = counts.get("indexed", 0) + counts.get("duplicate", 0)
+    failed = counts.get("failed", 0)
+    meters = "".join(
+        (
+            _pipeline_meter("Waiting or processing", active, total),
+            _pipeline_meter("Text/OCR indexed", done, total),
+            _pipeline_meter("Failed", failed, total),
+        )
+    )
+    return f"<section class='panel'><h2>Recognition And Text Analysis</h2><div class='pipeline-grid'>{meters}</div></section>"
+
+
+def _project_analysis_progress_panel(session: Session) -> str:
+    library_files = list(session.scalars(select(LibrarySourceFile)))
+    if library_files:
+        return _library_progress_panel(library_files)
+    jobs = list(session.scalars(select(IngestionJob)))
+    return _job_progress_panel(jobs)
+
+
+def _library_source_counts(files: list[LibrarySourceFile]) -> Counter[str]:
+    return Counter(row.status for row in files)
+
+
+def _library_source_rows(session: Session, sources: list[LibrarySource]) -> str:
+    rows = []
+    for source in sources:
+        files = list_library_source_files(session, source.id)
+        counts = _library_source_counts(files)
+        status_class = _library_status_class(source.status)
+        error = f"<div class='warn'>{_html(_truncate(source.last_error, 140))}</div>" if source.last_error else ""
+        rows.append(
+            "<tr>"
+            f"<td><a href='/ui/libraries?library_id={_html(source.id)}'>{_html(source.name)}</a>"
+            f"<div class='path'>{_html(source.path)}</div></td>"
+            f"<td>{_html(source.collection.name if source.collection is not None else source.collection_id)}</td>"
+            f"<td><span class='{status_class}'>{_html(source.status)}</span>{error}</td>"
+            f"<td>{_html('yes' if source.watch_enabled else 'no')}</td>"
+            f"<td>{_html('yes' if source.recursive else 'no')}</td>"
+            f"<td class='num'>{sum(counts.values())}</td>"
+            f"<td class='num'>{counts.get('ready', 0) + counts.get('text_ready', 0) + counts.get('duplicate', 0)}</td>"
+            f"<td class='num'>{counts.get('queued', 0)}</td>"
+            f"<td class='num'>{counts.get('failed', 0)}</td>"
+            f"<td>{_html(source.last_scan_at)}</td>"
+            "<td class='actions'>"
+            f"<form method='post' action='/ui/libraries/{_html(source.id)}/scan'>"
+            "<button type='submit'>Scan Now</button></form>"
+            "</td>"
+            "</tr>"
+        )
+    return "".join(rows) or "<tr><td colspan='11'>No library sources</td></tr>"
+
+
+def _library_file_rows(files: list[LibrarySourceFile]) -> str:
+    rows = []
+    for row in files[:200]:
+        status_class = _library_status_class(row.status)
+        article_link = f"<a href='/ui/articles/{_html(row.article_id)}'>Article</a>" if row.article_id else ""
+        job_link = f"<a href='/ingestion/jobs/{_html(row.ingestion_job_id)}'>Job</a>" if row.ingestion_job_id else ""
+        links = " ".join(value for value in (article_link, job_link) if value)
+        error = f"<div class='warn'>{_html(_truncate(row.last_error, 160))}</div>" if row.last_error else ""
+        rows.append(
+            "<tr>"
+            f"<td>{_html(row.filename)}<div class='path'>{_html(row.relative_path)}</div>{_stage_line(row.status)}</td>"
+            f"<td><span class='{status_class}'>{_html(row.status)}</span>{error}</td>"
+            f"<td class='num'>{_html(row.file_size_bytes)}</td>"
+            f"<td class='path'>{_html(row.content_hash_sha256)}</td>"
+            f"<td>{_html(row.last_seen_at)}</td>"
+            f"<td>{_html(row.last_ingested_at)}</td>"
+            f"<td class='actions'>{links}</td>"
+            "</tr>"
+        )
+    return "".join(rows) or "<tr><td colspan='7'>No discovered files</td></tr>"
+
+
+@router.get("/ui/libraries", response_class=HTMLResponse)
+def libraries_page(session: SessionDep, library_id: UUID | None = None) -> HTMLResponse:
+    sources = list_library_sources(session)
+    selected = next((source for source in sources if source.id == library_id), sources[0] if sources else None)
+    selected_files = list_library_source_files(session, selected.id) if selected is not None else []
+    collections = list(session.scalars(select(Collection).order_by(Collection.name)))
+    collection_options = "".join(
+        f"<option value='{_html(collection.name)}'>{_html(collection.name)}</option>" for collection in collections
+    )
+    selection_script = _remember_library_script(selected) if selected is not None else ""
+    body = f"""
+    <h1>Libraries</h1>
+    <p class="page-kicker">Persistent local PDF folders, discovered files, and ingestion queue status.</p>
+    {_library_progress_panel(selected_files)}
+    <section class="panel">
+      <form method="post" action="/ui/libraries">
+        <label>Name<br><input name="name" required></label>
+        <label>Folder path<br><input name="path" required class="path" size="48"></label>
+        <label>Collection<br><select name="collection">{collection_options}</select></label>
+        <label>Recursive<br><select name="recursive">
+          <option value="true" selected>yes</option>
+          <option value="false">no</option>
+        </select></label>
+        <button type="submit">Add Library</button>
+      </form>
+    </section>
+    <h2>Library Sources</h2>
+    <table><tr><th>Library</th><th>Collection</th><th>Status</th><th>Watch</th><th>Recursive</th>
+    <th class="num">PDFs</th><th class="num">Ready</th><th class="num">Queued</th><th class="num">Failed</th>
+    <th>Last scan</th><th>Actions</th></tr>{_library_source_rows(session, sources)}</table>
+    <h2>Files{f': {_html(selected.name)}' if selected is not None else ''}</h2>
+    <table><tr><th>File</th><th>Status</th><th class="num">Bytes</th><th>SHA-256</th>
+    <th>Last seen</th><th>Last ingested</th><th>Links</th></tr>{_library_file_rows(selected_files)}</table>
+    {selection_script}
+    """
+    response = _layout("Libraries", body)
+    if selected is not None:
+        response.set_cookie("ariadne_library_id", str(selected.id), httponly=False, samesite="lax")
+    return response
+
+
+def _remember_library_script(source: LibrarySource) -> str:
+    item_json = json.dumps({"id": str(source.id), "name": source.name}, ensure_ascii=False)
+    return f"""
+    <script>
+    (() => {{
+      const item = {item_json};
+      const key = 'ariadne:selectedLibraries';
+      const currentKey = 'ariadne:currentLibrary';
+      let items = [];
+      try {{ items = JSON.parse(sessionStorage.getItem(key) || '[]'); }} catch (_) {{ items = []; }}
+      items = [...items.filter((value) => value.id !== item.id), item].slice(-12);
+      sessionStorage.setItem(key, JSON.stringify(items));
+      sessionStorage.setItem(currentKey, JSON.stringify(item));
+      document.cookie = 'ariadne_library_id=' + encodeURIComponent(item.id) + '; path=/; samesite=lax';
+      const label = document.querySelector('[data-current-library]');
+      if (label) label.textContent = item.name;
+    }})();
+    </script>
+    """
+
+
+@router.post("/ui/libraries")
+def create_library_action(
+    session: SessionDep,
+    name: Annotated[str, Form()],
+    path: Annotated[str, Form()],
+    collection: Annotated[str, Form()] = "literature",
+    recursive: Annotated[bool, Form()] = True,
+) -> RedirectResponse:
+    try:
+        source = create_library_source(
+            session,
+            get_settings(),
+            name=name,
+            path=path,
+            collection_name=collection,
+            recursive=recursive,
+        )
+    except (FileNotFoundError, NotADirectoryError, PermissionError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    session.commit()
+    response = RedirectResponse(f"/ui/libraries?library_id={source.id}", status_code=303)
+    response.set_cookie("ariadne_library_id", str(source.id), httponly=False, samesite="lax")
+    return response
+
+
+@router.post("/ui/libraries/{library_id}/scan")
+def scan_library_action(session: SessionDep, library_id: UUID) -> RedirectResponse:
+    try:
+        scan_and_queue_library_source(session, get_settings(), library_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    session.commit()
+    response = RedirectResponse(f"/ui/libraries?library_id={library_id}", status_code=303)
+    response.set_cookie("ariadne_library_id", str(library_id), httponly=False, samesite="lax")
+    return response
+
+
 @router.get("/ui/ingestion", response_class=HTMLResponse)
 def ingestion_page(session: SessionDep, show: str = "uploads") -> HTMLResponse:
     settings = get_settings()
@@ -1372,6 +1795,7 @@ def ingestion_page(session: SessionDep, show: str = "uploads") -> HTMLResponse:
         show = "uploads"
         statement = statement.where(IngestionJob.original_filename.is_not(None))
     jobs = list(session.scalars(statement))
+    progress_panel = _job_progress_panel(jobs)
     rows = []
     for job in jobs:
         payload = job_to_response(job)
@@ -1407,6 +1831,7 @@ def ingestion_page(session: SessionDep, show: str = "uploads") -> HTMLResponse:
     )
     body = f"""
     <h1>Ingestion</h1>
+    {progress_panel}
     <section class="panel">
       <form method="post" action="/ingestion/uploads" enctype="multipart/form-data">
         <label>Collection<br><select name="collection">{collection_options}</select></label>

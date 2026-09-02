@@ -16,6 +16,8 @@ from app.retrieval.vector_index import VectorIndexUnavailableError
 
 
 def test_search_endpoint_returns_exact_results(monkeypatch) -> None:
+    library_id = main.UUID("66666666-6666-6666-6666-666666666666")
+
     def fake_search_chunks(
         session: object,
         query: str,
@@ -34,6 +36,7 @@ def test_search_endpoint_returns_exact_results(monkeypatch) -> None:
         assert top_k == 3
         assert method == "exact"
         assert cast(SearchFilters, filters).source_type == "method"
+        assert cast(SearchFilters, filters).library_source_id == library_id
         assert group_by == "none"
         assert chunks_per_article is None
         assert settings is not None
@@ -41,7 +44,10 @@ def test_search_endpoint_returns_exact_results(monkeypatch) -> None:
 
     monkeypatch.setattr(main, "search_chunks", fake_search_chunks)
 
-    assert main.search(object(), q="Nafion", top_k=3, source_type="method", method="exact") == {"query": "Nafion", "results": []}
+    assert main.search(object(), q="Nafion", top_k=3, source_type="method", method="exact", library_source_id=library_id) == {
+        "query": "Nafion",
+        "results": [],
+    }
 
 
 def test_search_endpoint_rejects_unknown_method() -> None:
@@ -279,6 +285,7 @@ def test_page_range_context_endpoint_returns_pages(monkeypatch) -> None:
 
 def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:
     captured_kwargs = {}
+    library_id = main.UUID("66666666-6666-6666-6666-666666666666")
 
     def fake_answer_question(*args: object, **kwargs: object) -> AnswerResponse:
         captured_kwargs.update(kwargs)
@@ -300,13 +307,17 @@ def test_answer_endpoint_returns_grounded_response(monkeypatch) -> None:
         fake_answer_question,
     )
 
-    payload = main.answer(object(), main.AnswerRequest(question="question", answer_style="mini_review"))
+    payload = main.answer(
+        object(),
+        main.AnswerRequest(question="question", answer_style="mini_review", library_source_id=library_id),
+    )
 
     assert payload["status"] == "insufficient_evidence"
     assert payload["retrieval_method"] == "hybrid_cross_lingual"
     assert captured_kwargs["method"] == "hybrid_cross_lingual"
     assert captured_kwargs["answer_style"] == "mini_review"
     assert captured_kwargs["answer_language"] == "auto"
+    assert captured_kwargs["library_source_id"] == library_id
 
 
 @pytest.mark.parametrize(

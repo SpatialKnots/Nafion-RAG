@@ -13,6 +13,7 @@ from app.db.models import Article, Collection, IngestionJob
 from app.documents.service import build_pdf_url
 from app.ingestion.service import get_collection, process_pdf
 from app.ingestion.upload import StagedUpload, move_to_queued, remove_staged_file
+from app.library.service import is_library_ingestion_job, reconcile_library_source_file_statuses
 
 LOGGER = logging.getLogger(__name__)
 TERMINAL_STATUSES = {"indexed", "duplicate", "failed"}
@@ -169,18 +170,21 @@ def claim_next_job(session: Session, settings: Settings, worker_id: str) -> Inge
     job.started_at = job.started_at or now
     job.heartbeat_at = now
     job.updated_at = now
+    reconcile_library_source_file_statuses(session, job.id)
     return job
 
 
 def process_claimed_job(session: Session, settings: Settings, job: IngestionJob) -> None:
     staged_path = Path(job.input_path)
     now = datetime.now(UTC)
+    is_library_job = is_library_ingestion_job(session, job.id)
     if not staged_path.is_file():
         job.status = "failed"
         job.error_type = "MissingStagedFile"
         job.error_message = "Queued upload file is unavailable"
         job.finished_at = now
         job.updated_at = now
+        reconcile_library_source_file_statuses(session, job.id)
         return
     collection = session.get(Collection, job.collection_id)
     if collection is None:
@@ -189,6 +193,7 @@ def process_claimed_job(session: Session, settings: Settings, job: IngestionJob)
         job.error_message = "Job collection is unavailable"
         job.finished_at = now
         job.updated_at = now
+        reconcile_library_source_file_statuses(session, job.id)
         return
     try:
         result = process_pdf(session, settings, staged_path, collection, force_ocr=job.force_ocr)
@@ -199,6 +204,7 @@ def process_claimed_job(session: Session, settings: Settings, job: IngestionJob)
         job.error_message = str(exc)[:1000]
         job.finished_at = datetime.now(UTC)
         job.updated_at = datetime.now(UTC)
+        reconcile_library_source_file_statuses(session, job.id)
         return
 
     job.article_id = uuid.UUID(result.article_id)
@@ -208,7 +214,8 @@ def process_claimed_job(session: Session, settings: Settings, job: IngestionJob)
     job.error_message = None
     job.finished_at = datetime.now(UTC)
     job.updated_at = datetime.now(UTC)
-    if result.status in {"indexed", "duplicate"}:
+    reconcile_library_source_file_statuses(session, job.id)
+    if result.status in {"indexed", "duplicate"} and not is_library_job:
         remove_staged_file(staged_path)
 
 

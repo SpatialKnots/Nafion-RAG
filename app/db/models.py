@@ -23,6 +23,7 @@ class Collection(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     articles: Mapped[list[Article]] = relationship(back_populates="collection")
+    library_sources: Mapped[list[LibrarySource]] = relationship(back_populates="collection", cascade="all, delete-orphan")
     vector_index_states: Mapped[list[VectorIndexState]] = relationship(back_populates="collection", cascade="all, delete-orphan")
 
 
@@ -54,6 +55,66 @@ class Article(Base):
     collection: Mapped[Collection] = relationship(back_populates="articles")
     pages: Mapped[list[Page]] = relationship(back_populates="article", cascade="all, delete-orphan")
     chunks: Mapped[list[Chunk]] = relationship(back_populates="article", cascade="all, delete-orphan")
+    library_source_files: Mapped[list[LibrarySourceFile]] = relationship(back_populates="article")
+
+
+class LibrarySource(Base):
+    __tablename__ = "library_sources"
+    __table_args__ = (
+        UniqueConstraint("collection_id", "path", name="uq_library_sources_collection_path"),
+        CheckConstraint("status IN ('active', 'disabled', 'missing', 'error')", name="ck_library_sources_status"),
+        Index("ix_library_sources_collection_status", "collection_id", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    path: Mapped[str] = mapped_column(Text, nullable=False)
+    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collections.id", ondelete="CASCADE"), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    watch_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    recursive: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="active")
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    collection: Mapped[Collection] = relationship(back_populates="library_sources")
+    files: Mapped[list[LibrarySourceFile]] = relationship(back_populates="library_source", cascade="all, delete-orphan")
+
+
+class LibrarySourceFile(Base):
+    __tablename__ = "library_source_files"
+    __table_args__ = (
+        UniqueConstraint("library_source_id", "external_path", name="uq_library_source_files_source_external_path"),
+        CheckConstraint(
+            "status IN ('discovered', 'queued', 'ingesting', 'text_ready', 'embedding', 'ready', 'duplicate', 'missing', 'failed')",
+            name="ck_library_source_files_status",
+        ),
+        Index("ix_library_source_files_source_status", "library_source_id", "status"),
+        Index("ix_library_source_files_hash", "content_hash_sha256"),
+        Index("ix_library_source_files_ingestion_job", "ingestion_job_id"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    library_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("library_sources.id", ondelete="CASCADE"), nullable=False)
+    external_path: Mapped[str] = mapped_column(Text, nullable=False)
+    relative_path: Mapped[str] = mapped_column(Text, nullable=False)
+    filename: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash_sha256: Mapped[str | None] = mapped_column(Text)
+    file_size_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    mtime_ns: Mapped[int | None] = mapped_column(BigInteger)
+    article_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("articles.id", ondelete="SET NULL"))
+    ingestion_job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ingestion_jobs.id", ondelete="SET NULL"))
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="discovered")
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_ingested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    library_source: Mapped[LibrarySource] = relationship(back_populates="files")
+    article: Mapped[Article | None] = relationship(back_populates="library_source_files")
 
 
 class Page(Base):

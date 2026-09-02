@@ -75,6 +75,7 @@ Main entry points:
 ## What It Can Do
 
 - Import one PDF or a folder of PDFs.
+- Add persistent local PDF libraries and scan them from the UI.
 - Keep the original PDF unchanged in local storage.
 - Extract page text with PyMuPDF.
 - Use OCRmyPDF when a PDF has no usable text layer.
@@ -190,6 +191,16 @@ http://127.0.0.1:8000/ui/ingestion
 ```
 
 An upload marked `indexed` means PostgreSQL article/page/chunk evidence is ready. Semantic and hybrid retrieval still require a current local vector index.
+
+Persistent local folders can be added at:
+
+```text
+http://127.0.0.1:8000/ui/libraries
+```
+
+Use `Add Library` to register a folder and `Scan Now` to discover PDFs and queue ingestion jobs. The worker also scans enabled libraries periodically when `LIBRARY_SCAN_ENABLED=true`.
+
+The dashboard, ingestion page, and libraries page show recognition and text-analysis progress from persisted job and library-file statuses, including discovered, queued, in-processing, text/OCR-ready, duplicate, missing, and failed files.
 
 ## Build The Vector Index
 

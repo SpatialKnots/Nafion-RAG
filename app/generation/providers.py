@@ -185,7 +185,7 @@ class OpenAIAnswerProvider:
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "nafion_rag_answer",
+                    "name": "ariadne_answer",
                     "strict": True,
                     "schema": {
                         "type": "object",

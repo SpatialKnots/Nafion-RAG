@@ -1,5 +1,5 @@
 [project]
-name = "nafion-rag"
+name = "ariadne"
 version = "0.1.0"
 description = "Local scientific PDF ingestion and retrieval system for Nafion/PFSA literature."
 requires-python = ">=3.11"

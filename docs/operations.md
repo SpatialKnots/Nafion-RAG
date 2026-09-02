@@ -126,6 +126,39 @@ Operational notes:
 - Failed jobs keep their queued staged file for diagnostics; cleanups must stay inside `data/uploads` and must not touch `data/pdf`.
 - If a worker dies, stale `processing` jobs are requeued after `INGESTION_LEASE_SECONDS` until `INGESTION_MAX_ATTEMPTS` is exhausted.
 
+## Library Sources
+
+Persistent PDF folders are managed through:
+
+```text
+GET /ui/libraries
+GET /libraries
+POST /libraries
+POST /libraries/{library_id}/scan
+GET /libraries/{library_id}/files
+```
+
+`Scan Now` discovers PDFs under the external folder, records them in `library_source_files`, and queues new content through `ingestion_jobs`. The scanner does not extract text, run OCR, create chunks, or copy PDFs into immutable storage. The existing worker still performs ingestion and creates the immutable copy under `data/pdf`.
+
+Periodic library scanning runs in the worker loop when enabled:
+
+```text
+LIBRARY_SCAN_ENABLED=true
+LIBRARY_SCAN_INTERVAL_SECONDS=60
+LIBRARY_SCAN_BATCH_SIZE=500
+WORKER_ROLE=all
+```
+
+`WORKER_ROLE=library` runs only periodic library scans. `WORKER_ROLE=all` runs ingestion jobs, vector rebuilds, and due library scans. Each worker loop processes at most one due library source and queues at most `LIBRARY_SCAN_BATCH_SIZE` discovered files from that source.
+
+Library ingestion jobs keep `input_path` pointed at the external PDF until the worker copies it into immutable storage. The worker must not delete watched-folder PDFs after processing. Missing folders are recorded as `missing` with diagnostics.
+
+Progress is visible in the HTML UI:
+
+- `/` shows project-level recognition and text-analysis progress.
+- `/ui/libraries` shows per-library progress and per-file stage markers.
+- `/ui/ingestion` shows ingestion job progress.
+
 Run exact retrieval through the API after PDFs have been indexed:
 
 Then query:

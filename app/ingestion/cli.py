@@ -21,7 +21,7 @@ from app.ingestion.service import IngestionResult, ingest_pdf, reselect_article_
 from app.ingestion.text_layers import article_text_layer_summary
 from app.retrieval.index_lifecycle import mark_vector_index_stale
 
-cli = typer.Typer(help="Nafion RAG ingestion commands.")
+cli = typer.Typer(help="ARIADNE ingestion commands.")
 
 
 def _echo_payload(payload: object) -> None:

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: str = "local"
-    database_url: str = "postgresql+psycopg://nafion:nafion@localhost:5432/nafion_rag?connect_timeout=5"
+    database_url: str = "postgresql+psycopg://ariadne:ariadne@localhost:5432/ariadne?connect_timeout=5"
     data_root: Path = Path("data")
     default_collection: str = "literature"
     grobid_url: str = "http://localhost:8070"
@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     ingestion_failed_retention_days: int = Field(default=7, ge=1)
     ingestion_worker_id: str = ""
     worker_role: str = "all"
+    library_scan_enabled: bool = True
+    library_scan_interval_seconds: int = Field(default=60, ge=1)
+    library_scan_batch_size: int = Field(default=500, ge=1)
     vector_auto_rebuild_enabled: bool = True
     vector_rebuild_debounce_seconds: int = Field(default=10, ge=0)
     vector_rebuild_poll_seconds: int = Field(default=2, ge=1)
@@ -77,8 +80,8 @@ class Settings(BaseSettings):
             raise ValueError("INGESTION_HEARTBEAT_SECONDS must be less than INGESTION_LEASE_SECONDS")
         if self.vector_rebuild_heartbeat_seconds >= self.vector_rebuild_lease_seconds:
             raise ValueError("VECTOR_REBUILD_HEARTBEAT_SECONDS must be less than VECTOR_REBUILD_LEASE_SECONDS")
-        if self.worker_role not in {"ingestion", "vector", "all"}:
-            raise ValueError("WORKER_ROLE must be one of: ingestion, vector, all")
+        if self.worker_role not in {"ingestion", "vector", "library", "all"}:
+            raise ValueError("WORKER_ROLE must be one of: ingestion, vector, library, all")
         return self
 
 

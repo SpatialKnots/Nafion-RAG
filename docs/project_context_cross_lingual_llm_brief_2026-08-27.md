@@ -1,4 +1,4 @@
-# Nafion-RAG Project Context And Cross-Lingual Query Problem
+# ARIADNE Project Context And Cross-Lingual Query Problem
 
 Date: 2026-08-27
 
@@ -8,7 +8,7 @@ understanding Russian, English, and mixed scientific queries.
 
 ## 1. Project Summary
 
-Nafion-RAG is a local-first scientific literature ingestion, retrieval, and
+ARIADNE is a local-first scientific literature ingestion, retrieval, and
 answering system for Nafion/PFSA and related battery literature.
 
 The system ingests PDF files, extracts text/OCR layers, chunks source text,

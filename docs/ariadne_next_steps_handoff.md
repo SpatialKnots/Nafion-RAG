@@ -2,11 +2,11 @@
 
 > Это handoff-файл для передачи контекста в новую сессию. Прочитай, подтверди коротким "принял", и жди следующего сообщения пользователя.
 
-**TL;DR:** Nafion-RAG стабилизирован как Phase 2 exact retrieval baseline; следующий план работ: tracked corpus manifest, поддержка DOI-less evaluation, усиление метрик retrieval, расширение eval до 20-25 вопросов, очистка pytest warning, затем Phase 3 semantic/hybrid design gate.
+**TL;DR:** ARIADNE стабилизирован как Phase 2 exact retrieval baseline; следующий план работ: tracked corpus manifest, поддержка DOI-less evaluation, усиление метрик retrieval, расширение eval до 20-25 вопросов, очистка pytest warning, затем Phase 3 semantic/hybrid design gate.
 
 ## О чем был чат
 
-Работа шла в репозитории `D:\Nafion-RAG`. Проект рассматривается как локальная научная система ingestion/retrieval для корпуса Nafion/PFSA literature. По правилам `AGENTS.md` это не ORCAVEDA; нельзя заявлять embeddings, semantic search, hybrid search или RAG answers как реализованные, пока это не подтверждено source.
+Работа шла в репозитории `D:\ARIADNE`. Проект рассматривается как локальная научная система ingestion/retrieval для корпуса Nafion/PFSA literature. По правилам `AGENTS.md` это не ORCAVEDA; нельзя заявлять embeddings, semantic search, hybrid search или RAG answers как реализованные, пока это не подтверждено source.
 
 К началу этой части работы проект уже был доведен до чистого Phase 2 exact retrieval baseline: корпус восстановлен, `doctor` PASS, retrieval evaluation 4/4 PASS, изменения были закоммичены в `0fb983c Stabilize phase 2 retrieval baseline`.
 

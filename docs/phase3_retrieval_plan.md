@@ -1,6 +1,6 @@
 # Phase 3 Retrieval Design Gate
 
-This document is a design gate for semantic or hybrid retrieval in Nafion-RAG.
+This document is a design gate for semantic or hybrid retrieval in ARIADNE.
 It is not an implementation record. At the time this plan is written, the
 verified retrieval method remains the Phase 2 exact baseline, `exact_ilike`.
 

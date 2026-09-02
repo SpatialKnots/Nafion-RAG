@@ -13,6 +13,8 @@ The initial schema follows the implementation plan while keeping vector search o
 - `notes`: user notes linked to articles or chunks.
 - `ingestion_jobs`: visible ingestion status and failures.
 - `ingestion_jobs`: also acts as the local PostgreSQL-backed upload queue.
+- `library_sources`: persistent user-selected PDF folders attached to a collection.
+- `library_source_files`: discovered external PDF files and their scan/ingestion linkage state.
 - `structured_facts`: source-linked scientific facts for later extraction work.
 
 ## Traceability
@@ -38,3 +40,42 @@ Allowed Priority 2 statuses:
 - `failed`: validation, staging or processing failed.
 
 Queue/audit fields include `article_id`, `original_filename`, `checksum_sha256`, `file_size_bytes`, `force_ocr`, `attempt_count`, `worker_id`, `heartbeat_at`, `error_type`, `error_message`, and timestamps. Public API responses do not expose `input_path`.
+
+## Library Sources
+
+`library_sources` stores the user-facing external folder path, collection, enabled/watch flags, recursion preference, scan time, status, and diagnostic error text. A library source is not the same thing as a collection.
+
+`library_source_files` stores discovered PDF paths under a library source, including relative path, filename, SHA-256 hash, file size, mtime, optional linked `article_id`, optional linked `ingestion_job_id`, status, scan timestamps, and diagnostic error text.
+
+Allowed library source statuses:
+
+- `active`
+- `disabled`
+- `missing`
+- `error`
+
+Allowed library source file statuses:
+
+- `discovered`
+- `queued`
+- `ingesting`
+- `text_ready`
+- `embedding`
+- `ready`
+- `duplicate`
+- `missing`
+- `failed`
+
+`scan_library_source` records filesystem state only. It does not copy PDFs into immutable storage, extract text, write pages/chunks, or enqueue ingestion jobs.
+
+`scan_and_queue_library_source` runs discovery and then queues newly discovered files through `ingestion_jobs`. Library ingestion jobs keep `input_path` pointed at the external PDF, so the worker must not delete that path after processing. The immutable PDF copy is still created by the existing ingestion service.
+
+When an ingestion job changes state, reconciliation maps linked `library_source_files` rows as follows:
+
+- `queued` -> `queued`
+- `processing` -> `ingesting`
+- `indexed` -> `text_ready`
+- `duplicate` -> `duplicate`
+- `failed` -> `failed`
+
+Library management is exposed through JSON routes under `/libraries` and an HTML workbench at `/ui/libraries`.

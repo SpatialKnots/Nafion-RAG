@@ -10,9 +10,13 @@ from typing import cast
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
+from app.db.models import LibrarySource, LibrarySourceFile
+from app.db.session import get_session
 from app.documents.context import ChunkContext, ChunkContextItem
 from app.generation.providers import GenerationUnavailableError
+from app.main import app
 from app.retrieval.search import SearchFilters
 from app.ui import (
     _truncate,
@@ -22,10 +26,13 @@ from app.ui import (
     article_detail,
     article_text_layers,
     chunk_context_page,
+    create_library_action,
     dashboard,
     extended_retrieval_report_page,
     ingestion_page,
+    libraries_page,
     retrieval_report_page,
+    scan_library_action,
     search_page,
     text_quality_report_page,
     vector_indexes_page,
@@ -128,6 +135,28 @@ class FakeSession:
             started_at=None,
             finished_at=None,
         )
+        self.library_source = LibrarySource(
+            id=uuid.UUID("66666666-6666-6666-6666-666666666666"),
+            name="Nafion Library",
+            path="D:\\Research\\Nafion",
+            collection_id=uuid.UUID("44444444-4444-4444-4444-444444444444"),
+            enabled=True,
+            watch_enabled=True,
+            recursive=True,
+            status="active",
+        )
+        self.library_file = LibrarySourceFile(
+            id=uuid.UUID("77777777-7777-7777-7777-777777777777"),
+            library_source_id=self.library_source.id,
+            external_path="D:\\Research\\Nafion\\paper.pdf",
+            relative_path="paper.pdf",
+            filename="paper.pdf",
+            content_hash_sha256="a" * 64,
+            file_size_bytes=123,
+            mtime_ns=1,
+            status="queued",
+        )
+        self.commits = 0
 
     def scalar(self, statement: object) -> object:
         text = str(statement)
@@ -139,6 +168,10 @@ class FakeSession:
 
     def scalars(self, statement: object) -> FakeScalarResult:
         text = str(statement)
+        if "FROM library_source_files" in text:
+            return FakeScalarResult([self.library_file])
+        if "FROM library_sources" in text:
+            return FakeScalarResult([self.library_source])
         if "FROM articles" in text:
             return FakeScalarResult([self.article])
         if "FROM article_tags" in text:
@@ -158,6 +191,20 @@ class FakeSession:
         if "FROM pages" in text:
             return FakeScalarResult([self.page])
         return FakeScalarResult([])
+
+    def get(self, model: type[object], row_id: object) -> object | None:
+        if model is LibrarySource and row_id == self.library_source.id:
+            return self.library_source
+        return None
+
+    def add(self, value: object) -> None:
+        return None
+
+    def flush(self) -> None:
+        return None
+
+    def commit(self) -> None:
+        self.commits += 1
 
     def execute(self, statement: object) -> FakeExecuteResult:
         text = str(statement)
@@ -188,6 +235,10 @@ def test_dashboard_returns_html(monkeypatch) -> None:
     body = response.body.decode()
     assert "Corpus Dashboard" in body
     assert "ARIADNE Research Workbench" in body
+    assert "Nafion profile" not in body
+    assert "Evidence library" in body
+    assert "data-library-toggle" in body
+    assert "ariadne:selectedLibraries" in body
     assert 'method="post" action="/ui/answer"' in body
     assert 'data-async-result="/ui/answer/result"' in body
     assert 'name="question"' in body
@@ -201,8 +252,22 @@ def test_dashboard_returns_html(monkeypatch) -> None:
     assert "Main text" in body
     assert "Tables / Facts diagnostics" in body
     assert "Articles" in body
+    assert "Analysis Progress" in body
+    assert "Text/OCR ready" in body
     assert "Retrieval Evaluation" in body
     assert "Extended Retrieval Evaluation" in body
+
+
+def test_ui_root_route_returns_dashboard(monkeypatch) -> None:
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace(data_root=Path("missing-data-root")))
+    app.dependency_overrides[get_session] = _override_session
+    try:
+        response = TestClient(app).get("/ui/")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "ARIADNE Research Workbench" in response.text
 
 
 def test_search_page_returns_results(monkeypatch) -> None:
@@ -223,6 +288,7 @@ def test_search_page_returns_results(monkeypatch) -> None:
         assert group_by == "none"
         assert chunks_per_article is None
         assert method == "hybrid"
+        assert cast(SearchFilters, filters).library_source_id is None
         assert settings is not None
         result = SimpleNamespace(
             article_id=str(ARTICLE_ID),
@@ -253,6 +319,7 @@ def test_search_page_returns_results(monkeypatch) -> None:
     assert "/ui/articles/11111111-1111-1111-1111-111111111111/chunks/22222222-2222-2222-2222-222222222222/context" in body
     assert "hybrid_rrf" in body
     assert "value='hybrid' selected" in body
+    assert "data-library-scoped" in body
 
 
 def test_search_page_ignores_blank_numeric_filters(monkeypatch) -> None:
@@ -291,6 +358,35 @@ def test_search_page_ignores_blank_numeric_filters(monkeypatch) -> None:
     assert "No results" in response.body.decode()
 
 
+def test_search_page_uses_current_library_cookie(monkeypatch) -> None:
+    library_id = uuid.UUID("66666666-6666-6666-6666-666666666666")
+
+    def fake_search_chunks(
+        session: object,
+        query: str,
+        collection_name: str,
+        top_k: int,
+        *,
+        method: str,
+        source_type: str | None = None,
+        filters: object | None = None,
+        group_by: str = "none",
+        chunks_per_article: int | None = None,
+        settings: object | None = None,
+    ) -> object:
+        assert cast(SearchFilters, filters).library_source_id == library_id
+        return SimpleNamespace(results=[])
+
+    monkeypatch.setattr("app.ui.search_chunks", fake_search_chunks)
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+
+    response = search_page(_override_session(), q="Nafion", ariadne_library_id=str(library_id))
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert f'value="{library_id}"' in body
+
+
 def test_answer_page_renders_form() -> None:
     response = answer_page()
     body = response.body.decode()
@@ -299,6 +395,7 @@ def test_answer_page_renders_form() -> None:
     assert "Question" in body
     assert "/ui/answer" in body
     assert 'data-async-result="/ui/answer/result"' in body
+    assert 'name="library_source_id"' in body
     assert 'id="answer-result"' in body
     assert "progress-steps" in body
     assert 'data-result-status="error"' in body
@@ -311,6 +408,14 @@ def test_answer_page_renders_form() -> None:
     assert "hybrid_cross_lingual_v2" not in body
     assert "Answer language" in body
     assert "value='auto' selected" in body
+
+
+def test_answer_page_uses_current_library_cookie() -> None:
+    response = answer_page(ariadne_library_id="66666666-6666-6666-6666-666666666666")
+    body = response.body.decode()
+
+    assert 'name="library_source_id"' in body
+    assert 'value="66666666-6666-6666-6666-666666666666"' in body
 
 
 def test_vector_indexes_page_marks_only_settings_nav_active(monkeypatch) -> None:
@@ -336,6 +441,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
         method: str | None = None,
         answer_style: str = "claims",
         answer_language: str = "auto",
+        library_source_id: uuid.UUID | None = None,
     ) -> object:
         assert question == "What is Li-Nafion conductivity?"
         assert collection == "literature"
@@ -343,6 +449,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
         assert method == "hybrid"
         assert answer_style == "mini_review"
         assert answer_language == "ru"
+        assert library_source_id is None
         return SimpleNamespace()
 
     monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
@@ -560,9 +667,62 @@ def test_ingestion_page_defaults_to_upload_jobs_only(monkeypatch) -> None:
     body = response.body.decode()
 
     assert response.status_code == 200
+    assert "Recognition And Text Analysis" in body
+    assert "Text/OCR indexed" in body
     assert "upload.pdf" in body
     assert "(legacy CLI job)" not in body
     assert "data\\processed" not in body
+
+
+def test_libraries_page_renders_sources_and_files(monkeypatch) -> None:
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+    response = libraries_page(_override_session())
+    body = response.body.decode()
+
+    assert response.status_code == 200
+    assert "Libraries" in body
+    assert "Add Library" in body
+    assert "data-current-library" in body
+    assert "ariadne:currentLibrary" in body
+    assert "Analysis Progress" in body
+    assert "Text/OCR ready" in body
+    assert "Nafion Library" in body
+    assert "D:\\Research\\Nafion" in body
+    assert "paper.pdf" in body
+    assert "stage-dot running" in body
+    assert "Scan Now" in body
+    assert "class='active' href='/ui/libraries'>Libraries</a>" in body
+    assert "Nafion profile" not in body
+
+
+def test_create_library_action_redirects_after_commit(monkeypatch, tmp_path) -> None:
+    session = _override_session()
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+    monkeypatch.setattr(
+        "app.ui.create_library_source",
+        lambda active_session, settings, **kwargs: SimpleNamespace(id=uuid.UUID("88888888-8888-8888-8888-888888888888")),
+    )
+
+    response = create_library_action(session, "New Library", str(tmp_path), "literature", True)  # type: ignore[arg-type]
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/ui/libraries?library_id=88888888-8888-8888-8888-888888888888"
+    assert response.headers["set-cookie"].startswith("ariadne_library_id=88888888-8888-8888-8888-888888888888")
+    assert session.commits == 1
+
+
+def test_scan_library_action_redirects_after_commit(monkeypatch) -> None:
+    session = _override_session()
+    library_id = uuid.UUID("66666666-6666-6666-6666-666666666666")
+    monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
+    monkeypatch.setattr("app.ui.scan_and_queue_library_source", lambda active_session, settings, active_library_id: None)
+
+    response = scan_library_action(session, library_id)  # type: ignore[arg-type]
+
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/ui/libraries?library_id={library_id}"
+    assert response.headers["set-cookie"].startswith(f"ariadne_library_id={library_id}")
+    assert session.commits == 1
 
 
 def test_unknown_article_returns_404() -> None:

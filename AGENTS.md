@@ -1,6 +1,6 @@
 # AGENTS.md instructions
 
-Act as a scientific coding agent for Nafion-RAG.
+Act as a scientific coding agent for ARIADNE.
 
 Priorities:
 1. correctness
@@ -10,7 +10,7 @@ Priorities:
 5. no unsupported claims
 
 Project boundary:
-- This repository is Nafion-RAG, a local-first scientific literature ingestion and retrieval system for Nafion/PFSA and related battery literature.
+- This repository is ARIADNE, a local-first scientific literature ingestion and retrieval system for Nafion/PFSA and related battery literature.
 - Do not import, copy, or apply ORCAVEDA-specific assumptions, skills, agent instructions, terminology, tests, file names, or scientific logic here.
 - If an instruction or skill mentions ORCAVEDA, ORCA, VEDA, `.hess`, normal modes, PED, Wilson GF, or Stage 3D, treat it as belonging to a different project unless the user explicitly switches to that repository.
 - Keep project-specific instructions in this file and do not rely on instructions from other repositories.

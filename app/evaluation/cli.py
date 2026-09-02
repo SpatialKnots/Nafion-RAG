@@ -22,7 +22,7 @@ from app.evaluation.retrieval import (
 )
 from app.retrieval.search import SearchFilters
 
-cli = typer.Typer(help="Nafion RAG evaluation commands.")
+cli = typer.Typer(help="ARIADNE evaluation commands.")
 
 
 @cli.callback()

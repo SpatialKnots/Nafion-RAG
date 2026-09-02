@@ -144,6 +144,16 @@ def test_search_filters_normalize_empty_strings_and_reject_mixed_year_filters() 
         SearchFilters.normalize(year=2020, year_to=2024)
 
 
+def test_search_filters_include_library_source_scope() -> None:
+    library_id = uuid.uuid4()
+    filters = SearchFilters.normalize(library_source_id=str(library_id))
+
+    metadata = filters.as_metadata()
+
+    assert filters.library_source_id == library_id
+    assert metadata == {"library_source_id": str(library_id)}
+
+
 def test_search_response_serializes_grouped_results() -> None:
     result_a = _search_result(uuid.UUID(int=1), score=2.0, method="exact_ilike")
     result_b = _search_result(uuid.UUID(int=2), score=1.0, method="exact_ilike")

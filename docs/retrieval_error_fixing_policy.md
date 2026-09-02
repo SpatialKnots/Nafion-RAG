@@ -2,8 +2,7 @@
 
 ## Purpose
 
-This policy defines how retrieval errors should be fixed in Nafion-RAG /
-ARIADNE.
+This policy defines how retrieval errors should be fixed in ARIADNE.
 
 The project should improve retrieval behavior by fixing general classes of
 errors, not by adding hidden one-query or one-article shortcuts.

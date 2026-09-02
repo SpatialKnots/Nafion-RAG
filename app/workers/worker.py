@@ -7,6 +7,7 @@ import uuid
 from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.ingestion.queue import process_one_job
+from app.library.worker import process_one_library_scan
 from app.retrieval.index_worker import process_one_vector_rebuild
 
 
@@ -20,6 +21,8 @@ def main() -> None:
                 did_work = process_one_job(session, settings, worker_id) is not None
             if not did_work and settings.worker_role in {"vector", "all"}:
                 did_work = process_one_vector_rebuild(session, settings, worker_id)
+            if not did_work and settings.worker_role in {"library", "all"}:
+                did_work = process_one_library_scan(session, settings)
         if not did_work:
             time.sleep(settings.ingestion_poll_seconds)
 

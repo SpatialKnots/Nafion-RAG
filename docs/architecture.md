@@ -1,12 +1,12 @@
 # Architecture
 
-Nafion RAG is local-first. PostgreSQL remains the source of truth for source-preserving PDF ingestion and chunk evidence.
+ARIADNE is local-first. PostgreSQL remains the source of truth for source-preserving PDF ingestion and chunk evidence.
 
 ## Services
 
 - `postgres`: local PostgreSQL server managed outside this repository.
 - `app`: local FastAPI backend with `/health`, started with `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`.
-- `worker`: local placeholder background process, started with `python -m app.workers.worker`; database-backed queue processing is next.
+- `worker`: local background process, started with `python -m app.workers.worker`; processes ingestion jobs, vector rebuilds, and periodic library scans according to `WORKER_ROLE`.
 
 The repository does not start or manage infrastructure services. External services must be installed and operated by the local system or another service manager.
 
@@ -75,6 +75,21 @@ multipart PDF upload
 PostgreSQL is the durable queue for the local deployment. The HTTP upload route never runs extraction or OCR; it returns after a staged file and job row are committed. The worker processes one claimed job at a time and records attempts, worker identity and heartbeat. Stale `processing` jobs are requeued until `INGESTION_MAX_ATTEMPTS` is exhausted.
 
 Successful upload ingestion updates PostgreSQL evidence immediately. Semantic and hybrid retrieval still depend on the local vector index and require a manual rebuild until the Priority 3 index lifecycle is implemented.
+
+## Library Source Flow
+
+```text
+external PDF folder
+  -> library_sources row
+  -> periodic or manual scan
+  -> library_source_files rows with checksum, path, status and diagnostics
+  -> IngestionJob(status=queued) for new content
+  -> existing worker ingestion pipeline
+  -> immutable copy in data/pdf and PostgreSQL article/page/chunk evidence
+  -> library_source_files status reconciliation
+```
+
+Library scanning is a discovery and queueing layer only. It does not extract text, run OCR, write article evidence, or treat the external folder as the source of truth. Same-checksum files reuse existing articles or active ingestion jobs where possible.
 
 ## Answer Flow
 

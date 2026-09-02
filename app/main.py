@@ -35,6 +35,24 @@ from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import enqueue_upload, job_to_response
 from app.ingestion.schemas import IngestionJobResponse, JobsResponse, UploadItemResponse, UploadItemStatus, UploadResponse
 from app.ingestion.upload import UploadValidationError, remove_staged_file, stage_upload_file
+from app.library.schemas import (
+    LibraryScanResponse,
+    LibrarySourceCreateRequest,
+    LibrarySourceFileResponse,
+    LibrarySourceFilesResponse,
+    LibrarySourceResponse,
+    LibrarySourcesResponse,
+)
+from app.library.service import (
+    create_library_source,
+    get_library_source,
+    library_scan_result_to_response,
+    library_source_file_to_response,
+    library_source_to_response,
+    list_library_source_files,
+    list_library_sources,
+    scan_and_queue_library_source,
+)
 from app.retrieval.index_lifecycle import (
     get_vector_index_state_by_collection_name,
     list_vector_index_states,
@@ -45,7 +63,7 @@ from app.retrieval.search import SearchFilters, search_chunks, search_response_t
 from app.retrieval.vector_index import VectorIndexUnavailableError
 from app.ui import router as ui_router
 
-app = FastAPI(title="Nafion RAG", version="0.1.0")
+app = FastAPI(title="ARIADNE", version="0.1.0")
 app.include_router(ui_router)
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -53,6 +71,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 class AnswerRequest(BaseModel):
     question: str = Field(min_length=1)
     collection: str = "literature"
+    library_source_id: UUID | None = None
     top_k: int = Field(default=5, ge=1)
     method: str = "hybrid_cross_lingual"
     answer_style: str = "claims"
@@ -78,6 +97,7 @@ def search(
     collection: str = "literature",
     top_k: int = Query(default=10, ge=1),
     article_id: UUID | None = None,
+    library_source_id: UUID | None = None,
     doi: str | None = None,
     year: int | None = None,
     year_from: int | None = None,
@@ -97,6 +117,7 @@ def search(
             raise ValueError("chunks_per_article must be positive")
         filters = SearchFilters.normalize(
             article_id=article_id,
+            library_source_id=library_source_id,
             doi=doi,
             year=year,
             year_from=year_from,
@@ -152,6 +173,66 @@ def vector_index_rebuild(session: SessionDep, collection: str, embedding_model: 
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     session.commit()
     return vector_index_state_to_response(state)
+
+
+@app.get("/libraries")
+def libraries(session: SessionDep) -> dict[str, object]:
+    return LibrarySourcesResponse(
+        items=[LibrarySourceResponse.model_validate(library_source_to_response(source)) for source in list_library_sources(session)]
+    ).model_dump()
+
+
+@app.post("/libraries")
+def create_library(session: SessionDep, request: LibrarySourceCreateRequest) -> dict[str, object]:
+    try:
+        source = create_library_source(
+            session,
+            get_settings(),
+            name=request.name,
+            path=request.path,
+            collection_name=request.collection,
+            recursive=request.recursive,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=400, detail=f"Library folder is unavailable: {exc}") from exc
+    except NotADirectoryError as exc:
+        raise HTTPException(status_code=400, detail=f"Library path is not a directory: {exc}") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    session.commit()
+    return LibrarySourceResponse.model_validate(library_source_to_response(source)).model_dump()
+
+
+@app.get("/libraries/{library_id}")
+def library_detail(session: SessionDep, library_id: UUID) -> dict[str, object]:
+    source = get_library_source(session, library_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail=f"Unknown library source: {library_id}")
+    return LibrarySourceResponse.model_validate(library_source_to_response(source)).model_dump()
+
+
+@app.get("/libraries/{library_id}/files")
+def library_files(session: SessionDep, library_id: UUID) -> dict[str, object]:
+    source = get_library_source(session, library_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail=f"Unknown library source: {library_id}")
+    items = [
+        LibrarySourceFileResponse.model_validate(library_source_file_to_response(row))
+        for row in list_library_source_files(session, library_id)
+    ]
+    return LibrarySourceFilesResponse(items=items).model_dump()
+
+
+@app.post("/libraries/{library_id}/scan")
+def library_scan(session: SessionDep, library_id: UUID) -> dict[str, object]:
+    try:
+        result = scan_and_queue_library_source(session, get_settings(), library_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    session.commit()
+    return LibraryScanResponse.model_validate(library_scan_result_to_response(result)).model_dump()
 
 
 @app.get("/articles/{article_id}/pdf")
@@ -327,6 +408,7 @@ def answer(session: SessionDep, request: AnswerRequest) -> dict[str, object]:
             method=request.method,
             answer_style=request.answer_style,
             answer_language=request.answer_language,
+            library_source_id=request.library_source_id,
         )
         return answer_response_to_dict(response)
     except GenerationUnavailableError as exc:

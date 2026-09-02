@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
-from app.ingestion.queue import claim_next_job, enqueue_upload, job_to_response, recover_stale_jobs
+from app.ingestion.queue import claim_next_job, enqueue_upload, job_to_response, process_claimed_job, recover_stale_jobs
+from app.ingestion.service import IngestionResult
 from app.ingestion.upload import StagedUpload
 
 
@@ -38,6 +39,8 @@ class FakeSession:
         return None
 
     def scalars(self, statement: object) -> FakeScalarResult:
+        if "FROM library_source_files" in str(statement):
+            return FakeScalarResult([])
         return FakeScalarResult(self.queued)
 
     def add(self, value: object) -> None:
@@ -147,3 +150,74 @@ def test_recover_stale_job_requeues_before_max_attempts() -> None:
     assert recovered == 1
     assert job.status == "queued"
     assert job.worker_id is None
+
+
+def test_process_claimed_library_job_preserves_external_pdf(monkeypatch, tmp_path) -> None:
+    pdf_path = tmp_path / "paper.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\none")
+    collection_id = uuid.uuid4()
+    article_id = uuid.uuid4()
+    job = SimpleNamespace(
+        id=uuid.uuid4(),
+        input_path=str(pdf_path),
+        collection_id=collection_id,
+        article_id=None,
+        checksum_sha256=None,
+        file_size_bytes=None,
+        force_ocr=False,
+        status="processing",
+        error_type=None,
+        error_message=None,
+        finished_at=None,
+        updated_at=None,
+    )
+    library_file = SimpleNamespace(
+        ingestion_job_id=job.id,
+        status="ingesting",
+        article_id=None,
+        content_hash_sha256=None,
+        file_size_bytes=None,
+        last_error=None,
+        last_ingested_at=None,
+        updated_at=None,
+    )
+
+    class LibrarySession:
+        def scalar(self, statement: object) -> object | None:
+            if "FROM library_source_files" in str(statement):
+                return library_file
+            return None
+
+        def scalars(self, statement: object) -> FakeScalarResult:
+            if "FROM library_source_files" in str(statement):
+                return FakeScalarResult([library_file])
+            return FakeScalarResult([])
+
+        def get(self, model: object, row_id: object) -> object | None:
+            if row_id == collection_id:
+                return SimpleNamespace(id=collection_id, name="literature")
+            if row_id == job.id:
+                return job
+            return None
+
+        def flush(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "app.ingestion.queue.process_pdf",
+        lambda *args, **kwargs: IngestionResult(
+            article_id=str(article_id),
+            status="indexed",
+            checksum_sha256="a" * 64,
+            page_count=1,
+            chunk_count=1,
+            ocr_required=False,
+        ),
+    )
+
+    process_claimed_job(LibrarySession(), SimpleNamespace(), job)  # type: ignore[arg-type]
+
+    assert pdf_path.exists()
+    assert job.status == "indexed"
+    assert library_file.status == "text_ready"
+    assert library_file.article_id == article_id

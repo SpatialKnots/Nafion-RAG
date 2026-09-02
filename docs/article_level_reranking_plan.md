@@ -3,7 +3,7 @@
 ## Status
 
 This is a detailed implementation plan for the next retrieval-quality step in
-Nafion-RAG / ARIADNE. It is a plan, not an implementation record.
+ARIADNE. It is a plan, not an implementation record.
 
 The current accepted public method remains `hybrid_cross_lingual`. This plan
 does not promote a new default method and does not change ingestion, OCR,

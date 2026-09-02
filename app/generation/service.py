@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, replace
 from decimal import Decimal, InvalidOperation
 from typing import Any, cast
 from urllib.parse import urlencode
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -24,7 +25,7 @@ from app.generation.providers import (
 )
 from app.generation.query_assist import query_assistance_to_dict, suggest_query_corrections
 from app.retrieval.cross_lingual import detect_query_language, glossary_terms_for_concepts
-from app.retrieval.search import SearchResponse, SearchResult, make_snippet, search_chunks
+from app.retrieval.search import SearchFilters, SearchResponse, SearchResult, make_snippet, search_chunks
 
 _SWELLING_TABLE_ROWS = (
     ("ацетонитрил", "acetonitrile"),
@@ -156,6 +157,7 @@ def answer_question(
     method: str | None = None,
     answer_style: str = "claims",
     answer_language: str = "auto",
+    library_source_id: UUID | str | None = None,
     provider: AnswerProvider | None = None,
 ) -> AnswerResponse:
     normalized_question = question.strip()
@@ -174,6 +176,7 @@ def answer_question(
         active_collection,
         active_top_k,
         method=active_method,
+        filters=SearchFilters.normalize(library_source_id=library_source_id),
         settings=settings,
     )
     evidence_selection = select_answer_evidence(
