@@ -40,6 +40,7 @@ from app.library.service import (
     list_library_source_files,
     list_library_sources,
     scan_and_queue_library_source,
+    update_library_source,
 )
 from app.retrieval.index_lifecycle import list_vector_index_states, request_vector_rebuild, vector_index_state_to_response
 from app.retrieval.search import SearchFilters, search_chunks
@@ -1639,6 +1640,8 @@ def _library_source_rows(session: Session, sources: list[LibrarySource]) -> str:
         counts = _library_source_counts(files)
         status_class = _library_status_class(source.status)
         error = f"<div class='warn'>{_html(_truncate(source.last_error, 140))}</div>" if source.last_error else ""
+        toggle_action = "disable" if source.enabled else "enable"
+        toggle_label = "Disable" if source.enabled else "Enable"
         rows.append(
             "<tr>"
             f"<td><a href='/ui/libraries?library_id={_html(source.id)}'>{_html(source.name)}</a>"
@@ -1653,8 +1656,12 @@ def _library_source_rows(session: Session, sources: list[LibrarySource]) -> str:
             f"<td class='num'>{counts.get('failed', 0)}</td>"
             f"<td>{_html(source.last_scan_at)}</td>"
             "<td class='actions'>"
+            f"<a href='/ui/articles?library_source_id={_html(source.id)}'>Open Articles</a> "
+            f"<a href='/ui/libraries?library_id={_html(source.id)}&file_status=failed'>Open Failed Files</a> "
             f"<form method='post' action='/ui/libraries/{_html(source.id)}/scan'>"
             "<button type='submit'>Scan Now</button></form>"
+            f"<form method='post' action='/ui/libraries/{_html(source.id)}/{toggle_action}'>"
+            f"<button type='submit'>{toggle_label}</button></form>"
             "</td>"
             "</tr>"
         )
@@ -1774,14 +1781,45 @@ def structured_facts_page(
 
 
 @router.get("/ui/libraries", response_class=HTMLResponse)
-def libraries_page(session: SessionDep, library_id: UUID | None = None) -> HTMLResponse:
+def libraries_page(session: SessionDep, library_id: UUID | None = None, file_status: str = "") -> HTMLResponse:
     sources = list_library_sources(session)
     selected = next((source for source in sources if source.id == library_id), sources[0] if sources else None)
-    selected_files = list_library_source_files(session, selected.id) if selected is not None else []
+    selected_files = list_library_source_files(session, selected.id, status=file_status or None) if selected is not None else []
     collections = list(session.scalars(select(Collection).order_by(Collection.name)))
     collection_options = "".join(
         f"<option value='{_html(collection.name)}'>{_html(collection.name)}</option>" for collection in collections
     )
+    edit_panel = ""
+    if selected is not None:
+        selected_collection = selected.collection.name if selected.collection is not None else ""
+        edit_options = "".join(
+            f"<option value='{_html(collection.name)}' {'selected' if collection.name == selected_collection else ''}>"
+            f"{_html(collection.name)}</option>"
+            for collection in collections
+        )
+        edit_panel = f"""
+        <section class="panel">
+          <h2>Edit Selected Library</h2>
+          <form method="post" action="/ui/libraries/{_html(selected.id)}">
+            <label>Name<br><input name="name" required value="{_html(selected.name)}"></label>
+            <label>Folder path<br><input name="path" required class="path" size="48" value="{_html(selected.path)}"></label>
+            <label>Collection<br><select name="collection">{edit_options}</select></label>
+            <label>Enabled<br><select name="enabled">
+              <option value="true" {'selected' if selected.enabled else ''}>yes</option>
+              <option value="false" {'selected' if not selected.enabled else ''}>no</option>
+            </select></label>
+            <label>Watch<br><select name="watch_enabled">
+              <option value="true" {'selected' if selected.watch_enabled else ''}>yes</option>
+              <option value="false" {'selected' if not selected.watch_enabled else ''}>no</option>
+            </select></label>
+            <label>Recursive<br><select name="recursive">
+              <option value="true" {'selected' if selected.recursive else ''}>yes</option>
+              <option value="false" {'selected' if not selected.recursive else ''}>no</option>
+            </select></label>
+            <button type="submit">Save Library</button>
+          </form>
+        </section>
+        """
     selection_script = _remember_library_script(selected) if selected is not None else ""
     body = f"""
     <h1>Libraries</h1>
@@ -1799,11 +1837,12 @@ def libraries_page(session: SessionDep, library_id: UUID | None = None) -> HTMLR
         <button type="submit">Add Library</button>
       </form>
     </section>
+    {edit_panel}
     <h2>Library Sources</h2>
     <table><tr><th>Library</th><th>Collection</th><th>Status</th><th>Watch</th><th>Recursive</th>
     <th class="num">PDFs</th><th class="num">Ready</th><th class="num">Queued</th><th class="num">Failed</th>
     <th>Last scan</th><th>Actions</th></tr>{_library_source_rows(session, sources)}</table>
-    <h2>Files{f': {_html(selected.name)}' if selected is not None else ''}</h2>
+    <h2>Files{f': {_html(selected.name)}' if selected is not None else ''}{f' / {_html(file_status)}' if file_status else ''}</h2>
     <table><tr><th>File</th><th>Status</th><th class="num">Bytes</th><th>SHA-256</th>
     <th>Last seen</th><th>Last ingested</th><th>Links</th></tr>{_library_file_rows(selected_files)}</table>
     {selection_script}
@@ -1857,6 +1896,64 @@ def create_library_action(
     session.commit()
     response = RedirectResponse(f"/ui/libraries?library_id={source.id}", status_code=303)
     response.set_cookie("ariadne_library_id", str(source.id), httponly=False, samesite="lax")
+    return response
+
+
+@router.post("/ui/libraries/{library_id}")
+def update_library_action(
+    session: SessionDep,
+    library_id: UUID,
+    name: Annotated[str, Form()],
+    path: Annotated[str, Form()],
+    collection: Annotated[str, Form()],
+    enabled: Annotated[bool, Form()],
+    watch_enabled: Annotated[bool, Form()],
+    recursive: Annotated[bool, Form()],
+) -> RedirectResponse:
+    try:
+        update_library_source(
+            session,
+            get_settings(),
+            library_id,
+            name=name,
+            path=path,
+            collection_name=collection,
+            enabled=enabled,
+            watch_enabled=watch_enabled,
+            recursive=recursive,
+        )
+    except ValueError as exc:
+        status_code = 404 if str(exc).startswith("Unknown library source") else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    except (FileNotFoundError, NotADirectoryError, PermissionError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    session.commit()
+    response = RedirectResponse(f"/ui/libraries?library_id={library_id}", status_code=303)
+    response.set_cookie("ariadne_library_id", str(library_id), httponly=False, samesite="lax")
+    return response
+
+
+@router.post("/ui/libraries/{library_id}/enable")
+def enable_library_action(session: SessionDep, library_id: UUID) -> RedirectResponse:
+    return _set_library_enabled(session, library_id, enabled=True)
+
+
+@router.post("/ui/libraries/{library_id}/disable")
+def disable_library_action(session: SessionDep, library_id: UUID) -> RedirectResponse:
+    return _set_library_enabled(session, library_id, enabled=False)
+
+
+def _set_library_enabled(session: Session, library_id: UUID, *, enabled: bool) -> RedirectResponse:
+    try:
+        update_library_source(session, get_settings(), library_id, enabled=enabled)
+    except ValueError as exc:
+        status_code = 404 if str(exc).startswith("Unknown library source") else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    except (FileNotFoundError, NotADirectoryError, PermissionError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    session.commit()
+    response = RedirectResponse(f"/ui/libraries?library_id={library_id}", status_code=303)
+    response.set_cookie("ariadne_library_id", str(library_id), httponly=False, samesite="lax")
     return response
 
 
@@ -1952,8 +2049,17 @@ def _article_tag_summary(tags: list[ArticleTag]) -> str:
 
 
 @router.get("/ui/articles", response_class=HTMLResponse)
-def article_list(session: SessionDep) -> HTMLResponse:
-    articles = list(session.scalars(select(Article).order_by(Article.title)))
+def article_list(session: SessionDep, library_source_id: UUID | None = None) -> HTMLResponse:
+    statement = select(Article)
+    if library_source_id is not None:
+        statement = statement.where(
+            Article.id.in_(
+                select(LibrarySourceFile.article_id)
+                .where(LibrarySourceFile.library_source_id == library_source_id)
+                .where(LibrarySourceFile.article_id.is_not(None))
+            )
+        )
+    articles = list(session.scalars(statement.order_by(Article.title)))
     rows = []
     for article in articles:
         tags = list(

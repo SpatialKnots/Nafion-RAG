@@ -39,6 +39,15 @@ class LibrarySourceCreateRequest(BaseModel):
     recursive: bool = True
 
 
+class LibrarySourceUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    path: str | None = Field(default=None, min_length=1)
+    collection: str | None = Field(default=None, min_length=1)
+    enabled: bool | None = None
+    watch_enabled: bool | None = None
+    recursive: bool | None = None
+
+
 class LibrarySourceResponse(BaseModel):
     id: str
     name: str

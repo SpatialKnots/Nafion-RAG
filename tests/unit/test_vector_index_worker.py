@@ -61,6 +61,11 @@ def test_process_one_vector_rebuild_builds_generation_and_marks_ready(monkeypatc
         return SimpleNamespace(generation_id="generation-1", manifest_sha256="abc")
 
     monkeypatch.setattr("app.retrieval.index_worker.build_local_vector_index_generation", lambda *args, **kwargs: fake_build(**kwargs))
+    reconciled = []
+    monkeypatch.setattr(
+        "app.retrieval.index_worker.reconcile_library_source_vector_readiness",
+        lambda active_session, active_settings: reconciled.append((active_session, active_settings)),
+    )
 
     did_work = process_one_vector_rebuild(session, _settings(tmp_path), "worker-1")  # type: ignore[arg-type]
 
@@ -69,6 +74,7 @@ def test_process_one_vector_rebuild_builds_generation_and_marks_ready(monkeypatc
     assert state.active_revision == 3
     assert state.active_generation_id == "generation-1"
     assert state.active_manifest_sha256 == "abc"
+    assert len(reconciled) == 1
     assert session.commits == 2
 
 

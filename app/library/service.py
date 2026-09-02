@@ -10,9 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.db.models import Article, Collection, IngestionJob, LibrarySource, LibrarySourceFile
+from app.db.models import Article, Collection, IngestionJob, LibrarySource, LibrarySourceFile, VectorIndexState
 from app.ingestion.checksum import sha256_file
 from app.library.schemas import LibraryScanResult
+from app.retrieval.index_lifecycle import VECTOR_INDEX_READY
 
 TEMPORARY_PDF_PREFIXES = ("~$", ".~")
 ACTIVE_INGESTION_STATUSES = {"queued", "processing"}
@@ -52,18 +53,59 @@ def list_library_sources(session: Session) -> list[LibrarySource]:
     return list(session.scalars(select(LibrarySource).join(Collection).order_by(Collection.name, LibrarySource.name)))
 
 
-def list_library_source_files(session: Session, library_source_id: UUID) -> list[LibrarySourceFile]:
-    return list(
-        session.scalars(
-            select(LibrarySourceFile)
-            .where(LibrarySourceFile.library_source_id == library_source_id)
-            .order_by(LibrarySourceFile.relative_path)
-        )
-    )
+def list_library_source_files(session: Session, library_source_id: UUID, *, status: str | None = None) -> list[LibrarySourceFile]:
+    statement = select(LibrarySourceFile).where(LibrarySourceFile.library_source_id == library_source_id)
+    if status:
+        statement = statement.where(LibrarySourceFile.status == status)
+    return list(session.scalars(statement.order_by(LibrarySourceFile.relative_path)))
 
 
 def get_library_source(session: Session, library_source_id: UUID) -> LibrarySource | None:
     return session.get(LibrarySource, library_source_id)
+
+
+def update_library_source(
+    session: Session,
+    settings: Settings,
+    library_source_id: UUID,
+    *,
+    name: str | None = None,
+    path: str | Path | None = None,
+    collection_name: str | None = None,
+    enabled: bool | None = None,
+    watch_enabled: bool | None = None,
+    recursive: bool | None = None,
+) -> LibrarySource:
+    del settings
+    source = get_library_source(session, library_source_id)
+    if source is None:
+        raise ValueError(f"Unknown library source: {library_source_id}")
+
+    if name is not None:
+        source.name = _require_non_empty(name, "name")
+    if path is not None:
+        source.path = str(_validate_existing_directory(path))
+    if collection_name is not None:
+        collection = _get_collection(session, collection_name)
+        source.collection_id = collection.id
+        source.collection = collection
+    if enabled is not None:
+        source.enabled = enabled
+    if watch_enabled is not None:
+        source.watch_enabled = watch_enabled
+    if recursive is not None:
+        source.recursive = recursive
+
+    now = datetime.now(UTC)
+    if source.enabled:
+        _validate_existing_directory(source.path)
+        source.status = "active"
+        source.last_error = None
+    else:
+        source.status = "disabled"
+    source.updated_at = now
+    session.flush()
+    return source
 
 
 def library_source_to_response(source: LibrarySource) -> dict[str, object]:
@@ -325,7 +367,12 @@ def is_library_ingestion_job(session: Session, ingestion_job_id: UUID) -> bool:
     )
 
 
-def reconcile_library_source_file_statuses(session: Session, ingestion_job_id: UUID | None = None) -> int:
+def reconcile_library_source_file_statuses(
+    session: Session,
+    ingestion_job_id: UUID | None = None,
+    *,
+    settings: Settings | None = None,
+) -> int:
     statement = select(LibrarySourceFile).where(LibrarySourceFile.ingestion_job_id.is_not(None))
     if ingestion_job_id is not None:
         statement = statement.where(LibrarySourceFile.ingestion_job_id == ingestion_job_id)
@@ -346,6 +393,8 @@ def reconcile_library_source_file_statuses(session: Session, ingestion_job_id: U
         next_status = _library_file_status_for_job(job.status)
         if next_status is None:
             continue
+        if next_status == "text_ready" and settings is not None and _has_ready_vector_index(session, row, settings):
+            next_status = "ready"
         row.status = next_status
         row.article_id = job.article_id or row.article_id
         row.content_hash_sha256 = job.checksum_sha256 or row.content_hash_sha256
@@ -353,6 +402,33 @@ def reconcile_library_source_file_statuses(session: Session, ingestion_job_id: U
         row.last_error = job.error_message if job.status == "failed" else None
         if job.status in {"indexed", "duplicate", "failed"}:
             row.last_ingested_at = job.finished_at or now
+        row.updated_at = now
+        updated += 1
+    if updated:
+        session.flush()
+    return updated
+
+
+def reconcile_library_source_vector_readiness(
+    session: Session,
+    settings: Settings,
+    *,
+    library_source_id: UUID | None = None,
+) -> int:
+    statement = select(LibrarySourceFile).where(LibrarySourceFile.article_id.is_not(None))
+    if library_source_id is not None:
+        statement = statement.where(LibrarySourceFile.library_source_id == library_source_id)
+    rows = list(session.scalars(statement))
+    now = datetime.now(UTC)
+    updated = 0
+    for row in rows:
+        if row.status not in {"text_ready", "ready", "embedding"}:
+            continue
+        is_ready = _has_ready_vector_index(session, row, settings)
+        next_status = "ready" if is_ready else "text_ready"
+        if row.status == next_status:
+            continue
+        row.status = next_status
         row.updated_at = now
         updated += 1
     if updated:
@@ -418,6 +494,22 @@ def _library_file_status_for_job(job_status: str) -> str | None:
     if job_status == "failed":
         return "failed"
     return None
+
+
+def _has_ready_vector_index(session: Session, row: LibrarySourceFile, settings: Settings) -> bool:
+    library_source_id = getattr(row, "library_source_id", None)
+    embedding_model = getattr(settings, "embedding_model", None)
+    if library_source_id is None or not embedding_model:
+        return False
+    source = session.get(LibrarySource, library_source_id)
+    if source is None:
+        return False
+    state = session.scalar(
+        select(VectorIndexState)
+        .where(VectorIndexState.collection_id == source.collection_id)
+        .where(VectorIndexState.embedding_model == embedding_model)
+    )
+    return state is not None and state.status == VECTOR_INDEX_READY and state.active_generation_id is not None
 
 
 def _mark_missing_files(session: Session, library_source_id: UUID, seen_paths: set[str], now: datetime) -> int:

@@ -8,7 +8,7 @@ from fastapi import HTTPException
 
 from app import main
 from app.db.models import Collection, LibrarySource, LibrarySourceFile
-from app.library.schemas import LibrarySourceCreateRequest
+from app.library.schemas import LibrarySourceCreateRequest, LibrarySourceUpdateRequest
 
 
 class FakeScalarResult:
@@ -118,6 +118,24 @@ def test_create_library_api_rejects_missing_folder(monkeypatch, tmp_path) -> Non
     assert "unavailable" in str(exc_info.value.detail)
 
 
+def test_update_library_api_can_disable_source(monkeypatch, tmp_path) -> None:
+    session = FakeSession()
+    session.source.path = str(tmp_path)
+    monkeypatch.setattr(main, "get_settings", lambda: SimpleNamespace())
+
+    payload = main.update_library(  # type: ignore[arg-type]
+        session,
+        session.source.id,
+        LibrarySourceUpdateRequest(enabled=False, watch_enabled=False, recursive=False),
+    )
+
+    assert payload["enabled"] is False
+    assert payload["watch_enabled"] is False
+    assert payload["recursive"] is False
+    assert payload["status"] == "disabled"
+    assert session.commits == 1
+
+
 def test_library_files_api_lists_discovered_files() -> None:
     session = FakeSession()
 
@@ -125,6 +143,15 @@ def test_library_files_api_lists_discovered_files() -> None:
 
     assert payload["items"][0]["filename"] == "paper.pdf"
     assert payload["items"][0]["status"] == "queued"
+
+
+def test_library_files_api_accepts_status_filter() -> None:
+    session = FakeSession()
+    session.file.status = "failed"
+
+    payload = main.library_files(session, session.source.id, status="failed")  # type: ignore[arg-type]
+
+    assert payload["items"][0]["filename"] == "paper.pdf"
 
 
 def test_library_scan_api_commits_scan(monkeypatch) -> None:

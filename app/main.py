@@ -44,6 +44,7 @@ from app.library.schemas import (
     LibrarySourceFilesResponse,
     LibrarySourceResponse,
     LibrarySourcesResponse,
+    LibrarySourceUpdateRequest,
 )
 from app.library.service import (
     create_library_source,
@@ -54,6 +55,7 @@ from app.library.service import (
     list_library_source_files,
     list_library_sources,
     scan_and_queue_library_source,
+    update_library_source,
 )
 from app.retrieval.index_lifecycle import (
     get_vector_index_state_by_collection_name,
@@ -215,14 +217,42 @@ def library_detail(session: SessionDep, library_id: UUID) -> dict[str, object]:
     return LibrarySourceResponse.model_validate(library_source_to_response(source)).model_dump()
 
 
+@app.patch("/libraries/{library_id}")
+def update_library(session: SessionDep, library_id: UUID, request: LibrarySourceUpdateRequest) -> dict[str, object]:
+    if get_library_source(session, library_id) is None:
+        raise HTTPException(status_code=404, detail=f"Unknown library source: {library_id}")
+    try:
+        source = update_library_source(
+            session,
+            get_settings(),
+            library_id,
+            name=request.name,
+            path=request.path,
+            collection_name=request.collection,
+            enabled=request.enabled,
+            watch_enabled=request.watch_enabled,
+            recursive=request.recursive,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=400, detail=f"Library folder is unavailable: {exc}") from exc
+    except NotADirectoryError as exc:
+        raise HTTPException(status_code=400, detail=f"Library path is not a directory: {exc}") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    session.commit()
+    return LibrarySourceResponse.model_validate(library_source_to_response(source)).model_dump()
+
+
 @app.get("/libraries/{library_id}/files")
-def library_files(session: SessionDep, library_id: UUID) -> dict[str, object]:
+def library_files(session: SessionDep, library_id: UUID, status: str | None = None) -> dict[str, object]:
     source = get_library_source(session, library_id)
     if source is None:
         raise HTTPException(status_code=404, detail=f"Unknown library source: {library_id}")
     items = [
         LibrarySourceFileResponse.model_validate(library_source_file_to_response(row))
-        for row in list_library_source_files(session, library_id)
+        for row in list_library_source_files(session, library_id, status=status)
     ]
     return LibrarySourceFilesResponse(items=items).model_dump()
 

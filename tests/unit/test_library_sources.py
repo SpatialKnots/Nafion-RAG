@@ -4,14 +4,16 @@ import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
-from app.db.models import Article, Collection, IngestionJob, LibrarySource, LibrarySourceFile
+from app.db.models import Article, Collection, IngestionJob, LibrarySource, LibrarySourceFile, VectorIndexState
 from app.ingestion.checksum import sha256_file
 from app.library.service import (
     create_library_source,
     list_library_sources,
     reconcile_library_source_file_statuses,
+    reconcile_library_source_vector_readiness,
     scan_and_queue_library_source,
     scan_library_source,
+    update_library_source,
 )
 
 
@@ -30,6 +32,7 @@ class FakeSession:
         self.files: list[LibrarySourceFile] = []
         self.articles: list[Article] = []
         self.jobs: list[IngestionJob] = []
+        self.vector_states: list[VectorIndexState] = []
         self.flushed = 0
 
     def scalar(self, statement: object) -> object | None:
@@ -58,6 +61,17 @@ class FakeSession:
         if "FROM ingestion_jobs" in text:
             checksum = _first_param(params, "checksum_sha256")
             return next((job for job in self.jobs if job.checksum_sha256 == checksum and job.status in {"queued", "processing"}), None)
+        if "FROM vector_index_states" in text:
+            collection_id = _first_param(params, "collection_id")
+            embedding_model = _first_param(params, "embedding_model")
+            return next(
+                (
+                    state
+                    for state in self.vector_states
+                    if state.collection_id == collection_id and state.embedding_model == embedding_model
+                ),
+                None,
+            )
         return None
 
     def scalars(self, statement: object) -> FakeScalarResult:
@@ -141,6 +155,29 @@ def test_scan_discovers_pdf_and_ignores_non_pdf(tmp_path) -> None:
     assert session.files[0].relative_path == "paper.pdf"
     assert session.files[0].status == "discovered"
     assert session.files[0].content_hash_sha256 is not None
+
+
+def test_update_library_source_changes_flags_and_validates_path(tmp_path) -> None:
+    session = _session_with_source(tmp_path)
+
+    source = update_library_source(  # type: ignore[arg-type]
+        session,
+        SimpleNamespace(),
+        session.sources[0].id,
+        name="Renamed",
+        path=tmp_path,
+        collection_name="literature",
+        enabled=False,
+        watch_enabled=False,
+        recursive=False,
+    )
+
+    assert source.name == "Renamed"
+    assert source.path == str(tmp_path.resolve())
+    assert source.enabled is False
+    assert source.watch_enabled is False
+    assert source.recursive is False
+    assert source.status == "disabled"
 
 
 def test_scan_missing_folder_sets_source_status(tmp_path) -> None:
@@ -302,6 +339,90 @@ def test_reconcile_library_source_file_status_from_ingestion_job(tmp_path) -> No
     assert session.files[0].status == "text_ready"
     assert session.files[0].article_id == article_id
     assert session.files[0].last_ingested_at is not None
+
+
+def test_reconcile_marks_indexed_library_file_ready_when_vector_index_ready(tmp_path) -> None:
+    session = _session_with_source(tmp_path)
+    article_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    session.jobs.append(
+        IngestionJob(
+            id=job_id,
+            input_path=str(tmp_path / "paper.pdf"),
+            collection_id=session.collection.id,
+            article_id=article_id,
+            original_filename="paper.pdf",
+            checksum_sha256="a" * 64,
+            file_size_bytes=10,
+            force_ocr=False,
+            status="indexed",
+        )
+    )
+    session.vector_states.append(
+        VectorIndexState(
+            id=uuid.uuid4(),
+            collection_id=session.collection.id,
+            embedding_model="test/model",
+            status="ready",
+            desired_revision=1,
+            active_revision=1,
+            active_generation_id="generation-1",
+        )
+    )
+    session.files.append(
+        LibrarySourceFile(
+            id=uuid.uuid4(),
+            library_source_id=session.sources[0].id,
+            external_path=str((tmp_path / "paper.pdf").resolve()),
+            relative_path="paper.pdf",
+            filename="paper.pdf",
+            ingestion_job_id=job_id,
+            status="ingesting",
+        )
+    )
+
+    updated = reconcile_library_source_file_statuses(  # type: ignore[arg-type]
+        session,
+        job_id,
+        settings=SimpleNamespace(embedding_model="test/model"),
+    )
+
+    assert updated == 1
+    assert session.files[0].status == "ready"
+
+
+def test_reconcile_vector_readiness_demotes_ready_when_index_is_stale(tmp_path) -> None:
+    session = _session_with_source(tmp_path)
+    session.vector_states.append(
+        VectorIndexState(
+            id=uuid.uuid4(),
+            collection_id=session.collection.id,
+            embedding_model="test/model",
+            status="stale",
+            desired_revision=2,
+            active_revision=1,
+            active_generation_id="generation-1",
+        )
+    )
+    session.files.append(
+        LibrarySourceFile(
+            id=uuid.uuid4(),
+            library_source_id=session.sources[0].id,
+            external_path=str((tmp_path / "paper.pdf").resolve()),
+            relative_path="paper.pdf",
+            filename="paper.pdf",
+            article_id=uuid.uuid4(),
+            status="ready",
+        )
+    )
+
+    updated = reconcile_library_source_vector_readiness(  # type: ignore[arg-type]
+        session,
+        SimpleNamespace(embedding_model="test/model"),
+    )
+
+    assert updated == 1
+    assert session.files[0].status == "text_ready"
 
 
 def _session_with_source(path: Path, *, create_folder: bool = True) -> FakeSession:

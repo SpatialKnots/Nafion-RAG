@@ -170,7 +170,7 @@ def claim_next_job(session: Session, settings: Settings, worker_id: str) -> Inge
     job.started_at = job.started_at or now
     job.heartbeat_at = now
     job.updated_at = now
-    reconcile_library_source_file_statuses(session, job.id)
+    reconcile_library_source_file_statuses(session, job.id, settings=settings)
     return job
 
 
@@ -184,7 +184,7 @@ def process_claimed_job(session: Session, settings: Settings, job: IngestionJob)
         job.error_message = "Queued upload file is unavailable"
         job.finished_at = now
         job.updated_at = now
-        reconcile_library_source_file_statuses(session, job.id)
+        reconcile_library_source_file_statuses(session, job.id, settings=settings)
         return
     collection = session.get(Collection, job.collection_id)
     if collection is None:
@@ -193,7 +193,7 @@ def process_claimed_job(session: Session, settings: Settings, job: IngestionJob)
         job.error_message = "Job collection is unavailable"
         job.finished_at = now
         job.updated_at = now
-        reconcile_library_source_file_statuses(session, job.id)
+        reconcile_library_source_file_statuses(session, job.id, settings=settings)
         return
     try:
         result = process_pdf(session, settings, staged_path, collection, force_ocr=job.force_ocr)
@@ -204,7 +204,7 @@ def process_claimed_job(session: Session, settings: Settings, job: IngestionJob)
         job.error_message = str(exc)[:1000]
         job.finished_at = datetime.now(UTC)
         job.updated_at = datetime.now(UTC)
-        reconcile_library_source_file_statuses(session, job.id)
+        reconcile_library_source_file_statuses(session, job.id, settings=settings)
         return
 
     job.article_id = uuid.UUID(result.article_id)
@@ -214,7 +214,7 @@ def process_claimed_job(session: Session, settings: Settings, job: IngestionJob)
     job.error_message = None
     job.finished_at = datetime.now(UTC)
     job.updated_at = datetime.now(UTC)
-    reconcile_library_source_file_statuses(session, job.id)
+    reconcile_library_source_file_statuses(session, job.id, settings=settings)
     if result.status in {"indexed", "duplicate"} and not is_library_job:
         remove_staged_file(staged_path)
 
