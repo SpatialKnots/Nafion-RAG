@@ -714,6 +714,8 @@ def test_libraries_page_renders_sources_and_files(monkeypatch) -> None:
     assert "D:\\Research\\Nafion" in body
     assert "paper.pdf" in body
     assert "stage-dot running" in body
+    assert "stage-spinner" in body
+    assert "stage-check" in body
     assert "Scan Now" in body
     assert "Open Articles" in body
     assert "Open Failed Files" in body

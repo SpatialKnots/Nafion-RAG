@@ -375,6 +375,9 @@ def _layout(title: str, body: str) -> HTMLResponse:
     .stage-dot.done { border-color:#B8DCC7; color:var(--ok); background:#F4FBF7; }
     .stage-dot.running { border-color:#B9DADC; color:#155E63; background:#F2FBFB; font-weight:700; }
     .stage-dot.error { border-color:#E5C6B1; color:var(--warn); background:#FFF8F3; font-weight:700; }
+    .stage-spinner { width:11px; height:11px; border:2px solid #B9DADC; border-top-color:#155E63; border-radius:50%;
+      animation:spin .8s linear infinite; }
+    .stage-check { font-weight:800; color:var(--ok); }
     button[disabled] { opacity:.65; cursor:wait; }
     @keyframes spin { to { transform: rotate(360deg); } }
     mark { background:#fff1a8; padding:0 1px; }
@@ -1564,12 +1567,12 @@ def _pipeline_meter(label: str, done: int, total: int) -> str:
 
 def _stage_line(status: str) -> str:
     stages = (
-        ("discovered", "D"),
-        ("queued", "Q"),
-        ("ingesting", "T"),
-        ("text_ready", "R"),
+        ("discovered", "Discovered"),
+        ("queued", "Queued"),
+        ("ingesting", "Text/OCR"),
+        ("text_ready", "Ready"),
     )
-    order = [stage for stage, _label in stages]
+    order = [stage for stage, _title in stages]
     if status == "failed":
         active_index = min(order.index("ingesting"), len(stages) - 1)
     elif status == "duplicate":
@@ -1581,11 +1584,17 @@ def _stage_line(status: str) -> str:
     else:
         active_index = 0
     dots = []
-    for index, (stage, label) in enumerate(stages):
+    for index, (_stage, title) in enumerate(stages):
         css_class = "done" if index < active_index or status in {"duplicate", "ready"} else ""
         if index == active_index and status not in {"duplicate", "ready"}:
             css_class = "error" if status == "failed" else "running"
-        dots.append(f"<span class='stage-dot {css_class}' title='{_html(stage)}'>{_html(label)}</span>")
+        if css_class == "done":
+            label = "<span class='stage-check' aria-label='done'>✓</span>"
+        elif css_class == "running":
+            label = "<span class='stage-spinner' aria-label='processing'></span>"
+        else:
+            label = ""
+        dots.append(f"<span class='stage-dot {css_class}' title='{_html(title)}'>{label}</span>")
     return "<div class='stage-line'>" + "".join(dots) + "</div>"
 
 
