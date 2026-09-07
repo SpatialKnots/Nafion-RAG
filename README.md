@@ -7,6 +7,27 @@
 Current planning: [дорожная карта проекта](docs/roadmap.md) — состояние реализации,
 ближайшие этапы и критерии готовности (сверка 2026-09-07).
 
+## Current Status — 2026-09-07
+
+ARIADNE is in stage 2 of the [roadmap](docs/roadmap.md): retrieval quality
+evaluation. The core PDF ingestion, OCR, indexing, search and source-navigation
+workflow has passed an [integration acceptance check](docs/stage1_acceptance_2026-09-07.md).
+Full failure-recovery and scaling acceptance remain open.
+
+The checked local corpus contains 33 articles, 493 pages and 619 chunks.
+On the 46-question extended gold set, all four audited retrieval methods retained
+article Recall@10=1.0. The [grouping audit](docs/stage2_grouping_audit_2026-09-07.md)
+found that keeping one chunk per article can hide required semantic evidence:
+chunk Recall fell from 1.0 to 0.923077 across the 13 questions with chunk targets.
+Keeping two chunks preserved Recall on this set; broader coverage is still unverified.
+
+Evidence adequacy is heuristic: an unanswerable PBI question was incorrectly
+accepted as having sufficient evidence by cross-lingual retrieval. Citation
+validation does not establish scientific correctness. Scientific acceptance of
+numeric extraction and generated answers, plus scaling benchmarks, remains ahead.
+
+## Overview
+
 ARIADNE is a local-first research system for building a trustworthy scientific memory from a focused PDF corpus about Nafion, PFSA membranes, and related lithium-ion battery literature.
 
 The project is built around a simple principle: every answer must remain connected to the document that supports it. ARIADNE takes raw scientific PDFs, preserves the original files, extracts page-level text, breaks the corpus into stable source-linked fragments, and lets the user search or ask questions against that evidence. When the system answers, it returns citations back to the article, chunk, and page instead of treating generated text as a source of truth.
@@ -88,7 +109,7 @@ Main entry points:
 - Answer questions with source-linked citations.
 - Produce OpenAI mini-reviews grouped by article.
 - Link answer citation markers to the cited PDF page.
-- Refuse answers when the retrieved evidence is too weak.
+- Apply an evidence-adequacy heuristic that can refuse answers when support appears too weak.
 - Suggest likely domain query fixes, for example `litation -> lithiation`.
 - Evaluate retrieval and answer behavior with YAML question sets.
 
