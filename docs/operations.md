@@ -121,7 +121,7 @@ Uploads are streamed to `data/uploads/incoming` and moved to `data/uploads/queue
 
 Operational notes:
 
-- `indexed` means PostgreSQL evidence is ready; semantic/hybrid vector artifacts are not rebuilt automatically in Priority 2.
+- `indexed` means PostgreSQL evidence is ready. The implemented index lifecycle marks the index stale; automatic rebuild requires `VECTOR_AUTO_REBUILD_ENABLED=true` and a running vector/all worker.
 - Duplicate uploads return a terminal `duplicate` job with the existing `article_id`.
 - Failed jobs keep their queued staged file for diagnostics; cleanups must stay inside `data/uploads` and must not touch `data/pdf`.
 - If a worker dies, stale `processing` jobs are requeued after `INGESTION_LEASE_SECONDS` until `INGESTION_MAX_ATTEMPTS` is exhausted.
@@ -153,7 +153,32 @@ WORKER_ROLE=all
 
 Vector rebuild requests are coalesced per collection and embedding model in `vector_index_states`. Repeated successful ingestions increment `desired_revision` and refresh `requested_at` on the existing row rather than creating per-PDF rebuild jobs. `VECTOR_REBUILD_DEBOUNCE_SECONDS` delays claiming the rebuild until the latest stale mark is old enough.
 
+The rebuild attempt budget applies to a rebuild cycle, not the lifetime of the
+collection. Successful builds reset it, including builds superseded by a newer
+revision. A new stale mark outside an active build also starts a fresh budget.
+Errors remain in diagnostics until the next claim; this does not change the
+configured maximum attempt count.
+
+An isolated PostgreSQL/API smoke check is available from the repository root:
+
+```powershell
+$env:PYTHONPATH = (Get-Location).Path
+.\.venv\Scripts\python.exe scripts/stage1_smoke.py
+```
+
+It uses a random schema inside an outer transaction and rolls that transaction
+back, including the schema, on exit. Synthetic PDFs, OCR output, an actual
+FastEmbed index and a JSON report remain under `tmp/stage1_smoke_*`. It requires
+the configured PostgreSQL role to create a schema, plus working OCR and embedding
+dependencies. Synthetic fixtures are not added to the production collection.
+This is a manual integration check; it is not part of the unit test suite.
+
 Library ingestion jobs keep `input_path` pointed at the external PDF until the worker copies it into immutable storage. The worker must not delete watched-folder PDFs after processing. Missing folders are recorded as `missing` with diagnostics.
+
+The API and worker must have read access to each connected folder, including
+folders outside the project. An incomplete directory traversal records an error
+on the library and preserves existing file statuses; it must not be interpreted
+as a successful empty scan. Missing library files do not show a processing spinner.
 
 Progress is visible in the HTML UI:
 
@@ -447,6 +472,16 @@ docs/retrieval_error_fixing_policy.md
 
 Extended reports include `summary.by_error_class` when question files provide
 `error_class` values.
+
+Each extended question also retains its full `retrieval_metadata`. Query-specific
+fields (`cross_lingual`, `mandatory_terms`, `reranking`, `language_diversity`)
+may differ between questions; they are not run-level configuration invariants.
+Other metadata, including model/manifest fields when supplied by retrieval,
+must stay stable or evaluation fails. Existing metrics and thresholds are unchanged.
+
+The 2026-09-07 Ma gold correction and evaluation results are documented in
+`docs/stage2_gold_audit_2026-09-07.md`. Do not treat metrics from the corrected
+questions as an algorithmic improvement over the earlier question set.
 
 ## Priority 6 Text Quality And Table/Caption Evaluation
 

@@ -1,12 +1,12 @@
 - id: p6_table_ma_solvent_aggregation_2009
-  query: "Table casting solvent DMAc DMF DMSO NMP EtOH ionic aggregation Nafion"
+  query: "Table casting solvent DMAc DMF NMF MeOH EtOH IPA ionic aggregation Nafion"
   expected_article_dois:
     - "10.1016/j.polymer.2009.01.060"
   expected_keywords:
     - "DMAc"
     - "DMF"
     - "ionic aggregation"
-  notes: "Priority 6 table/numeric evidence target for Ma et al. 2009 solvent-dependent aggregation data."
+  notes: "Ma PDF page 2, section 2.1 supports DMAc/DMF/NMF and aqueous MeOH/EtOH/IPA. DMSO/NMP in the previous query were incorrect; see stage2_gold_audit_2026-09-07.md."
 - id: p6_table_sanginov_li_nafion_conductivity_2021
   query: "Table lithiated Nafion conductivity sulfolane ethylene carbonate"
   expected_article_dois:

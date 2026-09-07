@@ -228,7 +228,18 @@ def scan_library_source(session: Session, settings: Settings, library_source_id:
     unchanged = 0
     duplicates = 0
     seen_paths: set[str] = set()
-    for pdf_path in _iter_pdf_files(root, recursive=source.recursive):
+    try:
+        pdf_paths = _iter_pdf_files(root, recursive=source.recursive)
+    except OSError as exc:
+        source.status = "error"
+        source.last_error = f"Library scan failed: {type(exc).__name__}: {exc}"
+        source.last_scan_at = now
+        source.updated_at = now
+        return LibraryScanResult(
+            str(source.id), discovered=0, unchanged=0, duplicates=0, missing=0,
+            status=source.status, error=source.last_error,
+        )
+    for pdf_path in pdf_paths:
         external_path = str(pdf_path.resolve())
         seen_paths.add(external_path)
         stat = pdf_path.stat()
@@ -480,7 +491,15 @@ def _validate_existing_directory(path: str | Path) -> Path:
 
 
 def _iter_pdf_files(root: Path, *, recursive: bool) -> list[Path]:
-    candidates = root.rglob("*") if recursive else root.iterdir()
+    def raise_scan_error(error: OSError) -> None:
+        raise error
+
+    # Path.rglob can suppress directory-access failures and look like an empty
+    # scan. Never mark existing records missing after an incomplete traversal.
+    candidates = (
+        (Path(directory) / name for directory, _dirs, files in os.walk(root, onerror=raise_scan_error) for name in files)
+        if recursive else root.iterdir()
+    )
     return sorted(
         path
         for path in candidates

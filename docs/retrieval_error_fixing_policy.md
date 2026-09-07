@@ -157,6 +157,22 @@ Preferred mechanisms:
 
 ## Required Evidence Before A Fix
 
+### Check for `gold_source_mismatch` first
+
+An expected article may not support the compounds, conditions, or method named
+in the question. Verify the question against the source before changing retrieval.
+An incidental mention or citation of another study is not evidence that the
+target article performed the named experiment.
+
+When the gold question is wrong, record the original wording, source checksum,
+page/section evidence and corrected wording. Keep user-authored questions intact
+unless an explicit relabeling is documented. Report corrected-set metrics as a
+new baseline, not a retrieval improvement, and compare unchanged questions
+separately. Do not weaken protected-token requirements to satisfy invalid gold.
+
+The Ma solvent-list correction is documented in
+`stage2_gold_audit_2026-09-07.md`.
+
 Before changing code, capture:
 
 - the exact query;

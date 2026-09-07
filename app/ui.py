@@ -1573,7 +1573,9 @@ def _stage_line(status: str) -> str:
         ("text_ready", "Ready"),
     )
     order = [stage for stage, _title in stages]
-    if status == "failed":
+    if status == "missing":
+        active_index = 0
+    elif status == "failed":
         active_index = min(order.index("ingesting"), len(stages) - 1)
     elif status == "duplicate":
         active_index = len(stages) - 1
@@ -1587,7 +1589,7 @@ def _stage_line(status: str) -> str:
     for index, (_stage, title) in enumerate(stages):
         css_class = "done" if index < active_index or status in {"duplicate", "ready"} else ""
         if index == active_index and status not in {"duplicate", "ready"}:
-            css_class = "error" if status == "failed" else "running"
+            css_class = "error" if status in {"failed", "missing"} else "running"
         if css_class == "done":
             label = "<span class='stage-check' aria-label='done'>✓</span>"
         elif css_class == "running":

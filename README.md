@@ -4,6 +4,9 @@
 
 # ARIADNE
 
+Current planning: [дорожная карта проекта](docs/roadmap.md) — состояние реализации,
+ближайшие этапы и критерии готовности (сверка 2026-09-07).
+
 ARIADNE is a local-first research system for building a trustworthy scientific memory from a focused PDF corpus about Nafion, PFSA membranes, and related lithium-ion battery literature.
 
 The project is built around a simple principle: every answer must remain connected to the document that supports it. ARIADNE takes raw scientific PDFs, preserves the original files, extracts page-level text, breaks the corpus into stable source-linked fragments, and lets the user search or ask questions against that evidence. When the system answers, it returns citations back to the article, chunk, and page instead of treating generated text as a source of truth.
@@ -93,7 +96,11 @@ Not implemented as a completed feature:
 
 - External metadata lookup.
 - A full conversational chat UI.
-- Automatic vector-index rebuild after every upload.
+
+Vector-index rebuilds run in the background when `VECTOR_AUTO_REBUILD_ENABLED=true`
+and a worker with role `vector` or `all` is running. Upload completion means text
+is ready; semantic/hybrid readiness follows the separate index state. Rebuild
+requests are coalesced, so this is not a synchronous rebuild for every upload.
 
 ## Quick Start
 

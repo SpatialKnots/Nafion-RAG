@@ -160,13 +160,13 @@
     - "СПИРТОВ"
   notes: "DOI-less Russian exact baseline check for Chernyuk 2024 lithiated Nafion enthalpy paper."
 - id: q20_ma_table_solvent_aggregation_2009
-  query: "Nafion casting solvent method table DMF DMSO NMP EtOH DMAc"
+  query: "Nafion casting solvent method table DMAc DMF NMF MeOH EtOH IPA"
   expected_article_dois:
     - "10.1016/j.polymer.2009.01.060"
   expected_keywords:
     - "ionic aggregation"
     - "DMAc"
-  notes: "Table-oriented exact baseline check for Ma et al. 2009 solvent-dependent aggregation discussion."
+  notes: "Corrected 2026-09-07 against Ma PDF page 2, section 2.1: DMAc/DMF/NMF and aqueous MeOH/EtOH/IPA. Previous query incorrectly required DMSO/NMP; see stage2_gold_audit_2026-09-07.md."
 - id: q21_sanginov_broad_li_nafion_conductivity_2021
   query: "Li-Nafion diglyme sulfolane ethylene carbonate conductivity table"
   expected_article_dois:

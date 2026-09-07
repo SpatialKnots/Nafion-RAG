@@ -29,6 +29,9 @@
 - id: xling_en_ru_chernyuk_alcohol_solution_enthalpy
   language: en
   category: en_to_ru
+  error_class: property_confusion
+  expected_behavior: "Preserve interaction enthalpy in translated query variants and retrieve source evidence within top 10."
+  regression_guard: "Do not equate interaction enthalpy with mixing entropy or force one article above other relevant sources."
   query: "What is the enthalpy of interaction of lithiated Nafion with aqueous alcohol solutions?"
   expected_article_titles:
     - "Чернюк 2024"

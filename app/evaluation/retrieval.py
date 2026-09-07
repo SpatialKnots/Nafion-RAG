@@ -354,13 +354,20 @@ def _chunk_texts_for_results(session: Session, result_payload: list[dict[str, ob
     return {str(chunk_id): text for chunk_id, text in rows}
 
 
+def _normalize_evaluation_text(value: str) -> str:
+    # Expand only typographic Latin ligatures; NFKC would also fold scientific
+    # superscripts/subscripts. Stored text and returned evidence remain untouched.
+    ligatures: dict[str, str | int | None] = {"ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl", "ﬅ": "st", "ﬆ": "st"}
+    return value.translate(str.maketrans(ligatures)).lower()
+
+
 def _evaluation_text_for_result(result: dict[str, object], chunk_texts: dict[str, str] | None = None) -> str:
     parts = [str(result.get("snippet", ""))]
     if chunk_texts is not None:
         chunk_text = chunk_texts.get(str(result.get("chunk_id")))
         if chunk_text:
             parts.append(chunk_text)
-    return "\n".join(parts).lower()
+    return _normalize_evaluation_text("\n".join(parts))
 
 
 def _result_matches_expected_article(
@@ -430,7 +437,7 @@ def _result_matches_extended_chunk(
         return False
     if expected.text_contains:
         text = _evaluation_text_for_result(result, chunk_texts)
-        if not all(fragment.lower() in text for fragment in expected.text_contains):
+        if not all(_normalize_evaluation_text(fragment) in text for fragment in expected.text_contains):
             return False
     return True
 
@@ -537,7 +544,7 @@ def _evaluate_question(
     missing_dois = [doi for doi in question.expected_article_dois if doi not in result_dois]
     missing_titles = [title for title in question.expected_article_titles if title not in result_titles]
     missing_checksums = [checksum for checksum in question.expected_article_checksums if checksum not in result_checksums]
-    missing_keywords = [keyword for keyword in question.expected_keywords if keyword.lower() not in result_text]
+    missing_keywords = [keyword for keyword in question.expected_keywords if _normalize_evaluation_text(keyword) not in result_text]
     passed = not missing_dois and not missing_titles and not missing_checksums and not missing_keywords and bool(result_payload)
     rank_of_expected = _rank_of_expected_article(result_payload, question, article_checksums)
     top_1_passed = rank_of_expected == 1 and not missing_keywords
@@ -626,6 +633,7 @@ def run_retrieval_evaluation(
             "group_by": group_by,
             "chunks_per_article": chunks_per_article,
             "default_top_k": settings.default_top_k,
+            "text_matching": "lower_latin_ligatures_v1",
             "retrieval_metadata": retrieval_metadata,
         },
         "summary": {
@@ -643,7 +651,7 @@ def run_retrieval_evaluation(
 
 
 def _stable_retrieval_metadata(metadata: dict[str, object]) -> dict[str, object]:
-    query_specific_keys = {"cross_lingual", "mandatory_terms", "reranking"}
+    query_specific_keys = {"cross_lingual", "mandatory_terms", "reranking", "language_diversity"}
     return {key: value for key, value in metadata.items() if key not in query_specific_keys}
 
 
@@ -740,6 +748,7 @@ def _evaluate_extended_question(
         "result_count": len(result_payload),
         "elapsed_ms": elapsed_ms,
         "evidence_trace_complete": trace_complete,
+        "retrieval_metadata": response.metadata,
         "missing_expected_articles": [
             expected for expected, hit in zip(question.expected_articles, expected_article_hits, strict=True) if not hit
         ],
@@ -843,6 +852,7 @@ def run_extended_retrieval_evaluation(
             "group_by": group_by,
             "chunks_per_article": chunks_per_article,
             "default_top_k": settings.default_top_k,
+            "text_matching": "lower_latin_ligatures_v1",
             "retrieval_metadata": retrieval_metadata,
         },
         "provenance": {

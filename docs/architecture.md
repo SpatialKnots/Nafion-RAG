@@ -74,7 +74,7 @@ multipart PDF upload
 
 PostgreSQL is the durable queue for the local deployment. The HTTP upload route never runs extraction or OCR; it returns after a staged file and job row are committed. The worker processes one claimed job at a time and records attempts, worker identity and heartbeat. Stale `processing` jobs are requeued until `INGESTION_MAX_ATTEMPTS` is exhausted.
 
-Successful upload ingestion updates PostgreSQL evidence immediately. Semantic and hybrid retrieval still depend on the local vector index and require a manual rebuild until the Priority 3 index lifecycle is implemented.
+Successful upload ingestion updates PostgreSQL evidence and marks the vector index stale. With `VECTOR_AUTO_REBUILD_ENABLED=true`, a running vector/all worker coalesces requests and builds a new generation. Text readiness and semantic/hybrid index readiness are separate states.
 
 ## Library Source Flow
 

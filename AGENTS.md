@@ -16,7 +16,11 @@ Project boundary:
 - Keep project-specific instructions in this file and do not rely on instructions from other repositories.
 
 Caveman communication:
-- The external `caveman` skill may be used in this project only to shorten assistant replies.
+- Use the installed `caveman` skill by default for assistant replies in this project, at `full` intensity. Read its SKILL.md from the available-skills catalog when first applying it in a session.
+- Keep the user's language. Shorten prose and remove filler; preserve exact technical terms, commands, errors, evidence, and uncertainty. Do not invent abbreviations.
+- Keep this style throughout the session. Honor explicit level changes and requests to stop (`stop caveman`, `normal mode`, or equivalent wording in the user's language).
+- Apply compression only to assistant replies. Write code, documentation, commits, and PR descriptions normally.
+- If the external skill is unavailable, follow these local communication rules and disclose its absence briefly; do not claim the skill was loaded.
 - It must not override evidence rules, diagnostics, test reporting, scientific boundaries, implementation rules, or the required report format below.
 - If terse wording would make a command, result, warning, or limitation ambiguous, prefer clear wording over token reduction.
 

@@ -331,20 +331,6 @@ def article_pdf(
     )
 
 
-@app.get("/articles/{article_id}/pages/{page_number}")
-def article_page_text(
-    session: SessionDep,
-    article_id: UUID,
-    page_number: Annotated[int, Path(ge=1)],
-    layer: Annotated[PageLayer, Query()] = "selected",
-) -> dict[str, object]:
-    article = _get_article_or_404(session, article_id)
-    try:
-        return page_evidence_to_dict(get_article_page(session, get_settings(), article, page_number, layer))
-    except PageEvidenceNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
 @app.get("/articles/{article_id}/chunks/{chunk_id}/context")
 def article_chunk_context(
     session: SessionDep,
@@ -403,6 +389,20 @@ def article_page_range_context(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/articles/{article_id}/pages/{page_number}")
+def article_page_text(
+    session: SessionDep,
+    article_id: UUID,
+    page_number: Annotated[int, Path(ge=1)],
+    layer: Annotated[PageLayer, Query()] = "selected",
+) -> dict[str, object]:
+    article = _get_article_or_404(session, article_id)
+    try:
+        return page_evidence_to_dict(get_article_page(session, get_settings(), article, page_number, layer))
+    except PageEvidenceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.post("/ingestion/uploads")

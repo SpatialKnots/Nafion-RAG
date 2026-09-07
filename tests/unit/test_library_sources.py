@@ -193,6 +193,24 @@ def test_scan_discovers_pdf_and_ignores_non_pdf(tmp_path) -> None:
     assert result.discovered == 1
     assert len(session.files) == 1
     assert session.files[0].filename == "paper.pdf"
+
+
+def test_scan_access_error_preserves_existing_file_status(tmp_path, monkeypatch) -> None:
+    (tmp_path / "paper.pdf").write_bytes(b"%PDF-1.4 fixture")
+    session = _session_with_source(tmp_path)
+    scan_library_source(session, SimpleNamespace(), session.sources[0].id)  # type: ignore[arg-type]
+    previous_status = session.files[0].status
+
+    def denied_walk(root, *, onerror):
+        onerror(PermissionError("denied test directory"))
+        return iter(())
+
+    monkeypatch.setattr("app.library.service.os.walk", denied_walk)
+    result = scan_library_source(session, SimpleNamespace(), session.sources[0].id)  # type: ignore[arg-type]
+    assert result.status == "error"
+    assert result.missing == 0
+    assert "PermissionError" in result.error
+    assert session.files[0].status == previous_status
     assert session.files[0].relative_path == "paper.pdf"
     assert session.files[0].status == "discovered"
     assert session.files[0].content_hash_sha256 is not None

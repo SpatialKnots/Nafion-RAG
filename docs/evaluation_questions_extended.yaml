@@ -25,14 +25,17 @@
         relevance: 2
   notes: "Solvent-dependent aggregation evidence from Ma 2009."
 - id: qext003_ma_table_solvent_set
-  query: "Nafion casting solvent table DMF DMSO NMP EtOH DMAc"
+  query: "Nafion casting solvent table DMAc DMF NMF MeOH EtOH IPA"
   language: en
   answerable: true
+  error_class: gold_source_mismatch
+  expected_behavior: "Retrieve solvent-comparison evidence for the solvent set actually studied by Ma, including aqueous alcohol mixtures."
+  regression_guard: "Do not weaken protected-token matching to promote Ma for the unrelated NMP/DMSO solvent list."
   expected:
     articles:
       - doi: "10.1016/j.polymer.2009.01.060"
         relevance: 3
-  notes: "Broad solvent/table-oriented Ma 2009 case."
+  notes: "Corrected against Ma PDF page 2, section 2.1 and solvent tables. Previous query mixed the Ma and Dai solvent sets; see stage2_gold_audit_2026-09-07.md."
 - id: qext004_dai_casting_solvent_annealing
   query: "Effect casting solvent annealing temperature recast Nafion membranes"
   language: en

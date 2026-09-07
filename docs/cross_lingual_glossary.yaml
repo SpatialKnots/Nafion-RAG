@@ -133,3 +133,6 @@ entries:
       - "пластификаторах"
       - "органические растворители"
       - "функциональные добавки"
+  - concept: interaction_enthalpy
+    en: ["enthalpy of interaction", "interaction enthalpy"]
+    ru: ["энтальпия взаимодействия", "энтальпии взаимодействия"]

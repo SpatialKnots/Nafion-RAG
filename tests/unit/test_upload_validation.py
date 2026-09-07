@@ -68,3 +68,15 @@ async def test_stage_upload_rejects_invalid_signature_and_removes_part(tmp_path)
     assert exc_info.value.code == "invalid_pdf_signature"
     incoming = tmp_path / "data" / "uploads" / "incoming"
     assert not list(incoming.glob("*.part"))
+
+
+@pytest.mark.anyio
+async def test_corrupt_pdf_structure_preserves_diagnostic_and_cleans_part(tmp_path) -> None:
+    upload = _upload(tmp_path, "broken.pdf", b"%PDF-1.4 corrupt")
+
+    with pytest.raises(UploadValidationError) as exc_info:
+        await stage_upload_file(upload, _settings(tmp_path))  # type: ignore[arg-type]
+
+    assert exc_info.value.code == "invalid_pdf_structure"
+    assert not list((tmp_path / "data" / "uploads" / "incoming").glob("*.part"))
+    assert upload.file.closed

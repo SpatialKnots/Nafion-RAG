@@ -156,6 +156,32 @@ def test_complete_vector_rebuild_marks_ready_for_matching_revision() -> None:
     assert state.worker_id is None
 
 
+def test_new_revision_resets_exhausted_rebuild_attempts() -> None:
+    state = _state(status=VECTOR_INDEX_STALE, desired_revision=23, active_revision=20, attempt_count=3)
+    mark_vector_index_stale(
+        FakeSession(state),  # type: ignore[arg-type]
+        collection_id=state.collection_id,
+        embedding_model=state.embedding_model,
+    )
+    assert state.attempt_count == 0
+    assert state.desired_revision == 24
+    assert state.active_revision == 20
+
+
+def test_successful_build_resets_retry_budget_for_next_revision() -> None:
+    state = _state(status=VECTOR_INDEX_REBUILDING, desired_revision=8, building_revision=8, attempt_count=3)
+    complete_vector_rebuild(state, generation_id="generation-1", manifest_sha256="abc")
+    assert state.attempt_count == 0
+    assert state.status == VECTOR_INDEX_READY
+
+
+def test_superseded_successful_build_resets_retry_budget() -> None:
+    state = _state(status=VECTOR_INDEX_REBUILDING, desired_revision=9, building_revision=8, attempt_count=3)
+    complete_vector_rebuild(state, generation_id="generation-1", manifest_sha256="abc")
+    assert state.attempt_count == 0
+    assert state.status == VECTOR_INDEX_STALE
+
+
 def test_fail_vector_rebuild_without_active_generation_marks_failed() -> None:
     state = _state(status=VECTOR_INDEX_REBUILDING, desired_revision=2, building_revision=2)
 

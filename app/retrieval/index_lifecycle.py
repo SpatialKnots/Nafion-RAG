@@ -113,6 +113,7 @@ def mark_vector_index_stale(
     state.desired_revision += 1
     if state.status != VECTOR_INDEX_REBUILDING:
         state.status = VECTOR_INDEX_STALE
+        state.attempt_count = 0
         state.building_revision = None
         state.worker_id = None
         state.heartbeat_at = None
@@ -178,6 +179,8 @@ def complete_vector_rebuild(
     if state.status != VECTOR_INDEX_REBUILDING or state.building_revision is None:
         raise ValueError("vector index state is not rebuilding")
     now = datetime.now(UTC)
+    # A completed build must not consume retries for a later corpus revision.
+    state.attempt_count = 0
     if state.desired_revision != state.building_revision:
         state.status = VECTOR_INDEX_STALE
         state.building_revision = None

@@ -116,7 +116,10 @@ def remove_staged_file(path: Path) -> None:
 
 def _validate_pdf_structure(path: Path) -> None:
     try:
-        with fitz.open(path) as document:
+        # A failed path-based open can retain a Windows file handle in the
+        # parser traceback, preventing cleanup of a rejected staged upload.
+        # Upload size has already been bounded before this in-memory check.
+        with fitz.open(stream=path.read_bytes(), filetype="pdf") as document:
             if document.needs_pass:
                 raise UploadValidationError("encrypted_pdf", "Encrypted PDFs are not accepted")
             if document.page_count < 1:
@@ -125,4 +128,3 @@ def _validate_pdf_structure(path: Path) -> None:
         raise
     except Exception as exc:
         raise UploadValidationError("invalid_pdf_structure", "PDF structure could not be read") from exc
-
