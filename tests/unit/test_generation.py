@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
 
+from app.evaluation.retrieval import ExtendedEvaluationQuestion, _evaluate_extended_question
 from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.generation.evidence_selection import select_answer_evidence
 from app.generation.providers import (
@@ -25,6 +27,37 @@ from app.generation.service import (
     normalize_answer_style,
 )
 from app.retrieval.search import SearchResponse, SearchResult
+
+
+def test_answer_gate_blocks_provider_when_required_material_is_absent(monkeypatch) -> None:
+    result = replace(_search_result(), snippet="Nafion acid anhydrous composite fuel cells.")
+    monkeypatch.setattr("app.generation.service.search_chunks", lambda *a, **kw: SearchResponse(query="PBI", results=[result]))
+
+    class ForbiddenProvider:
+        def generate(self, *args, **kwargs):
+            pytest.fail("Provider must not run with missing required concepts")
+
+    response = answer_question(
+        object(),
+        _settings(),
+        "PBI phosphoric acid Nafion composite anhydrous fuel cells",  # type: ignore[arg-type]
+        provider=ForbiddenProvider(),  # type: ignore[arg-type]
+    )
+    assert response.status == "insufficient_evidence"
+    assert response.claims == []
+    diagnostics = response.metadata["evidence_adequacy"]
+    assert diagnostics["reason"] == "missing_required_concepts"
+    assert diagnostics["required_concepts"]["missing"] == ["polybenzimidazole", "phosphoric_acid"]
+
+    evaluation = _evaluate_extended_question(
+        ExtendedEvaluationQuestion("pbi_control", response.query, [], [], answerable=False),
+        SearchResponse(query=response.query, results=[result]),
+        {},
+        elapsed_ms=0,
+        top_k=10,
+    )
+    assert evaluation["unanswerable_passed"] is True
+    assert evaluation["evidence_adequacy"]["required_concepts"] == diagnostics["required_concepts"]
 
 
 def test_answer_question_returns_source_linked_extractive_claims(monkeypatch) -> None:

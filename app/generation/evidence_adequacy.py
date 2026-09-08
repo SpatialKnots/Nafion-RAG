@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
+
+from app.generation.relation_requirements import assess_relation_requirements
+from app.generation.required_concepts import RequiredConceptCoverage, assess_required_concepts
 
 LIGATURES = str.maketrans({"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl"})
 DOMAIN_TERM_SYNONYMS = {
@@ -83,6 +87,8 @@ class EvidenceAdequacy:
     top_coverage: float
     reason: str
     concept_coverage: dict[str, object]
+    required_concepts: RequiredConceptCoverage
+    relation_requirements: dict[str, object]
 
 
 def assess_evidence_adequacy(
@@ -94,8 +100,13 @@ def assess_evidence_adequacy(
     query_terms = _query_terms(question)
     distinctive_terms = distinctive_query_terms(question)
     empty_concept_coverage = _concept_coverage("", concept_terms or {})
+    required_concepts = assess_required_concepts(question, [item.text for item in evidence])
+    relation_requirements = assess_relation_requirements(question, [item.text for item in evidence])
     if not evidence:
-        return EvidenceAdequacy(False, query_terms, distinctive_terms, [], [], 0.0, 0.0, "no_evidence", empty_concept_coverage)
+        return EvidenceAdequacy(
+            False, query_terms, distinctive_terms, [], [], 0.0, 0.0, "no_evidence", empty_concept_coverage,
+            required_concepts, relation_requirements
+        )
     if not distinctive_terms:
         return EvidenceAdequacy(
             False,
@@ -107,12 +118,20 @@ def assess_evidence_adequacy(
             0.0,
             "no_distinctive_query_terms",
             empty_concept_coverage,
+            required_concepts,
+            relation_requirements,
         )
 
     all_text = "\n".join(item.text for item in evidence).lower().translate(LIGATURES)
     top_text = evidence[0].text.lower().translate(LIGATURES)
-    matched_terms = [term for term in distinctive_terms if term_matches_text(term, all_text)]
-    top_matched_terms = [term for term in distinctive_terms if term_matches_text(term, top_text)]
+    alias_terms = _supported_query_terms(required_concepts)
+    top_alias_terms = _supported_query_terms(assess_required_concepts(question, [evidence[0].text]))
+    matched_terms = [
+        term for term in distinctive_terms if term_matches_text(term, all_text) or unicodedata.normalize("NFKC", term) in alias_terms
+    ]
+    top_matched_terms = [
+        term for term in distinctive_terms if term_matches_text(term, top_text) or unicodedata.normalize("NFKC", term) in top_alias_terms
+    ]
     coverage = len(matched_terms) / len(distinctive_terms)
     top_coverage = len(top_matched_terms) / len(distinctive_terms)
     concept_coverage = _concept_coverage(all_text, concept_terms or {})
@@ -126,8 +145,12 @@ def assess_evidence_adequacy(
             or (len(top_matched_terms) >= 2 and top_coverage >= 0.5)
             or (len(matched_terms) >= 5 and len(top_matched_terms) >= 2)
         )
-    adequate = term_adequate or concept_adequate
-    if term_adequate:
+    adequate = (term_adequate or concept_adequate) and not required_concepts.missing and not relation_requirements["missing"]
+    if required_concepts.missing:
+        reason = "missing_required_concepts"
+    elif relation_requirements["missing"]:
+        reason = "missing_relation_context"
+    elif term_adequate:
         reason = "sufficient_distinctive_term_coverage"
     elif concept_adequate:
         reason = "sufficient_concept_coverage"
@@ -143,7 +166,13 @@ def assess_evidence_adequacy(
         top_coverage=top_coverage,
         reason=reason,
         concept_coverage=concept_coverage,
+        required_concepts=required_concepts,
+        relation_requirements=relation_requirements,
     )
+
+
+def _supported_query_terms(coverage: RequiredConceptCoverage) -> set[str]:
+    return {term for concept in coverage.matched for alias in coverage.details[concept]["query_aliases"] for term in _query_terms(alias)}
 
 
 def _query_terms(question: str) -> list[str]:

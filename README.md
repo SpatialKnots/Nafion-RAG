@@ -19,10 +19,33 @@ On the 46-question extended gold set, all four audited retrieval methods retaine
 article Recall@10=1.0. The [grouping audit](docs/stage2_grouping_audit_2026-09-07.md)
 found that keeping one chunk per article can hide required semantic evidence:
 chunk Recall fell from 1.0 to 0.923077 across the 13 questions with chunk targets.
-Keeping two chunks preserved Recall on this set; broader coverage is still unverified.
+Keeping two chunks preserved Recall on this set. An
+[additional user-gold audit on September 8](docs/stage2_adequacy_grouping_audit_2026-09-08.md)
+found evidence losses with a two-chunk cap for exact and hybrid retrieval, so this
+cap is not generally safe. Cross-lingual retrieval retained all targets on that
+ten-question user set.
 
 Evidence adequacy is heuristic: an unanswerable PBI question was incorrectly
-accepted as having sufficient evidence by cross-lingual retrieval. Citation
+accepted as having sufficient evidence by cross-lingual retrieval. The September 8
+audit reproduced this through the answer service with a local extractive provider;
+no external generation was invoked. A subsequent
+[required-substance gate](docs/stage2_required_concepts_2026-09-08.md) now refuses
+that PBI question. Its initial seven-substance identity catalogue also exposes
+incomplete selected evidence as explicit refusals; it does not validate scientific
+relationships or every generated claim.
+[Evidence retention](docs/stage2_evidence_retention_2026-09-08.md) now preserves
+required-substance fragments lost by selection within the retrieved window;
+automatic wider-window or neighboring-context expansion remains disabled after
+an [audit of scientific support](docs/stage2_candidate_expansion_2026-09-08.md).
+The [fragment-relation evaluation](docs/stage2_relation_annotations_2026-09-08.md)
+now checks nine PDF-reviewed cases in Russian and English: 23/36 gate decisions
+agree with annotations, with eight false accepts and five false refusals.
+These annotations await independent scientific review.
+A subsequent [experimental-context filter](docs/stage2_relation_context_2026-09-08.md)
+reduces false accepts to 0 on that same development set (31/36 agreement; five
+false refusals remain). It only vetoes missing context for two narrow question
+families; it is not scientific entailment validation or independent acceptance.
+Citation
 validation does not establish scientific correctness. Scientific acceptance of
 numeric extraction and generated answers, plus scaling benchmarks, remains ahead.
 

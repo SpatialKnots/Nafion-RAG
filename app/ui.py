@@ -789,6 +789,18 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
                 f"<br><span class='muted'>matched={_html(', '.join(matched_terms) or 'none')}; "
                 f"missing={_html(', '.join(missing_terms) or 'none')}</span>"
             )
+        required = adequacy.get("required_concepts")
+        if isinstance(required, dict) and isinstance(required.get("missing"), list) and required["missing"]:
+            term_diagnostics += (
+                "<br><span class='muted'>Missing required substances: "
+                f"{_html(', '.join(str(concept).replace('_', ' ') for concept in required['missing']))}</span>"
+            )
+        relations = adequacy.get("relation_requirements")
+        if isinstance(relations, dict) and isinstance(relations.get("missing"), list) and relations["missing"]:
+            term_diagnostics += (
+                "<br><span class='muted'>Missing experimental context: "
+                f"{_html(', '.join(str(relation).replace('_', ' ') for relation in relations['missing']))}</span>"
+            )
         adequacy_row = (
             f"<p><strong>Evidence:</strong> {_html(adequacy.get('reason'))} "
             f"<span class='muted'>coverage={_html(adequacy.get('coverage'))}, top={_html(adequacy.get('top_coverage'))}</span>"

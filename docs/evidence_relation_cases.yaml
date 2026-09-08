@@ -1,0 +1,347 @@
+version: 1
+review_status: assistant_pdf_reviewed
+independent_review: false
+review_date: '2026-09-08'
+scope: Pilot annotation of exact source fragments, reviewed against nine PDF pages. Labels judge support for the requested
+  relation, not corpus answerability. No independent scientific review yet.
+sources:
+  sanginov:
+    article_checksum: d6744494353ffc88860f3146e17d847bb75111e105c85cae19decd277c84eb8a
+    title: Sanginov 2021
+    doi: 10.1016/j.electacta.2021.137914
+    pdf_reviewed_pages:
+    - 9
+    - 10
+  istomina:
+    article_checksum: 7519b88c1b0a0bf36855c1f881a19965191b72521823bdbafd9736c0c9a32e9f
+    title: Istomina 2021
+    doi: 10.3390/polym13071150
+    pdf_reviewed_pages:
+    - 6
+    - 7
+  dissertation:
+    article_checksum: 9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266
+    title: Диссертация Чернюк С.Д.
+    doi: null
+    pdf_reviewed_pages:
+    - 28
+    - 29
+    - 109
+    - 110
+    - 111
+fragments:
+  sanginov_isotherms:
+    source: sanginov
+    page: 9
+    text_layer: original
+    start: 2939
+    text: "Fig. 10 shows the conductivity isotherms for Li-Naﬁon mem- \nbranes saturated with the binary plasticiser EC/SL\
+      \ with varying ra- \ntios between components. As can be seen from the Fig., the mem- \nbrane conductivity reaches the\
+      \ highest values at ω(SL) = 0.20 re- \ngardless of temperature. Although this value was rather high at \nroom temperature\
+      \ (~ 2 × 10 −4 S cm −1 ), below 10 °C, a drop in \nconductivity was observed ( Fig. 8 )."
+    text_sha256: 79caca4f0960d37a771b84784ccff766b77950138d2d208f517f665d42412f08
+    section: 'Figure 10 discussion: composition and conductivity'
+  sanginov_synergy:
+    source: sanginov
+    page: 10
+    text_layer: original
+    start: 338
+    text: "to the membrane with ω (SL) = 0.20, the conductivity of the sam- \nple with ω (SL) = 0.40 is very close to that\
+      \ of the membrane sat- \nurated with pure EC ( Fig. 10 ) yet retains acceptable conductivity \ndown to -40 °C ( Fig.\
+      \ 8 ). Therefore, in terms of both conductivity \nvalues and operating temperature range, this membrane seems to \n\
+      be the best among the studied samples. \nThus, the transport properties clearly indicate a synergistic ef- \nfect when\
+      \ using the EC / SL binary solvent for Li-Naﬁon swelling in \ncomparison with individual components. This conclusion\
+      \ ﬁts well \nwith predictions of quantum-chemical calculations ( Section 4.2 ). \nWithin the framework of the commonly\
+      \ used cluster-network \nmodel of cation transfer in Naﬁon membranes [20] , it can be as- \nsumed that the main reason\
+      \ for the decrease in conductivity and \nsimultaneous increase in the activation energy with an increase in \nthe SL\
+      \ content is associated with a signiﬁcant increase in viscosity: \nSL viscosity is an order of magnitude higher than\
+      \ that of EC (see \nTable 1 ). As is known, the solvent viscosity strongly inﬂuences the \nionic conductivity of liquid\
+      \ electrolytes [ 1 , 2 , 49 ]. The change in the \ncomposition of the predominant ionic species with an increase in\
+      \ \nthe SL content is also essential (see Sections 4.2 and 4.3 ), since it is \nthese particles that are involved in\
+      \ ion transport in the plasticised \nLi-Naﬁon membrane."
+    text_sha256: 04f145f5d847ac250fae09eb3ac8151ea7c4c2af77873639537c01cd5381ec22
+    section: Composition, operating range and transport interpretation
+  sanginov_scope:
+    source: sanginov
+    page: 9
+    text_layer: original
+    start: 272
+    text: "SL content in the plasticiser shifts the lower limit of membranes \nconductivity down to ≤-40 °C, which is signiﬁcantly\
+      \ lower than \nthe solidus temperature of the EC-SL binary system. The absence \nof any correlation with phase transitions\
+      \ in the EC – SL system \n(see Section 4.1 ) seems to be predictable so far as, strictly speak- \ning, the plasticised\
+      \ Li-Naﬁon membranes are homogeneous sys- \ntems in thermodynamic sense; thus, the plasticiser, being a part \nof the\
+      \ membrane, should not show the same phase transitions as \nEC/SL mixtures. However, the temperature can inﬂuence the\
+      \ equi- \nlibrium swelling degree of the membrane, leading to the release of \nexcessive amounts of plasticiser onto\
+      \ the ﬁlm surface upon cool- \ning. This seems to cause problems in measuring the conductivity at \nlow temperatures,\
+      \ since the free plasticiser solidiﬁes and forms a \nnon-conductive layer at the electrode / electrolyte interface under\
+      \ \nthese conditions. The questions about the state of the plasticiser \nin the membrane and the inﬂuence of temperature\
+      \ on the equilib- \nrium degree of Li-Naﬁon swelling seems to be critical, deserving a \nspecial study that is beyond\
+      \ the scope of this work. (The same is \ntrue for the question of the presence or absence of selective sorp- \ntion\
+      \ of one of the components of the binary plasticiser)."
+    text_sha256: 962f72e5454cefb6edfbb5f782801dc29018245320fb73a15c1e9ba5dc51c8ea
+    section: Scope limitation on temperature and equilibrium swelling
+  istomina_conductivity:
+    source: istomina
+    page: 6
+    text_layer: original
+    start: 406
+    text: |-
+      Figure 3b shows the conductivity isotherm at room temperature for Li-Naﬁon mem-
+      branes saturated with EC/SL mixtures of varying compositions at a mixing temperature of
+      40 ◦C. For samples saturated with the EC/SL mixtures enriched with ethylene carbonate
+      (ω(SL) < 0.2), it was not possible to measure the conductivity: on cooling from 40 to 25 ◦C,
+      an excess amount of EC released from the membrane (syneresis) was solidiﬁed on the
+      membrane surface. This phase separation agrees with the phase diagram of the EC–SL
+      system [31]: liquidus temperatures for EC/SL mixtures with ω(SL) < 0.2 are above 25 ◦C.
+      Thus, the non-conductive layer of solid plasticiser forming between the membrane and
+      electrodes makes impedance measurements impossible. The best transport properties of
+      Li-Naﬁon provided EC/SL mixtures enriched with ethylene carbonate. The membrane
+      conductivity rapidly decreases with ω(SL) in the range of 0.2 to 0.7 (eutectic composition),
+      but then it remains practically unchanged up to pure sulfolane (Figure 3b). Although the
+      decrease in conductivity may be caused by an increase in viscosity with SL content in
+      the mixture [32], this can also be explained in terms of changes in ionic equilibria with
+      the EC/SL mixture composition (since EC and SL differ in solvating ability [26]) or a
+      decrease in the solvent uptake (Figure 3a) inﬂuencing the conduction channels within the
+      membrane [1].
+    text_sha256: 386aed7076df403404b76e0b553de36e8b1d9520331687e5283ca2a3d0a88052
+    section: 'Section 3.2: composition effect at fixed mixing temperature'
+  istomina_heating:
+    source: istomina
+    page: 6
+    text_layer: original
+    start: 1858
+    text: |-
+      In order to study the inﬂuence of the mixing temperature on the solvent uptake
+      of Li-Naﬁon, pure EC and SL were selected along with binary EC/SL mixtures of two
+      compositions: ω(SL) = 0.2 and 0.7. The choice of these binary compositions was due to
+      the EC-enriched mixture with ω(SL) = 0.2 providing the highest conductivity values of
+      Li-Naﬁon (Figure 3b) and being homogeneous at room temperature, which prevents phase
+      separation upon cooling, while the mixture with ω(SL) = 0.7 corresponds to the eutectic
+      point of the EC–SL system [31].
+      Measurements of the W–T dependencies were carried out by sequential heating (40 to
+      80 ◦C with 10 ◦C steps) and cooling (80 to 40 ◦C with 20 ◦C steps). Figure 4 displays the
+      results obtained. It can be seen that the mixing temperature has a powerful effect on the
+      solvent uptake of Li-Naﬁon regardless of the plasticiser composition: the higher the mixing
+      temperature, the greater the solvent uptake. However, this characteristic was observed
+      only in the heating cycle (Figure 4); during the cooling cycle, the decrease in solvent uptake
+      was barely noticeable. As a result, the W value obtained for the highest temperature
+      was virtually maintained for all other annealing temperatures at the cooling mode for all
+      plasticiser compositions studied (Figure 4). Upon cooling from 80 ◦C, the W value for this
+      temperature was almost preserved after thermal treatment at 60 and 40 ◦C. If cooling was
+      carried out from 60 ◦C, again, a similar W value was retained after thermal treatment at
+      40 ◦C (Figure 4a). At the end of measurements, long-term (60 days) isothermal treatment
+      was carried out at 40 ◦C to check that the equilibrium state of the swollen samples during
+      the cooling cycle was achieved. However, this procedure did not inﬂuence the obtained W
+      values. This observation suggests either that the samples are close to the equilibrium state
+      or that syneresis requires a very long time.
+      The observed hysteresis in solvent uptake between the heating and cooling curves
+      supports the hypothesis that an irreversible rearrangement of the supermolecular structure
+      occurs under the inﬂuence of a plasticiser and elevated temperatures. Here, it should be
+      noted that all membrane samples retained their integrity upon swelling despite signiﬁcant
+      mechanical properties changes.
+    text_sha256: bb1e118f808b3ca031e977512347b374134c17b3bc6aa321c3e2d40d54367e04
+    section: 'Section 3.3: heating/cooling and solvent uptake'
+  istomina_figure4:
+    source: istomina
+    page: 7
+    text_layer: original
+    start: 32
+    text: |-
+      Figure 4. Dependence of the weight uptake (W) and molar uptake (λ) of a solvent of the Li-Naﬁon
+      membrane vs. mixing temperature at heating and cooling mode for the following solvents: ethylene
+      carbonate (EC) (a); sulfolane (SL) (b); EC/SL with ω(SL) = 0.2 (c); EC/SL with ω(SL) = 0.7 (d).
+    text_sha256: 94cbac6a04061dee0ca0deb05b45141888dfbff2ea2e7bcc02c25f3ef2017469
+    section: Figure 4 caption; graph was visually reviewed
+  dissertation_transport_28:
+    source: dissertation
+    page: 28
+    text_layer: original
+    start: 1660
+    text: "Полиперфторсульфоновые кислоты семейства Nafion после замещения H+ на Li+ \nсоздают такую среду – сульфонат-анион\
+      \ –SO3− ковалентно закреплен в полимере и \nобеспечивает униполярный перенос катионов Li+. Однако в «сухом» состоянии\
+      \ проводимость \nневелика (10−7 См/см), и ее повышают пластификацией высокополярными растворителями, \nсмесью циклических\
+      \ и линейных карбонатов с высокой температурой кипения. Так, для \nLi‑Nafion достигают σLi+ 10−4 См/см при 25 °C в смесях\
+      \ этиленкарбонат/сульфолан [93, 94], а \nв смеси пропиленкарбонат/диметилформамид сообщалось о σLi+ ≈ 3.4·10−3 См/см\
+      \ [92]. \n \nВыбор пластификатора для мембраны обусловлен рядом ограничений. Наилучшие \nпоказатели проводимости порядка\
+      \ 10–3 См/см демонстрируют мембраны, набухшие в \nдиметилсульфоксиде (ДМСО), N,N-диметилформамиде (ДМФА) и N-метил-2-пирролидоне\
+      \ \n(НМП) [95]. Такие высокополярные пластификаторы, однако, не могут быть использованы \nввиду процесса растворения\
+      \ мембраны при повышенных температурах, а также разложения \nсамих пластификаторов в ходе эксплуатации литий-ионного\
+      \ элемента. Авторы [93] показали, \nчто мембрана Li-Nafion 115, пластифицированная в смеси этиленкарбонат/сульфолан,\
+      \ имеет"
+    text_sha256: 76a78e1a65c1d40f06359914310a30f5fca147031cf623252c0ab08f5b2cc1b9
+    section: Background on conductivity and plasticizers
+  dissertation_transport_29:
+    source: dissertation
+    page: 29
+    text_layer: original
+    start: 0
+    text: " \n29 \n \nпроводимость 10−4 См/см при 25 °С, образуя эвтектическую смесь при −16 °С [94]. В работе \n[95] проводимость\
+      \ литированной мембраны 3.4·10−3 См/см достигается в смеси \nпропиленкарбонат (ПК)/ДМФА."
+    text_sha256: d8717897592c3ff729f8cdeba5cf3974e1e44ba7e13c28749b48a7942f17fe36
+    section: Continuation of background on mixture conductivity
+  dissertation_solvent_rows:
+    source: dissertation
+    page: 110
+    text_layer: original
+    start: 0
+    text: " \n110 \n \nРастворитель \nσLi+, \nСм/см \nТип мембраны и условия \nЛит. \n1 \n2 \n3 \n4 \nДМЭ \n2.40∙10−4 \nLi-Nafion\
+      \ 117 \n[95] \nЭК \n1.90∙10−4 \nLi-Nafion 115, данные при \n30 °C  \n[247] \n1.43∙10−4 \nLi-Nafion 117, данные при \n\
+      40 °C  \n[95] \nацетонитрил \n1.60∙10−4 \nLi-Dow \n[230] \n5.36∙10−5 \nLi-Nafion 117 \n[95] \nДБА \n1.41∙10−4 \nLi-Nafion\
+      \ 117 \n[95] \nНБА \n1.01∙10−4 \nLi-Nafion 117 \n[95] \nДМДА \n9.05∙10−5 \nLi-Nafion 117 \n[95] \nсульфолан \n4.10∙10−5\
+      \ \nLi-Nafion 115 \n[247] \nМФ \n1.31∙10−5 \nLi-Nafion 117 \n[95] \nТГФ \n1.28∙10−5 \nLi-Nafion 117 \n[95] \n7.50∙10−6\
+      \ \nLi-Dow \n[230] \nПОДО \n8.95∙10−6 \nLi-Nafion 117 \n[95] \nДМТГФ \n8.84∙10−6 \nLi-Nafion 117 \n[95] \nПЭГ \n7.66∙10−6\
+      \ \nLi-Nafion 117 \n[95] \nДМК \n7.12∙10−6 \nLi-Nafion 117 \n[95] \n9.50∙10−7 \nLi-Nafion \n[230] \nМА \n5.00∙10−6 \n\
+      Li-Nafion 117 \n[95] \nДЭК \n5.00∙10−6 \nLi-Nafion 117 \n[95] \n6.00∙10−7 \nLi-Nafion \n[230] \nДИОКС \n4.70∙10−6 \n\
+      Li-Nafion 117 \n[95] \nДМЭС \n3.40∙10−6 \nLi-Nafion 117 \n[95] \nМТБЭ \n3.10∙10−6 \nLi-Nafion 117 \n[95] \nДМСУ \n2.90∙10−6\
+      \ \nLi-Nafion 117 \n[95] \nДЭЭ \n2.40∙10−6 \nLi-Nafion 117 \n[95]"
+    text_sha256: c0b6a3158c4833ddb2f6b761440b21a62cc3e30738068a1004ed479fd8f70c06
+    section: 'Table continuation: separate solvents, units and conditions'
+  dissertation_diglyme_row:
+    source: dissertation
+    page: 111
+    text_layer: original
+    start: 0
+    text: " \n111 \n \nРастворитель \nσLi+, \nСм/см \nТип мембраны и условия \nЛит. \n1 \n2 \n3 \n4 \nЭА \n2.10∙10−6 \nLi-Nafion\
+      \ 117 \n[95] \nДГ \n2.10∙10−6 \nLi-Nafion 115, данные при \n30 °C  \n[247] \nМЭЭД \n1.50∙10−6 \nLi-Nafion 117 \n[95]\
+      \ \nЭЭА \n1.40∙10−6 \nLi-Nafion 117 \n[95] \nFC1 \n1.00∙10−6 \nLi-Nafion 117 \n[95] \nFC2 \n1.00∙10−6 \nLi-Nafion 117\
+      \ \n[95]"
+    text_sha256: f5ed070bc8ffa55b87ab19b385f29bcc5c4d1538cbe30b1b2af6b80e510348f3
+    section: 'Table continuation: diglyme row at 30 C'
+  dissertation_abbreviations:
+    source: dissertation
+    page: 111
+    text_layer: original
+    start: 323
+    text: "Сокращения: НМФ — N-метилформамид; ДМАА — N,N-диметилацетамид; ПК — \nпропиленкарбонат; МГ — метилгликолат; ДМПМ\
+      \ — N,N-диметилпропиленмочевина; ДМБА \n— N,N-диметилбутирамид; ЭГ — этилгликолат; ГБЛ — гамма-бутиролактон; ТЭФ — \n\
+      триэтилфосфат; ТМС — 3-метилсиднон; БГ — N-бутилгликолат; ДМЭ — 1,2-диметоксиэтан; \nЭК — этиленкарбонат; ДБА — N,N-ди-n-бутилацетамид;\
+      \ НБА — N-бутиламин; ДМДА — \nN,N-диметилдеканамид; МФ — метилформиат; ТГФ — тетрагидрофуран; ПОДО — 4-(1-\nпропенилоксиметил)-1,3-диоксолан-2-он;\
+      \ ДМТГФ — 2,5-диметокситетрагидрофуран; ПЭГ — \nполи(этиленгликоль); \nДМК \n— \nдиметилкарбонат; \nМА \n— \nметилацетат;\
+      \ \nДЭК \n— \nдиэтилкарбонат; ДИОКС — 1,3-диоксолан; ДМЭС — диметилэтансульфонамид; МТБЭ — \nметил-трет-бутиловый эфир;\
+      \ ДМСУ — диметилсульфит; ДЭЭ — диэтоксиэтан; ЭА — \nэтилацетат; ДГ — диглим; МЭЭД — 2-(2-(2-метоксиэтокси)этокси)-1,3-диоксолан;\
+      \ ЭЭА — 2-\nэтоксиэтил ацетат; FC1 — CH3OC4F9; FC2 — CF3CF2CF2OCF(CF3)CF2OCHFCF3."
+    text_sha256: a7a80485b3fe9f4fc23a25c521455e30a3ddbcf725177f2a65debf712cbebca6
+    section: Table abbreviation definitions
+cases:
+- id: rel001_sanginov_composition
+  queries: &id001
+    ru: Как изменение доли сульфолана в смеси EC/SL влияет на ионную проводимость Li-Nafion?
+    en: How does the sulfolane fraction in the EC/SL mixture affect the ionic conductivity of Li-Nafion?
+  relation: mixture_composition_to_conductivity
+  material: Li-Nafion with the explicitly specified plasticizer
+  independent_variable: SL mass fraction
+  dependent_variable: ionic conductivity
+  conditions: EC/SL binary mixtures; conductivity isotherms; operating range discussed separately from maximum conductivity
+  expected_support: supports
+  rationale: Figure 10 discussion compares compositions and identifies the maximum at SL mass fraction 0.20; page 10 distinguishes
+    that maximum from the wider operating range of the 0.40 sample.
+  fragments:
+  - sanginov_isotherms
+  - sanginov_synergy
+- id: rel002_istomina_composition
+  queries: *id001
+  relation: mixture_composition_to_conductivity
+  material: Li-Nafion with the explicitly specified plasticizer
+  independent_variable: SL mass fraction
+  dependent_variable: ionic conductivity
+  conditions: Mixing temperature fixed at 40 C; room-temperature conductivity; SL fraction 0.2 to 0.7 and above
+  expected_support: supports
+  rationale: Section 3.2 explicitly states that conductivity decreases from SL fraction 0.2 to 0.7 and then is nearly unchanged.
+    It also states the measurement limitation below 0.2.
+  fragments:
+  - istomina_conductivity
+- id: rel003_separate_solvents_not_mixture
+  queries: *id001
+  relation: mixture_composition_to_conductivity
+  material: Li-Nafion with the explicitly specified plasticizer
+  independent_variable: SL mass fraction
+  dependent_variable: ionic conductivity
+  conditions: Separate-solvent table entries have different sample types and temperatures; no binary composition series in
+    these fragments
+  expected_support: insufficient
+  rationale: Individual EC and sulfolane rows and abbreviation definitions identify the substances, but cannot establish how
+    changing their fraction in a binary mixture affects conductivity.
+  fragments:
+  - dissertation_solvent_rows
+  - dissertation_abbreviations
+- id: rel004_background_not_composition_series
+  queries: *id001
+  relation: mixture_composition_to_conductivity
+  material: Li-Nafion with the explicitly specified plasticizer
+  independent_variable: SL mass fraction
+  dependent_variable: ionic conductivity
+  conditions: Background reports mixture conductivity at 25 C without a composition series
+  expected_support: insufficient
+  rationale: The background supports the existence of a conducting EC/SL-plasticized membrane, but gives no relation between
+    SL fraction and conductivity.
+  fragments:
+  - dissertation_transport_28
+  - dissertation_transport_29
+- id: rel005_temperature_swelling_hysteresis
+  queries: &id002
+    ru: Как температура смешения влияет на набухание Li-Nafion в EC/SL при нагреве и охлаждении?
+    en: How does mixing temperature affect Li-Nafion swelling in EC/SL during heating and cooling?
+  relation: mixing_temperature_to_swelling
+  material: Li-Nafion with the explicitly specified plasticizer
+  independent_variable: mixing temperature and heating/cooling path
+  dependent_variable: solvent uptake W
+  conditions: 40 to 80 C heating; cooling to 60/40 C; pure solvents and EC/SL fractions 0.2 and 0.7
+  expected_support: supports
+  rationale: Section 3.3 reports increasing uptake on heating and near-retention on cooling. Figure 4 identifies the material,
+    plasticizer compositions and separate thermal paths; no numeric curve digitization is claimed.
+  fragments:
+  - istomina_heating
+  - istomina_figure4
+- id: rel006_scope_statement_not_measurement
+  queries: *id002
+  relation: mixing_temperature_to_swelling
+  material: Li-Nafion with the explicitly specified plasticizer
+  independent_variable: mixing temperature and heating/cooling path
+  dependent_variable: solvent uptake W
+  conditions: Transport discussion and explicit scope statement, not a measured W-versus-mixing-temperature series
+  expected_support: insufficient
+  rationale: Sanginov mentions possible temperature effects on equilibrium swelling but explicitly places their special study
+    beyond the scope of the work. Mentions do not establish the requested heating/cooling relation.
+  fragments:
+  - sanginov_scope
+- id: rel007_same_page_wrong_experiment
+  queries: *id002
+  relation: mixing_temperature_to_swelling
+  material: Li-Nafion with the explicitly specified plasticizer
+  independent_variable: mixing temperature and heating/cooling path
+  dependent_variable: solvent uptake W
+  conditions: Composition is varied at fixed mixing temperature of 40 C; conductivity is measured near room temperature
+  expected_support: insufficient
+  rationale: This is from the correct article and even the same page as the positive experiment, but the selected paragraph
+    studies conductivity versus composition, not uptake versus mixing temperature.
+  fragments:
+  - istomina_conductivity
+- id: rel008_transport_not_swelling
+  queries: *id002
+  relation: mixing_temperature_to_swelling
+  material: Li-Nafion with the explicitly specified plasticizer
+  independent_variable: mixing temperature and heating/cooling path
+  dependent_variable: solvent uptake W
+  conditions: Background on Li-Nafion transport and EC/SL mixtures at stated temperatures
+  expected_support: insufficient
+  rationale: Transport values and plasticizer names do not establish the requested dependence of swelling on mixing temperature
+    or heating/cooling hysteresis.
+  fragments:
+  - dissertation_transport_28
+  - dissertation_transport_29
+- id: rel009_diglyme_table_conditions
+  queries:
+    ru: Какая ионная проводимость указана для Li-Nafion 115 в диглиме при 30 C?
+    en: What ionic conductivity is listed for Li-Nafion 115 in diglyme at 30 C?
+  relation: solvent_sample_condition_to_conductivity
+  material: Li-Nafion with the explicitly specified plasticizer
+  independent_variable: specified diglyme/sample/temperature
+  dependent_variable: tabulated ionic conductivity
+  conditions: Li-Nafion 115, diglyme, 30 C; table reports 2.10e-6 S/cm and cites reference 247
+  expected_support: supports
+  rationale: The row identifies Li-Nafion 115 and 30 C; the abbreviation definition resolves DG to diglyme, and the table
+    header on page 110 supplies S/cm. This checks an explicitly stated condition, not automated numeric extraction.
+  fragments:
+  - dissertation_solvent_rows
+  - dissertation_diglyme_row
+  - dissertation_abbreviations

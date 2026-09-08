@@ -5,7 +5,7 @@ import json
 import math
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -697,6 +697,8 @@ def _evaluate_extended_question(
         "top_matched_terms": adequacy.top_matched_terms,
         "coverage": adequacy.coverage,
         "top_coverage": adequacy.top_coverage,
+        "required_concepts": asdict(adequacy.required_concepts),
+        "relation_requirements": adequacy.relation_requirements,
     }
     relevances = [_relevance_for_result(result, question, article_checksums, chunk_texts) for result in result_payload]
     unique_relevances = _unique_expected_relevances_for_results(result_payload, question, article_checksums, chunk_texts)

@@ -208,6 +208,8 @@ def answer_question(
         "coverage": adequacy.coverage,
         "top_coverage": adequacy.top_coverage,
         "concept_coverage": adequacy.concept_coverage,
+        "required_concepts": asdict(adequacy.required_concepts),
+        "relation_requirements": adequacy.relation_requirements,
     }
     query_assistance = suggest_query_corrections(normalized_question, adequacy.distinctive_terms, adequacy.matched_terms)
     base_metadata = {

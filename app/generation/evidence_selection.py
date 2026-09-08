@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import re
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from app.generation.evidence_adequacy import LIGATURES, distinctive_query_terms, term_matches_text
+from app.generation.required_concepts import assess_required_concepts
 from app.retrieval.search import SearchResult
 
 
@@ -58,6 +59,7 @@ def select_answer_evidence(question: str, results: list[SearchResult], *, additi
     if conductivity_plasticizer_intent and any(score > 0 for score in conductivity_plasticizer_scores.values()):
         selected = [result for result in selected if conductivity_plasticizer_scores[result.chunk_id] > 0]
         filtered_to_conductivity_plasticizer_evidence = True
+    selected, retention_metadata = _retain_required_concept_evidence(question, selected, ranked)
     reordered = [result.chunk_id for result in selected] != [result.chunk_id for result in results]
     return EvidenceSelection(
         results=selected,
@@ -78,8 +80,41 @@ def select_answer_evidence(question: str, results: list[SearchResult], *, additi
             "conductivity_plasticizer_intent": conductivity_plasticizer_intent,
             "conductivity_plasticizer_result_count": sum(1 for score in conductivity_plasticizer_scores.values() if score > 0),
             "filtered_to_conductivity_plasticizer_evidence": filtered_to_conductivity_plasticizer_evidence,
+            "required_concept_retention": retention_metadata,
         },
     )
+
+
+def _retain_required_concept_evidence(
+    question: str, selected: list[SearchResult], candidates: list[SearchResult]
+) -> tuple[list[SearchResult], dict[str, object]]:
+    """Restore only candidates that cover an identity lost by selection.
+
+    Keep selected order and source objects intact. Use exactly the text consumed
+    by the answer gate, never a title or an expanded query as identity evidence.
+    Presence is not a claim-level scientific validation; the adequacy gate still
+    runs on the final evidence in the answer service.
+    """
+    before = assess_required_concepts(question, [result.full_text or result.snippet for result in selected])
+    missing = set(before.missing)
+    retained = list(selected)
+    selected_ids = {result.chunk_id for result in selected}
+    restored: list[dict[str, object]] = []
+    for candidate in candidates:
+        if not missing:
+            break
+        if candidate.chunk_id in selected_ids:
+            continue
+        coverage = assess_required_concepts(question, [candidate.full_text or candidate.snippet])
+        supplied = [concept for concept in coverage.matched if concept in missing]
+        if not supplied:
+            continue
+        retained.append(candidate)
+        selected_ids.add(candidate.chunk_id)
+        missing.difference_update(supplied)
+        restored.append({"chunk_id": candidate.chunk_id, "article_id": candidate.article_id, "concepts": supplied})
+    after = assess_required_concepts(question, [result.full_text or result.snippet for result in retained])
+    return retained, {"before": asdict(before), "after": asdict(after), "restored": restored}
 
 
 def _matched_terms(result: SearchResult, distinctive_terms: list[str]) -> set[str]:

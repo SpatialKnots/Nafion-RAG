@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -8,6 +10,7 @@ from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.evaluation.answers import run_answer_evaluation, write_answer_evaluation_report
 from app.evaluation.benchmark import run_search_benchmark, write_benchmark_report
+from app.evaluation.evidence_relations import run_relation_evaluation
 from app.evaluation.retrieval import (
     check_extended_evaluation_thresholds,
     compare_retrieval_methods,
@@ -200,6 +203,26 @@ def benchmark(
     }
     output_path = write_benchmark_report(report, settings.data_root, output)
     typer.echo({"output_path": str(output_path), "methods": list(report["methods"].keys())})
+
+
+@cli.command("evidence-relations")
+def evidence_relations(
+    cases_path: Path = Path("docs/evidence_relation_cases.yaml"),
+    output: Path | None = None,
+    check: bool = False,
+) -> None:
+    """Audit fragment adequacy; --check also fails on disagreement with labels."""
+    with SessionLocal() as session:
+        report = run_relation_evaluation(session, cases_path)
+    output_path = output or get_settings().data_root / "exports" / (
+        f"evidence_relation_eval_{datetime.now(UTC):%Y%m%dT%H%M%S%fZ}.json"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    typer.echo({"output_path": str(output_path), "summary": report["summary"],
+                "integrity_errors": report["integrity_errors"]})
+    if report["integrity_errors"] or report["summary"]["invalid"] or (check and report["summary"]["failed"]):
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
