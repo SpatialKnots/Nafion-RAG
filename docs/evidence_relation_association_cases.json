@@ -1,0 +1,34 @@
+{
+  "provenance": "synthetic_not_corpus_evidence",
+  "label_policy": "Development expectations for local experimental association, not independently reviewed scientific gold. Different sample identities cannot establish the requested combined experiment; explicit pronoun references can.",
+  "cases": [
+    {
+      "id": "distinct_samples_with_local_links",
+      "question": "How does mixing temperature affect swelling during heating and cooling?",
+      "texts": ["Mixing temperature affected swelling of sample A at room temperature. Swelling of a different sample B was measured during heating and cooling. The experiments used different materials and do not establish the cycling response of sample A."],
+      "expected_adequate": false,
+      "rationale": "Each cue pair co-occurs, but the requested relationship spans incompatible sample identities."
+    },
+    {
+      "id": "pronoun_reference_observed",
+      "question": "How does mixing temperature affect swelling during heating and cooling?",
+      "texts": ["Mixing temperature affected swelling of the membrane. This response was measured during heating and cooling: it increased during heating and remained constant during cooling."],
+      "expected_adequate": true,
+      "rationale": "The response refers explicitly to swelling in the previous sentence; lexical pairs miss this reference."
+    },
+    {
+      "id": "separate_cycle_descriptions_observed",
+      "question": "How does mixing temperature affect swelling during heating and cooling?",
+      "texts": ["Mixing temperature affected swelling of the membrane. Swelling of this membrane increased during heating. Swelling of the same membrane remained constant during cooling."],
+      "expected_adequate": true,
+      "rationale": "Observed response for the same membrane across both cycles."
+    },
+    {
+      "id": "observed_null_effect_ru",
+      "question": "Как температура смешения влияет на набухание при нагреве и охлаждении?",
+      "texts": ["Измерения показали: температура смешения не влияет на набухание при нагреве и охлаждении в пределах погрешности эксперимента."],
+      "expected_adequate": true,
+      "rationale": "Measured absence of the requested effect is supporting evidence."
+    }
+  ]
+}

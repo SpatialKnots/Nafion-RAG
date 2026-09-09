@@ -1,0 +1,76 @@
+{
+  "provenance": "synthetic_not_corpus_evidence",
+  "label_policy": "Adequate means the supplied text reports an observed relation answering the question. An observed null effect qualifies; unperformed experiments and hypotheses do not. Labels are authored development expectations, not independently reviewed scientific gold.",
+  "cases": [
+    {
+      "id": "composition_observed_en",
+      "question": "How does mixture composition affect conductivity?",
+      "texts": ["We measured conductivity in the mixture at varying compositions. Conductivity increased as the fraction of component A increased."],
+      "expected_adequate": true,
+      "rationale": "Reports an observed composition dependence."
+    },
+    {
+      "id": "composition_unperformed_en",
+      "question": "How does mixture composition affect conductivity?",
+      "texts": ["We did not measure how mixture composition affects conductivity at varying compositions. No composition-dependent conductivity measurements were performed."],
+      "expected_adequate": false,
+      "rationale": "Explicitly says the relevant measurement was not performed."
+    },
+    {
+      "id": "composition_hypothesis_en",
+      "question": "How does mixture composition affect conductivity?",
+      "texts": ["We hypothesize that mixture composition affects conductivity: conductivity may increase as the fraction increases. This hypothesis has not been tested."],
+      "expected_adequate": false,
+      "rationale": "Untested hypothesis cannot establish the experimental dependence."
+    },
+    {
+      "id": "composition_null_effect_en",
+      "question": "How does mixture composition affect conductivity?",
+      "texts": ["We measured conductivity in the mixture at varying compositions. Mixture composition did not affect conductivity within measurement uncertainty."],
+      "expected_adequate": true,
+      "rationale": "A measured null effect is relevant evidence, despite negation."
+    },
+    {
+      "id": "cycles_observed_en",
+      "question": "How does mixing temperature affect swelling during heating and cooling?",
+      "texts": ["We measured swelling during heating and cooling. Raising the mixing temperature increased swelling in both cycles."],
+      "expected_adequate": true,
+      "rationale": "Reports measurements linking the requested condition and response."
+    },
+    {
+      "id": "cycles_unperformed_en",
+      "question": "How does mixing temperature affect swelling during heating and cooling?",
+      "texts": ["The effect of mixing temperature on swelling during heating and cooling was not investigated. No such experiments were performed."],
+      "expected_adequate": false,
+      "rationale": "All cues occur in an explicit statement of missing measurements."
+    },
+    {
+      "id": "cycles_unrelated_same_fragment_en",
+      "question": "How does mixing temperature affect swelling during heating and cooling?",
+      "texts": ["Mixing temperature was recorded for preparation of sample A. Swelling was measured in an unrelated sample B at room temperature. Heating and cooling were used only to calibrate an empty instrument."],
+      "expected_adequate": false,
+      "rationale": "Cue co-occurrence spans unrelated experiments within one fragment."
+    },
+    {
+      "id": "cycles_unperformed_ru",
+      "question": "Как температура смешения влияет на набухание при нагреве и охлаждении?",
+      "texts": ["Влияние температуры смешения на набухание при нагреве и охлаждении не исследовали. Такие измерения не проводились."],
+      "expected_adequate": false,
+      "rationale": "Russian explicit absence of the requested measurements."
+    },
+    {
+      "id": "cycles_paraphrase_en",
+      "question": "How does mixing temperature affect swelling during heating and cooling?",
+      "texts": ["Samples blended at higher temperatures absorbed more solvent, both when warmed and when subsequently chilled. This dependence was measured in repeated experiments."],
+      "expected_adequate": true,
+      "rationale": "Experimental relation expressed without the exact cue vocabulary."
+    },
+    {
+      "id": "cycles_split_fragments_en",
+      "question": "How does mixing temperature affect swelling during heating and cooling?",
+      "texts": ["Mixing temperature affects swelling in sample A.", "Heating and cooling were used to calibrate a separate instrument."],
+      "expected_adequate": false,
+      "rationale": "Negative control: unrelated fragments must not supply joint experimental context."
+    }
+  ]
+}
