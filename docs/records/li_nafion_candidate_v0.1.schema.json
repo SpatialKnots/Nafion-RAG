@@ -1,0 +1,436 @@
+{
+  "$defs": {
+    "EvidenceSpan": {
+      "additionalProperties": false,
+      "description": "Offsets are relative to SourceRegion.quote, not to the entire page.",
+      "properties": {
+        "region_id": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Region Id",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "exclusiveMinimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "quote": {
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        }
+      },
+      "required": [
+        "region_id",
+        "start",
+        "end",
+        "quote"
+      ],
+      "title": "EvidenceSpan",
+      "type": "object"
+    },
+    "LinkageProposal": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "enum": [
+            "sample_value",
+            "property_value",
+            "conditions_measurement"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSpan"
+          },
+          "minItems": 1,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "note": {
+          "minLength": 1,
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "evidence",
+        "note"
+      ],
+      "title": "LinkageProposal",
+      "type": "object"
+    },
+    "QuantityProposal": {
+      "additionalProperties": false,
+      "properties": {
+        "raw_value": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "raw_unit": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "representation": {
+          "default": "unparsed",
+          "enum": [
+            "scalar",
+            "range",
+            "bound",
+            "unparsed"
+          ],
+          "title": "Representation",
+          "type": "string"
+        },
+        "approximation": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "uncertainty": {
+          "$ref": "#/$defs/TextObservation"
+        }
+      },
+      "required": [
+        "raw_value",
+        "raw_unit",
+        "approximation",
+        "uncertainty"
+      ],
+      "title": "QuantityProposal",
+      "type": "object"
+    },
+    "RecordCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "record_id": {
+          "format": "uuid",
+          "title": "Record Id",
+          "type": "string"
+        },
+        "article_id": {
+          "format": "uuid",
+          "title": "Article Id",
+          "type": "string"
+        },
+        "work_group_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Work Group Id"
+        },
+        "sample_label": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "material_form": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "preparation": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "property_name": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "value": {
+          "$ref": "#/$defs/QuantityProposal"
+        },
+        "temperature": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "medium": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "medium_composition": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "composition_basis": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "conditioning": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "method": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "data_origin": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "li_ion_author_claim": {
+          "$ref": "#/$defs/TextObservation"
+        },
+        "li_ion_confirmation": {
+          "const": "not_reviewed",
+          "default": "not_reviewed",
+          "title": "Li Ion Confirmation",
+          "type": "string"
+        },
+        "linkage": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LinkageProposal"
+          },
+          "title": "Linkage",
+          "type": "array"
+        },
+        "review_state": {
+          "const": "needs_review",
+          "default": "needs_review",
+          "title": "Review State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "record_id",
+        "article_id",
+        "sample_label",
+        "material_form",
+        "preparation",
+        "property_name",
+        "value",
+        "temperature",
+        "medium",
+        "medium_composition",
+        "composition_basis",
+        "conditioning",
+        "method",
+        "data_origin",
+        "li_ion_author_claim"
+      ],
+      "title": "RecordCandidate",
+      "type": "object"
+    },
+    "SourceRegion": {
+      "additionalProperties": false,
+      "description": "Offsets are zero-based Unicode codepoints, end exclusive, in stored page text.",
+      "properties": {
+        "region_id": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Region Id",
+          "type": "string"
+        },
+        "article_id": {
+          "format": "uuid",
+          "title": "Article Id",
+          "type": "string"
+        },
+        "original_pdf_path": {
+          "minLength": 1,
+          "title": "Original Pdf Path",
+          "type": "string"
+        },
+        "original_pdf_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Original Pdf Sha256",
+          "type": "string"
+        },
+        "page_number": {
+          "minimum": 1,
+          "title": "Page Number",
+          "type": "integer"
+        },
+        "text_layer_id": {
+          "format": "uuid",
+          "title": "Text Layer Id",
+          "type": "string"
+        },
+        "text_layer": {
+          "enum": [
+            "original",
+            "ocr"
+          ],
+          "title": "Text Layer",
+          "type": "string"
+        },
+        "layer_pdf_path": {
+          "minLength": 1,
+          "title": "Layer Pdf Path",
+          "type": "string"
+        },
+        "layer_pdf_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Layer Pdf Sha256",
+          "type": "string"
+        },
+        "page_text": {
+          "minLength": 1,
+          "title": "Page Text",
+          "type": "string"
+        },
+        "page_text_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Page Text Sha256",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "exclusiveMinimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "quote": {
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        },
+        "quote_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Quote Sha256",
+          "type": "string"
+        },
+        "selection_basis": {
+          "enum": [
+            "manual_development",
+            "expert_oracle",
+            "fixed_page",
+            "retrieval"
+          ],
+          "title": "Selection Basis",
+          "type": "string"
+        },
+        "selection_note": {
+          "minLength": 1,
+          "title": "Selection Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "region_id",
+        "article_id",
+        "original_pdf_path",
+        "original_pdf_sha256",
+        "page_number",
+        "text_layer_id",
+        "text_layer",
+        "layer_pdf_path",
+        "layer_pdf_sha256",
+        "page_text",
+        "page_text_sha256",
+        "start",
+        "end",
+        "quote",
+        "quote_sha256",
+        "selection_basis",
+        "selection_note"
+      ],
+      "title": "SourceRegion",
+      "type": "object"
+    },
+    "TextObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "present",
+            "not_found_in_context",
+            "ambiguous",
+            "unsupported"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "raw_text": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw Text"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EvidenceSpan"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "TextObservation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "li_nafion_candidate_v0.1",
+      "default": "li_nafion_candidate_v0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "producer": {
+      "minLength": 1,
+      "title": "Producer",
+      "type": "string"
+    },
+    "regions": {
+      "items": {
+        "$ref": "#/$defs/SourceRegion"
+      },
+      "minItems": 1,
+      "title": "Regions",
+      "type": "array"
+    },
+    "records": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RecordCandidate"
+      },
+      "title": "Records",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run_id",
+    "created_at",
+    "producer",
+    "regions"
+  ],
+  "title": "CandidateBundle",
+  "type": "object"
+}

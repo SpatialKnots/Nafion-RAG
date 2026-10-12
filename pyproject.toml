@@ -21,13 +21,18 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "httpx",
   "mypy>=1.11",
+  "packaging",
   "pytest>=8.3",
   "ruff>=0.6",
 ]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["static/brand/*.png", "retrieval/cross_lingual_glossary.yaml"]
 
 [tool.ruff]
 line-length = 140

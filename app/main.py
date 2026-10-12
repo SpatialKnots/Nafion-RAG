@@ -30,6 +30,7 @@ from app.documents.service import (
     page_evidence_to_dict,
     resolve_article_pdf,
 )
+from app.facts.review_ui import router as numeric_review_router
 from app.facts.schemas import StructuredFactResponse, StructuredFactsResponse
 from app.facts.service import list_structured_facts, structured_fact_summary, structured_fact_to_response
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
@@ -71,6 +72,7 @@ from app.ui import router as ui_router
 
 app = FastAPI(title="ARIADNE", version="0.1.0")
 app.include_router(ui_router)
+app.include_router(numeric_review_router)
 SessionDep = Annotated[Session, Depends(get_session)]
 
 

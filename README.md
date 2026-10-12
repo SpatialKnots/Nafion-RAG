@@ -7,6 +7,18 @@
 Current planning: [дорожная карта проекта](docs/roadmap.md) — состояние реализации,
 ближайшие этапы и критерии готовности (сверка 2026-09-07).
 
+Stage 3 update, 2026-09-09: [numeric scalar guards](docs/stage3_numeric_guards_2026-09-09.md)
+reject four source-verified extraction errors. Full pytest: 492 passed. Scientific
+acceptance remains open. A subsequent [PDF and cap review](docs/stage3_numeric_cap_review_2026-09-09.md)
+classified nine of 878 changes: five blockers, four acceptable, 869 unreviewed.
+The production cap remains 12; persisted facts have not been refreshed.
+The subsequent [glyph/unit fix](docs/stage3_numeric_glyph_fix_2026-09-09.md)
+rejects all seven historical false candidates in live source replay; 506 tests
+passed. Its regenerated diff has 939 unreviewed changes and remains unaccepted.
+Latest [figure-reference/rate fix](docs/stage3_numeric_reference_fix_2026-09-09.md):
+523 tests passed, 10/10 source-bound false candidates rejected; the regenerated
+diff has 981 unreviewed changes. Next work is occurrence and cap diagnostics.
+
 ## Current Status — 2026-09-07
 
 ARIADNE is in stage 2 of the [roadmap](docs/roadmap.md): retrieval quality
@@ -48,6 +60,31 @@ families; it is not scientific entailment validation or independent acceptance.
 Citation
 validation does not establish scientific correctness. Scientific acceptance of
 numeric extraction and generated answers, plus scaling benchmarks, remains ahead.
+
+A [synthetic relation stress audit](docs/stage2_relation_stress_2026-09-08.md)
+found five false accepts and one false refusal across ten constructed lexical-gate
+cases, including unperformed experiments and an untested hypothesis. These are
+development counterexamples, not corpus prevalence estimates; the earlier result
+on the original annotations does not establish general relation-validation quality.
+The subsequent [statement exclusion safeguard](docs/stage2_relation_statements_2026-09-08.md)
+reduces this to one false accept and one false refusal on the same synthetic set;
+the original source-backed relation results remain unchanged. This narrow lexical
+veto preserves observed null effects but does not validate experimental relationships.
+An [experimental-link audit](docs/stage2_relation_links_2026-09-08.md) subsequently
+rejected a stricter local-word-pair veto: it introduced a pronoun-reference false
+refusal while still accepting incompatible samples. Local-link diagnostics are
+available; this candidate does not alter production adequacy decisions.
+The first [numeric-extraction audit](docs/stage3_numeric_baseline_2026-09-08.md)
+visually checked three PDF pages: four of ten targeted numeric values were detected,
+while operators, materials and conditions remain unrepresented in the candidate
+structure. This is targeted development coverage, not overall extraction accuracy.
+The [typography patch](docs/stage3_numeric_typography_2026-09-08.md) raises this to
+six of ten numeric targets while preserving source lexemes and unit scales. It
+does not reconstruct ranges or table context; persisted facts have not been refreshed.
+A [changed-candidate review](docs/stage3_numeric_change_review_2026-09-08.md)
+subsequently found four PDF-confirmed blockers, including an exponent misread as
+negative conductivity and a Raman shift misread as length. Bulk fact refresh is
+not accepted; the remaining review queue is explicitly unapproved.
 
 ## Overview
 

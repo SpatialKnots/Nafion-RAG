@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "independent_review": false,
+  "diff_sha256": "a7d8f34cfdd568d19a1613300b5af9990ccf5ab4ae51c9c66a1f66ae32b834f0",
+  "labels": [
+    {
+      "id": "bare_power",
+      "chunk_id": "43760e14-85a3-4ed8-8a7b-f0c7f9bd9f29",
+      "direction": "added",
+      "candidate": {
+        "article_id": "aec95165-f993-4576-9dba-0ec4bb8ecee1",
+        "source_chunk_id": "43760e14-85a3-4ed8-8a7b-f0c7f9bd9f29",
+        "entity_type": "numeric_measurement",
+        "field_name": "conductivity",
+        "field_value_text": "−9 S cm −1",
+        "field_value_numeric": "-9",
+        "unit": "S cm-1",
+        "confidence": "0.60",
+        "source": "rule_based_numeric_v1"
+      },
+      "article_checksum": "d6744494353ffc88860f3146e17d847bb75111e105c85cae19decd277c84eb8a",
+      "page": 1,
+      "text_layer": "original",
+      "start": 2467,
+      "text": " temperature range \nof -40 to + 80 °C and a negligible contribution of electronic conductivity (~10 −9 S cm −1 at 25 °C) together \nwith electrochemical stability window 0 to 6 V vs. Li/Li + . Electrochemical pr",
+      "text_sha256": "13b03f16394aecf643365e5d5aa3e39d3f2752998788474533588079ccad0ff5",
+      "verdict": "blocker",
+      "review_status": "assistant_pdf_reviewed",
+      "rationale": "Approximate electronic conductivity 10^-9 S/cm at 25 °C, not negative nine S/cm."
+    },
+    {
+      "id": "uncertainty_operand",
+      "chunk_id": "03d57642-bed2-492f-942f-e509ad4dc6e5",
+      "direction": "added",
+      "candidate": {
+        "article_id": "b6024911-628a-4bd9-9dd1-085c932afade",
+        "source_chunk_id": "03d57642-bed2-492f-942f-e509ad4dc6e5",
+        "entity_type": "numeric_measurement",
+        "field_name": "temperature",
+        "field_value_text": "18 ◦C",
+        "field_value_numeric": "18",
+        "unit": "°C",
+        "confidence": "0.60",
+        "source": "rule_based_numeric_v1"
+      },
+      "article_checksum": "7519b88c1b0a0bf36855c1f881a19965191b72521823bdbafd9736c0c9a32e9f",
+      "page": 9,
+      "text_layer": "original",
+      "start": 909,
+      "text": ";\ndifferential scanning calorimetry (DSC) measurements observed relaxations at 81 ◦C [49]\nand 212 ± 18 ◦C [1].\nIn the present work, DSC measurements were carried out to analyse the thermal\nbehaviour of lit",
+      "text_sha256": "5fb38b2a0eff6ebc3089c5b0a3a04bb24be1b1a22e291ebb67639cc02435b85c",
+      "verdict": "blocker",
+      "review_status": "assistant_pdf_reviewed",
+      "rationale": "The cited relaxation temperature is 212 ± 18 °C. 18 is uncertainty, not an independent temperature."
+    },
+    {
+      "id": "inverse_unit",
+      "chunk_id": "41ca9b32-9d5b-40a6-b18d-e3afd6d93e80",
+      "direction": "added",
+      "candidate": {
+        "article_id": "689bb0fb-cb3c-4338-b485-521e00019b6f",
+        "source_chunk_id": "41ca9b32-9d5b-40a6-b18d-e3afd6d93e80",
+        "entity_type": "numeric_measurement",
+        "field_name": "length",
+        "field_value_text": "783 cm",
+        "field_value_numeric": "783",
+        "unit": "cm",
+        "confidence": "0.60",
+        "source": "rule_based_numeric_v1"
+      },
+      "article_checksum": "931a668a45632cd16575643e3c196a3655a775559bc843b25348d7e8111d6f25",
+      "page": 4,
+      "text_layer": "original",
+      "start": 948,
+      "text": "numbers with an \nincrease in the electrolyte concentration (Figure 1c); the bands at 766, \n774, and 783 cm-1 were observed for LiBF4/DMC, indicating an \nincrease in the ionic association of LiBF4 with incre",
+      "text_sha256": "0d6e712577e585304e9b2761436bc3c3d023a9191646d9fa84e23b25f46eb418",
+      "verdict": "blocker",
+      "review_status": "assistant_pdf_reviewed",
+      "rationale": "Raman band at 783 cm^-1; inverse length/wavenumber, not a length of 783 cm. PDF page 4, printed page 3."
+    },
+    {
+      "id": "dash_sign",
+      "chunk_id": "6bc527df-61fe-4e94-a5be-459e51f137d1",
+      "direction": "added",
+      "candidate": {
+        "article_id": "b6024911-628a-4bd9-9dd1-085c932afade",
+        "source_chunk_id": "6bc527df-61fe-4e94-a5be-459e51f137d1",
+        "entity_type": "numeric_measurement",
+        "field_name": "temperature",
+        "field_value_text": "16 ◦C",
+        "field_value_numeric": "16",
+        "unit": "°C",
+        "confidence": "0.60",
+        "source": "rule_based_numeric_v1"
+      },
+      "article_checksum": "7519b88c1b0a0bf36855c1f881a19965191b72521823bdbafd9736c0c9a32e9f",
+      "page": 5,
+      "text_layer": "original",
+      "start": 1184,
+      "text": "recent work [31],\nthe EC–SL system belongs to a simple eutectic type with a eutectic temperature of—16 ◦C\nand a eutectic point at 70 wt % SL. Moreover, binary EC/SL mixtures in a moderate range\nof composit",
+      "text_sha256": "c9b4d1a6a62401077ed03feb808e8f23f4fcbf9c0ac8eb6aca91df7a698a23d4",
+      "verdict": "blocker",
+      "review_status": "assistant_pdf_reviewed",
+      "rationale": "The eutectic temperature is printed as —16 °C. A positive 16 °C candidate drops the dash/sign; do not accept without sign handling."
+    },
+    {
+      "id": "doi_removal",
+      "chunk_id": "41ca9b32-9d5b-40a6-b18d-e3afd6d93e80",
+      "direction": "removed",
+      "candidate": {
+        "article_id": "689bb0fb-cb3c-4338-b485-521e00019b6f",
+        "source_chunk_id": "41ca9b32-9d5b-40a6-b18d-e3afd6d93e80",
+        "entity_type": "numeric_measurement",
+        "field_name": "temperature",
+        "field_value_text": "00036K",
+        "field_value_numeric": "36",
+        "unit": "K",
+        "confidence": "0.60",
+        "source": "rule_based_numeric_v1"
+      },
+      "article_checksum": "931a668a45632cd16575643e3c196a3655a775559bc843b25348d7e8111d6f25",
+      "page": 3,
+      "text_layer": "original",
+      "start": 6881,
+      "text": "59:01. \nView Article Online\nDOI: 10.1039/C8SE00036K\n",
+      "text_sha256": "f3e63f556c9ea17c55d20faa3e5dff98393f656e68ee32fe721e47f88be3f036",
+      "verdict": "acceptable",
+      "review_status": "assistant_pdf_reviewed",
+      "rationale": "00036K is part of DOI 10.1039/C8SE00036K, visible in the page header. Removing this false temperature candidate is correct."
+    }
+  ]
+}

@@ -516,6 +516,7 @@ def _layout(title: str, body: str) -> HTMLResponse:
     nav_items = (
         ("Home", "/", {"Dashboard", "Articles", "Article", "Text Layers", "Answer"}),
         ("Facts", "/ui/facts", {"Structured Facts"}),
+        ("Проверка фактов", "/ui/numeric-review", {"Проверка фактов"}),
         (
             "Evidence",
             "/ui/reports/retrieval",

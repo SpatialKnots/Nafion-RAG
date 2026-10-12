@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "review_status": "assistant_pdf_reviewed",
+  "independent_review": false,
+  "scope": "Eight targeted probes on three visually reviewed pages; not exhaustive precision/recall gold.",
+  "cases": [
+    {
+      "id": "table_ec_115",
+      "article_checksum": "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266",
+      "title": "Диссертация Чернюк С.Д.",
+      "page": 110,
+      "text_layer": "original",
+      "start": 116,
+      "text": "ЭК \n1.90∙10−4 \nLi-Nafion 115, данные при \n30 °C  \n[247]",
+      "text_sha256": "b8a033ea99816d14b10f7fbeec1a81a33bbc656fe4c29a2e06474e163b8159bf",
+      "field": "conductivity",
+      "values": [
+        "0.000190"
+      ],
+      "unit": "S cm-1",
+      "operator": "reported_value",
+      "material": "Li-Nafion 115 / ЭК",
+      "conditions": "30 °C",
+      "category": "table_header_unit"
+    },
+    {
+      "id": "table_ec_117",
+      "article_checksum": "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266",
+      "title": "Диссертация Чернюк С.Д.",
+      "page": 110,
+      "text_layer": "original",
+      "start": 173,
+      "text": "1.43∙10−4 \nLi-Nafion 117, данные при \n40 °C  \n[95]",
+      "text_sha256": "3bcdf6c8be2d0439581528545718ae40742d0efa64e5a2676e65e4e607127804",
+      "field": "conductivity",
+      "values": [
+        "0.000143"
+      ],
+      "unit": "S cm-1",
+      "operator": "reported_value",
+      "material": "Li-Nafion 117 / ЭК (merged cell)",
+      "conditions": "40 °C",
+      "category": "table_header_unit"
+    },
+    {
+      "id": "conductivity_scientific",
+      "article_checksum": "d6744494353ffc88860f3146e17d847bb75111e105c85cae19decd277c84eb8a",
+      "title": "Sanginov 2021",
+      "page": 9,
+      "text_layer": "original",
+      "start": 2939,
+      "text": "Fig. 10 shows the conductivity isotherms for Li-Naﬁon mem- \nbranes saturated with the binary plasticiser EC/SL with varying ra- \ntios between components. As can be seen from the Fig., the mem- \nbrane conductivity reaches the highest values at ω(SL) = 0.20 re- \ngardless of temperature. Although this value was rather high at \nroom temperature (~ 2 × 10 −4 S cm −1 ), below 10 °C, a drop in \nconductivity was observed ( Fig. 8 ).",
+      "text_sha256": "79caca4f0960d37a771b84784ccff766b77950138d2d208f517f665d42412f08",
+      "field": "conductivity",
+      "values": [
+        "0.0002"
+      ],
+      "unit": "S cm-1",
+      "operator": "approximately",
+      "material": "Li-Nafion / EC-SL, omega(SL)=0.20",
+      "conditions": "room temperature",
+      "category": "unicode_exponent"
+    },
+    {
+      "id": "temperature_bound",
+      "article_checksum": "d6744494353ffc88860f3146e17d847bb75111e105c85cae19decd277c84eb8a",
+      "title": "Sanginov 2021",
+      "page": 9,
+      "text_layer": "original",
+      "start": 272,
+      "text": "SL content in the plasticiser shifts the lower limit of membranes \nconductivity down to ≤-40 °C, which is signiﬁcantly lower than \nthe solidus temperature of the EC-SL binary system.",
+      "text_sha256": "2e0e8bcb91405b4a773c88c8fb91a92c0f4bb4c9003ae3d0aa1fd8e29e94fb61",
+      "field": "temperature",
+      "values": [
+        "-40"
+      ],
+      "unit": "°C",
+      "operator": "less_than_or_equal",
+      "material": "Li-Nafion / SL-containing plasticiser",
+      "conditions": "lower conductivity temperature limit",
+      "category": "comparator"
+    },
+    {
+      "id": "uptake_increase_bound",
+      "article_checksum": "7519b88c1b0a0bf36855c1f881a19965191b72521823bdbafd9736c0c9a32e9f",
+      "title": "Istomina 2021",
+      "page": 7,
+      "text_layer": "original",
+      "start": 665,
+      "text": "uptake increased by less than 10% and W did not exceed 40%.",
+      "text_sha256": "f19b6803b2eed9baeae29b2142676d5a7f247a433d7cee008eafea8ad878c9dd",
+      "field": "swelling_or_uptake",
+      "values": [
+        "10"
+      ],
+      "unit": "%",
+      "operator": "less_than",
+      "material": "H+ Nafion / water (cited comparison)",
+      "conditions": "40 to 80 °C; increase in W",
+      "category": "comparator"
+    },
+    {
+      "id": "uptake_upper_bound",
+      "article_checksum": "7519b88c1b0a0bf36855c1f881a19965191b72521823bdbafd9736c0c9a32e9f",
+      "title": "Istomina 2021",
+      "page": 7,
+      "text_layer": "original",
+      "start": 665,
+      "text": "uptake increased by less than 10% and W did not exceed 40%.",
+      "text_sha256": "f19b6803b2eed9baeae29b2142676d5a7f247a433d7cee008eafea8ad878c9dd",
+      "field": "swelling_or_uptake",
+      "values": [
+        "40"
+      ],
+      "unit": "%",
+      "operator": "less_than_or_equal",
+      "material": "H+ Nafion / water (cited comparison)",
+      "conditions": "40 to 80 °C; W upper bound",
+      "category": "comparator"
+    },
+    {
+      "id": "temperature_range",
+      "article_checksum": "7519b88c1b0a0bf36855c1f881a19965191b72521823bdbafd9736c0c9a32e9f",
+      "title": "Istomina 2021",
+      "page": 7,
+      "text_layer": "original",
+      "start": 605,
+      "text": "within the same temperature range of 40 to 80 ◦C, the water\nuptake increased by less than 10% and W did not exceed 40%.",
+      "text_sha256": "9d5344a675916e90ea5ca34269d49f602ae96f385860aff2422fa37c31fd68b7",
+      "field": "temperature",
+      "values": [
+        "40",
+        "80"
+      ],
+      "unit": "°C",
+      "operator": "range",
+      "material": "H+ Nafion / water (cited comparison)",
+      "conditions": "comparison of water uptake",
+      "category": "range_and_degree_symbol"
+    },
+    {
+      "id": "crystallinity_range",
+      "article_checksum": "7519b88c1b0a0bf36855c1f881a19965191b72521823bdbafd9736c0c9a32e9f",
+      "title": "Istomina 2021",
+      "page": 7,
+      "text_layer": "original",
+      "start": 1985,
+      "text": "membranes, the relative degree of crystallinity of about 7–17% is lower than that of PTFE",
+      "text_sha256": "46f642de3b8b521214fc05c2356d7277d10d086fe6445c056c6cb06cd840d22d",
+      "field": "fraction_or_percent",
+      "values": [
+        "7",
+        "17"
+      ],
+      "unit": "%",
+      "operator": "approximate_range",
+      "material": "extruded Nafion",
+      "conditions": "relative degree of crystallinity; cited background",
+      "category": "range"
+    }
+  ]
+}

@@ -19,3 +19,9 @@ data/backups/*
 data/uploads/*
 data/tessdata/*
 !data/**/.gitkeep
+data/experiments/
+output/baselines/
+/output/
+/tmp/
+/data/reviews/
+node_modules/

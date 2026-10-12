@@ -38,6 +38,13 @@ Implementation rules:
 - Do not hide ingestion, OCR, database, migration, retrieval, or evaluation failures with broad `try/except`.
 - Do not remove diagnostics just to make output cleaner.
 
+TAC review workflow:
+- At the end of each completed TAC development stage, generate a local HTML review table for the user. Do not generate XLSX unless the user explicitly requests it.
+- Preserve the agreed main columns: Title, Authors, Journal, Year, Abstract, Conclusions, Terms, hyperlink to original file.
+- Include all documents in the declared stage scope. Provide full expandable TAC text, table search, working local links to original PDFs, and source/diagnostic details without silently repairing algorithm outputs.
+- Identify the algorithm version and input snapshot. Mark missing metadata, undetected sections, unimplemented fields and proposed terms explicitly; do not invent values or present proposals as confirmed results.
+- Keep the output from each stage separately so user feedback can be tied to a specific version. User silence is not scientific confirmation.
+
 Current project phases:
 - Phase 1 covers local infrastructure, PDF ingestion, text extraction/OCR handling, deterministic chunking, and source-preserving storage.
 - Current retrieval is exact/evidence inspection unless semantic or hybrid retrieval is implemented in source.

@@ -38,6 +38,9 @@ class QueryBundle:
 @lru_cache(maxsize=1)
 def _load_glossary_entries() -> tuple[GlossaryEntry, ...]:
     path = Path(__file__).resolve().parents[2] / "docs" / "cross_lingual_glossary.yaml"
+    if not path.is_file():
+        # Installed wheels carry the exact source glossary beside this module.
+        path = Path(__file__).with_name("cross_lingual_glossary.yaml")
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("cross-lingual glossary must contain a mapping")

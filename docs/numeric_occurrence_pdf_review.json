@@ -1,0 +1,636 @@
+{
+  "version": 1,
+  "independent_review": false,
+  "applied": false,
+  "scope": "Targeted review of 11 newly exposed candidates and three baseline cap losses. Not a random sample or general precision estimate.",
+  "diff_sha256": "630a9287ad6499e8c6a6f86c22984d7c867db5a33304b8b3b566f9aff9f12a90",
+  "extractor_sha256": "319a997533f5d935e19b3057ff3827a39560e5c6b45912a37ff4048f9192d042",
+  "records": [
+    {
+      "index": 0,
+      "target": [
+        "3052afb8-0205-4a9a-9ab1-a29ee159e8ff",
+        "length",
+        "10 nm",
+        "10",
+        "nm"
+      ],
+      "article": "Fan 2018",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\59bfbd00f345b750_Fan_2018.pdf",
+      "article_checksum": "59bfbd00f345b750c812985c2cb38d9e3ac45e39858d82c542a292d7f810119c",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 7519,
+          "end": 7524,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "10 nm",
+          "locations": [
+            {
+              "page": 6,
+              "line_occurrences": 2,
+              "start": 388,
+              "text": "ably react with the FEMC•\n(-H) (Fig. 6g) and HFE•\n(-H) (Fig. 6h) \n0.0\n0.5\n1.0\n1.5\n2.0\n2.5\na\nd\ng\nh\ni\ne\nf\nb\nEred versus Li/Li+\n5 nm\n10 nm\nd = 0.42 nm\n(011)\n10 nm\nd = 0.34 nm\n(111)\n0\n20\n40\n60\nAtomic concentration (%)\nEC/DMC\nFEC/DMC\nP\nLi\nF\nO\nFEC/FEMC/HFE\nC\nFresh\nEC\nDMC FEC FEMC HFE\nPF6\nDefluorinati",
+              "text_sha256": "b17fbef10c686a67e9ec7eaa99f0256df8318f6ea748b46ae9a02aa0a251265a",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\00-p6.png"
+            }
+          ],
+          "page_mapping_status": "ambiguous_line_match"
+        },
+        {
+          "start": 7543,
+          "end": 7548,
+          "decision": "duplicate",
+          "reason": "duplicate",
+          "line": "10 nm",
+          "locations": [
+            {
+              "page": 6,
+              "line_occurrences": 2,
+              "start": 388,
+              "text": "ably react with the FEMC•\n(-H) (Fig. 6g) and HFE•\n(-H) (Fig. 6h) \n0.0\n0.5\n1.0\n1.5\n2.0\n2.5\na\nd\ng\nh\ni\ne\nf\nb\nEred versus Li/Li+\n5 nm\n10 nm\nd = 0.42 nm\n(011)\n10 nm\nd = 0.34 nm\n(111)\n0\n20\n40\n60\nAtomic concentration (%)\nEC/DMC\nFEC/DMC\nP\nLi\nF\nO\nFEC/FEMC/HFE\nC\nFresh\nEC\nDMC FEC FEMC HFE\nPF6\nDefluorinati",
+              "text_sha256": "b17fbef10c686a67e9ec7eaa99f0256df8318f6ea748b46ae9a02aa0a251265a",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\00-p6.png"
+            }
+          ],
+          "page_mapping_status": "ambiguous_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "unresolved",
+      "rationale": "Fan PDF p. 6 Fig. 5h has a 10 nm scale bar; Fig. 5i has a 10 nm thickness arrow and a 5 nm scale bar. Two identical isolated text lines cannot be uniquely assigned to panels by the current line lookup. Do not label the selected occurrence as either role without coordinate-backed attribution."
+    },
+    {
+      "index": 1,
+      "target": [
+        "3cafc2b7-0cae-4b89-a9bb-320f48abbf60",
+        "energy",
+        "0.91 eV",
+        "0.91",
+        "eV"
+      ],
+      "article": "Fan 2018",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\59bfbd00f345b750_Fan_2018.pdf",
+      "article_checksum": "59bfbd00f345b750c812985c2cb38d9e3ac45e39858d82c542a292d7f810119c",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 8616,
+          "end": 8623,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "rier of only 0.91 eV to evolve CO2, leaving only a fraction of EC•",
+          "locations": [
+            {
+              "page": 5,
+              "line_occurrences": 1,
+              "start": 6154,
+              "text": "4) or layered oxide cathode surfaces45. EC is a \npoor CEI former because the EC•\n(-H) radical decomposes with a bar-\nrier of only 0.91 eV to evolve CO2, leaving only a fraction of EC•\n(-H) \n0\n20\n40\n60\n80\n100\n120\n0\n50\n100\n150\n200\n250\nDischarge capacity (mAh g–1)\nCycling number\n0\n100\n200\n300\n400\n50",
+              "text_sha256": "026bcb032222618da54a8abdc4255c7f64d5e73c9ec00d3ae987ae93a0f6bb8c",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\01-p5.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "acceptable",
+      "rationale": "Fan PDF p. 5 reports a 0.91 eV decomposition barrier for the EC radical. Value and energy unit are supported; material and reaction linkage are not structured fields."
+    },
+    {
+      "index": 2,
+      "target": [
+        "58b958d6-a8d3-4b08-8a86-c5bd01ceff5c",
+        "energy",
+        "400 eV",
+        "400",
+        "eV"
+      ],
+      "article": "Fan 2018",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\59bfbd00f345b750_Fan_2018.pdf",
+      "article_checksum": "59bfbd00f345b750c812985c2cb38d9e3ac45e39858d82c542a292d7f810119c",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 13960,
+          "end": 13966,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "the VASP package. An energy cutoff was set to be 400 eV. A 2 ×​ 1 ×​ 2 k-point ",
+          "locations": [
+            {
+              "page": 9,
+              "line_occurrences": 1,
+              "start": 9186,
+              "text": "f \nexchange-correlation functional were used to treat core electrons62–66 using \nthe VASP package. An energy cutoff was set to be 400 eV. A 2 ×​ 1 ×​ 2 k-point \nsampling was adopted for the slab calculations. We followed previous work67,68 \nfor the +​U augmented treatment of Co 3d orbitals and u",
+              "text_sha256": "aea84f74aed7738c0823067b1d89e8d956697fd27a41abfde12bc56f1fb6996f",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\02-p9.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "acceptable",
+      "rationale": "Fan PDF p. 9 Periodic calculations specifies a 400 eV plane-wave energy cutoff. Valid calculation parameter, not an experimental activation energy."
+    },
+    {
+      "index": 3,
+      "target": [
+        "7876cf8e-f8a1-4809-9255-a062020dda96",
+        "temperature",
+        "94 °C",
+        "94",
+        "°C"
+      ],
+      "article": "Kim и др. - 2015 - Origin of Toughness in Dispersion-Cast Nafion Membranes",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\dbc50f87b0f35c92_Kim_и_др._-_2015_-_Origin_of_Toughness_in_Dispersion-Cast_Nafion_Membranes.pdf",
+      "article_checksum": "dbc50f87b0f35c926a5c7cb497dbc6bf55bf5836073e8199d658a2eed84340e1",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 6694,
+          "end": 6699,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "(Tdisp = 94 °C) and butanediol isomers (Tdisp = 108−153 °C)",
+          "locations": [
+            {
+              "page": 4,
+              "line_occurrences": 1,
+              "start": 644,
+              "text": "ss:\n1. The dispersing temperature decreases as the alcohol\nmethyl-to-hydroxyl ratio approaches 2.0. As a result, ethanol\n(Tdisp = 94 °C) and butanediol isomers (Tdisp = 108−153 °C)\nhave the lowest dispersing temperatures among monohydric\nand polyhydric alcohols, respectively.\n2. The solvents wi",
+              "text_sha256": "75c1d8dd86fbc9db83e59f370d3eb522ab34d3ba79f389f0c30d30d77623b087",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\03-p4.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "acceptable",
+      "rationale": "Kim PDF p. 4 section 3.1 gives ethanol dispersing temperature Tdisp = 94 degrees C. This is a standalone temperature, distinct from the neighboring butanediol range."
+    },
+    {
+      "index": 4,
+      "target": [
+        "87312c1f-c9c0-467b-9297-763e11a765a2",
+        "energy",
+        "400 eV",
+        "400",
+        "eV"
+      ],
+      "article": "Fan 2018",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\59bfbd00f345b750_Fan_2018.pdf",
+      "article_checksum": "59bfbd00f345b750c812985c2cb38d9e3ac45e39858d82c542a292d7f810119c",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 9316,
+          "end": 9322,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "the VASP package. An energy cutoff was set to be 400 eV. A 2 ×​ 1 ×​ 2 k-point ",
+          "locations": [
+            {
+              "page": 9,
+              "line_occurrences": 1,
+              "start": 9186,
+              "text": "f \nexchange-correlation functional were used to treat core electrons62–66 using \nthe VASP package. An energy cutoff was set to be 400 eV. A 2 ×​ 1 ×​ 2 k-point \nsampling was adopted for the slab calculations. We followed previous work67,68 \nfor the +​U augmented treatment of Co 3d orbitals and u",
+              "text_sha256": "aea84f74aed7738c0823067b1d89e8d956697fd27a41abfde12bc56f1fb6996f",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\02-p9.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "acceptable",
+      "rationale": "Fan PDF p. 9 repeats the same source cutoff of 400 eV in another chunk. Numeric extraction is supported; this is not an independent measurement."
+    },
+    {
+      "index": 5,
+      "target": [
+        "8e2ed6bd-be25-4b41-887b-01baa9a4617c",
+        "temperature",
+        "25°C",
+        "25",
+        "°C"
+      ],
+      "article": "Guo 2020",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\4175963d3ecdc0b4_Guo_2020.pdf",
+      "article_checksum": "4175963d3ecdc0b429e64d62c39b4f09a1f81fa8efb04ec5f71a54f5fb7000cb",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 4971,
+          "end": 4975,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "Pristine 25°C 100°C 175°C 250°C",
+          "locations": [
+            {
+              "page": 3,
+              "line_occurrences": 1,
+              "start": 4843,
+              "text": "pth\n(nm)\n118\n101\n67\n84\n50\n34\n17\nLi 1s\n42\n36\n24\n30\n18\n12\n6\nAr+ Etching\nTime\n(min)\nLi2CO3\nLi2O\n0 min\n30 min\n60 min\n120 min\nPristine 25°C 100°C 175°C 250°C\n240 min\n360 min\nExposure Time in Air (RH=10%)\nTreatment Temperature\n(a)\n(b)\n",
+              "text_sha256": "3906a82377e8ddb1141fffde276b634eb62a590a324025a09e5d0f6f5c1764c1",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\05-p3.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "acceptable",
+      "rationale": "Guo PDF p. 3 Fig. 1a explicitly labels 25 degrees C as treatment temperature. It is an experimental condition, not an arbitrary axis tick or measured response. Sample attribution remains in the source figure."
+    },
+    {
+      "index": 6,
+      "target": [
+        "c7205aae-7950-4668-9659-2f2808079cda",
+        "fraction_or_percent",
+        "129%",
+        "129",
+        "%"
+      ],
+      "article": "Fan 2018",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\59bfbd00f345b750_Fan_2018.pdf",
+      "article_checksum": "59bfbd00f345b750c812985c2cb38d9e3ac45e39858d82c542a292d7f810119c",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 8477,
+          "end": 8481,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "The largest increase in Re (129%) occurs for EC/DMC due to ",
+          "locations": [
+            {
+              "page": 3,
+              "line_occurrences": 1,
+              "start": 2794,
+              "text": " to 100th cycles in the following order: FEC/\nFEMC/HFE <​ FEC/DMC <​ EC/DMC (Supplementary Table 1). \nThe largest increase in Re (129%) occurs for EC/DMC due to \nthe continuous consumption of electrolyte at both the Li-metal \nand cathode surfaces within 100 cycles; the accompanying quick \nincr",
+              "text_sha256": "535a4c04f66f2378ca8f21d15db15a45578fc7c25eac7822aa9b93817ba43588",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\06-p3.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "acceptable",
+      "rationale": "Fan PDF p. 3 reports 129 percent increase in bulk electrolyte resistance Re for EC/DMC from the fifth to hundredth cycles. Percentage and unit are supported; this is a relative increase, not an absolute composition."
+    },
+    {
+      "index": 7,
+      "target": [
+        "d9434691-b86c-4c2f-aad0-f6c89d002574",
+        "length",
+        "10 nm",
+        "10",
+        "nm"
+      ],
+      "article": "Yu 2022",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\d11f2fb94662ba9d_Yu_2022.pdf",
+      "article_checksum": "d11f2fb94662ba9d7e2e72265d46c826c767399f86a326052d655436b5efe631",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 12474,
+          "end": 12479,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "F3DEE (h), F6DEE (i), F4DEE (j) and F5DEE (k), respectively. Scale bars, 10 nm. l, N/C elemental ratios by cryo-EDS of Li metal deposits in fluorinated-DEE ",
+          "locations": [
+            {
+              "page": 8,
+              "line_occurrences": 1,
+              "start": 5937,
+              "text": "h cm−2 deposited Li metal using 1.2 M LiFSI in DEE (g), \nF3DEE (h), F6DEE (i), F4DEE (j) and F5DEE (k), respectively. Scale bars, 10 nm. l, N/C elemental ratios by cryo-EDS of Li metal deposits in fluorinated-DEE \nelectrolytes.\nNatUre Energy | VOL 7 | JanuarY 2022 | 94–106 | www.nature.com/natu",
+              "text_sha256": "8a2bb64e921d5acd96bc6afa18e172b81328e4aee1a7318dba985506b57eb549",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\07-p8.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "blocker",
+      "rationale": "Yu PDF p. 8 Fig. 7 caption explicitly says Scale bars, 10 nm. This candidate is emitted as numeric_measurement/length without its scale-bar role; it must not be used as measured SEI thickness. Figure annotations instead show approximately 25, 18, 16, 13 and 12 nm."
+    },
+    {
+      "index": 8,
+      "target": [
+        "ddfbf0d2-fb56-47f2-b501-0849c429b12f",
+        "temperature",
+        "25°C",
+        "25",
+        "°C"
+      ],
+      "article": "Guo 2020",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\4175963d3ecdc0b4_Guo_2020.pdf",
+      "article_checksum": "4175963d3ecdc0b429e64d62c39b4f09a1f81fa8efb04ec5f71a54f5fb7000cb",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 4971,
+          "end": 4975,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "Pristine 25°C 100°C 175°C 250°C",
+          "locations": [
+            {
+              "page": 3,
+              "line_occurrences": 1,
+              "start": 4843,
+              "text": "pth\n(nm)\n118\n101\n67\n84\n50\n34\n17\nLi 1s\n42\n36\n24\n30\n18\n12\n6\nAr+ Etching\nTime\n(min)\nLi2CO3\nLi2O\n0 min\n30 min\n60 min\n120 min\nPristine 25°C 100°C 175°C 250°C\n240 min\n360 min\nExposure Time in Air (RH=10%)\nTreatment Temperature\n(a)\n(b)\n",
+              "text_sha256": "3906a82377e8ddb1141fffde276b634eb62a590a324025a09e5d0f6f5c1764c1",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\05-p3.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "acceptable",
+      "rationale": "Guo PDF p. 3 Fig. 1a: same supported 25 degrees C treatment-temperature label in a second chunk; not an independent observation."
+    },
+    {
+      "index": 9,
+      "target": [
+        "ed88d106-0c5d-4896-917a-6b4996133d4e",
+        "energy",
+        "400 eV",
+        "400",
+        "eV"
+      ],
+      "article": "Fan 2018",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\59bfbd00f345b750_Fan_2018.pdf",
+      "article_checksum": "59bfbd00f345b750c812985c2cb38d9e3ac45e39858d82c542a292d7f810119c",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 9316,
+          "end": 9322,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "the VASP package. An energy cutoff was set to be 400 eV. A 2 ×​ 1 ×​ 2 k-point ",
+          "locations": [
+            {
+              "page": 9,
+              "line_occurrences": 1,
+              "start": 9186,
+              "text": "f \nexchange-correlation functional were used to treat core electrons62–66 using \nthe VASP package. An energy cutoff was set to be 400 eV. A 2 ×​ 1 ×​ 2 k-point \nsampling was adopted for the slab calculations. We followed previous work67,68 \nfor the +​U augmented treatment of Co 3d orbitals and u",
+              "text_sha256": "aea84f74aed7738c0823067b1d89e8d956697fd27a41abfde12bc56f1fb6996f",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\02-p9.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "acceptable",
+      "rationale": "Fan PDF p. 9: same supported 400 eV computational cutoff in a third chunk; not a separate measurement."
+    },
+    {
+      "index": 10,
+      "target": [
+        "fff7e2d6-2389-4f3b-a8da-55662ddeefbd",
+        "fraction_or_percent",
+        "55%",
+        "55",
+        "%"
+      ],
+      "article": "Choi 2025",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\68838d02c6034ede_Choi_2025.pdf",
+      "article_checksum": "68838d02c6034edee364b264e9be3dfd62cdc1003808648e9c25af5a52425f83",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 7835,
+          "end": 7838,
+          "decision": "accepted",
+          "reason": "selected",
+          "line": "obtain colourless liquid as the product. Yield: roughly 55%.",
+          "locations": [
+            {
+              "page": 11,
+              "line_occurrences": 1,
+              "start": 4151,
+              "text": "m \ndistillation (vapour temperature ~30–35 °C at ~90 mbar) four times to \nobtain colourless liquid as the product. Yield: roughly 55%.\nFor MPE, the same procedure as for EME synthesis was adopted, \nexcept that 27.9 g of 2-ethoxy ethanol was replaced by 32.2 g of ethylene \nglycol monopropyleth",
+              "text_sha256": "eb4d554b949eaafb851d75ec1408827662c892cfa20a0a192e8174157676a92c",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\10-p11.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        },
+        {
+          "start": 10897,
+          "end": 10900,
+          "decision": "duplicate",
+          "reason": "duplicate",
+          "line": "times to obtain a colourless liquid as the product. Yield: roughly 55%.",
+          "locations": [
+            {
+              "page": 11,
+              "line_occurrences": 1,
+              "start": 7213,
+              "text": "stillation (vapour temperature ~45–50 °C at 90 mbar) for four \ntimes to obtain a colourless liquid as the product. Yield: roughly 55%.\nFor FxDEE (x = 3, 4, 5), solvents were synthesized with same method \ndescribed in ref. 20.\nAll the purchased or synthesized solvents were treated with Li for ",
+              "text_sha256": "2c9d6010accccdd08a593f96e8883dee76c1db025f37ce51c759125a34f65d44",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\10-p11.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "blocker",
+      "rationale": "Choi PDF p. 11 reports roughly 55 percent yield for EME and separately roughly 55 percent for F3EME. The candidate omits approximation, and lexical deduplication collapses different syntheses. The digits are correct; unqualified exact measurement and scientific deduplication are not supported."
+    },
+    {
+      "index": 11,
+      "target": [
+        "5114deb4-0aab-4e40-b089-e5b06c245a85",
+        "temperature",
+        "523 K",
+        "523",
+        "K"
+      ],
+      "article": "Laporta и др. - 2000 - Recast Nafion‐117 thin film from water solution",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\cb0dbafe419f7b5b_Laporta_и_др._-_2000_-_Recast_Nafion‐117_thin_film_from_water_solution.pdf",
+      "article_checksum": "cb0dbafe419f7b5b4ba6284c9a70fc6ca3272fdcf6a441b85f331235ef05826d",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 501,
+          "end": 506,
+          "decision": "rejected",
+          "reason": "uncertainty_or_dash_prefix",
+          "line": "423–523 K. Tab. 4 summarises the data of curves P and N.",
+          "locations": [
+            {
+              "page": 6,
+              "line_occurrences": 1,
+              "start": 371,
+              "text": " 423 and 573 K.\nThe P and N lines are similar: the samples lose ca. 1.8\nwt.-% in the 323–423 K range and then 2 wt.-% between\n423–523 K. Tab. 4 summarises the data of curves P and N.\nFig. 13 shows the thermogravimetric diagram of the\nrecast Nafion membrane prepared by b1 sample: between\n298 and",
+              "text_sha256": "8146f25e4bf16c9ab522576dd15ac6792ab5be7452c9b5b3535ed7c2b70dbf31",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\11-p6.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        },
+        {
+          "start": 3784,
+          "end": 3789,
+          "decision": "cap_omitted",
+          "reason": "max_facts_per_chunk",
+          "line": "ment at 523 K: the un-dissolved Nafion forms a colour-",
+          "locations": [
+            {
+              "page": 7,
+              "line_occurrences": 1,
+              "start": 652,
+              "text": "n in water\nIt is not possible to achieve the complete dissolution of\nNafion-117 membrane in the autoclave by water treat-\nment at 523 K: the un-dissolved Nafion forms a colour-\nless gel, and only a small fraction of polymer is dissolved.\nBy increasing the temperature (553 K), the polymer frac-\n",
+              "text_sha256": "acfbf3184b4744a0081c693a0990731f4616445ded428d2ec34540059e5dc210",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\11-p7.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        },
+        {
+          "start": 6768,
+          "end": 6773,
+          "decision": "duplicate",
+          "reason": "duplicate",
+          "line": "of Nafion begins around 523 K, and several studies have",
+          "locations": [
+            {
+              "page": 7,
+              "line_occurrences": 1,
+              "start": 3636,
+              "text": "n of the polymeric chains during mem-\nbrane casting.\nAccording to Du Pont Co.[17] the thermal degradation\nof Nafion begins around 523 K, and several studies have\nconfirmed this point. Yeager and others have investigated,\nusing infrared spectroscopy,[2] the modifications in air of\nNafion-1100 co",
+              "text_sha256": "6558e9205e8bc86d23e4c134bde1c3059f774923fae0eeab01e8263a9a7197b9",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\11-p7.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "blocker",
+      "rationale": "Laporta PDF p. 6 has the range 423-523 K, correctly rejected. PDF p. 7 separately gives water treatment at 523 K with incomplete dissolution; that occurrence is cap-omitted. A later around 523 K statement concerns cited thermal degradation, and is a lexical duplicate despite different scientific meaning. Do not restore the range endpoint or merge these claims."
+    },
+    {
+      "index": 12,
+      "target": [
+        "d26b5890-b91b-408e-9c04-480fa01467b2",
+        "length",
+        "100 nm",
+        "100",
+        "nm"
+      ],
+      "article": "Guo 2020",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\4175963d3ecdc0b4_Guo_2020.pdf",
+      "article_checksum": "4175963d3ecdc0b429e64d62c39b4f09a1f81fa8efb04ec5f71a54f5fb7000cb",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 1606,
+          "end": 1612,
+          "decision": "rejected",
+          "reason": "uncertainty_or_dash_prefix",
+          "line": "250 °C). The resulting interfaces are thin (20–100 nm) and con-",
+          "locations": [
+            {
+              "page": 2,
+              "line_occurrences": 1,
+              "start": 1478,
+              "text": "tly on Li by O2 gas \ntreatment of Li foils under moderate reaction conditions (25–\n250 °C). The resulting interfaces are thin (20–100 nm) and con-\nformal to Li, serving as an appropriate model to study a ‘decon-\nstructed’ SEI with Li2O as the sole component. Ionic conduc-\ntivity, charge carrier ",
+              "text_sha256": "8027d80b205d1627741280ace2df294ef4d3cf29e3489f9cc0d4f5970839e11e",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\12-p2.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        },
+        {
+          "start": 8415,
+          "end": 8421,
+          "decision": "cap_omitted",
+          "reason": "max_facts_per_chunk",
+          "line": "tions between 25–175 °C, and ~100 nm at 250 °C. Similar XPS ",
+          "locations": [
+            {
+              "page": 3,
+              "line_occurrences": 1,
+              "start": 1157,
+              "text": "ic Li0 peak emerged at 52.1 eV,40 from \nwhich the Li2O thickness was determined: 25–30 nm for reac-\ntions between 25–175 °C, and ~100 nm at 250 °C. Similar XPS \ndepth profiles were observed for other reaction conditions (Fig. \nS2).  \nTop-view SEM images (Fig. 2a-c) indicated that the Li2O \nSEI s",
+              "text_sha256": "d4c5a7fbad7ce52a59315d9f37106febe14cfd8c186db4d4546a27111c9c3daa",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\05-p3.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "blocker",
+      "rationale": "Guo PDF p. 2 has the range 20-100 nm, correctly rejected. PDF p. 3 separately gives approximately 100 nm Li2O thickness at 250 degrees C; this later occurrence is cap-omitted. It is a coverage loss requiring approximation and condition preservation, not permission to emit an exact unqualified thickness."
+    },
+    {
+      "index": 13,
+      "target": [
+        "fc4dcb1f-455a-4e97-92ed-3dd77331c0c5",
+        "fraction_or_percent",
+        "1.5%",
+        "1.5",
+        "%"
+      ],
+      "article": "Sanginov 2021",
+      "pdf": "D:\\Nafion-RAG\\data\\pdf\\d6744494353ffc88_Sanginov_2021.pdf",
+      "article_checksum": "d6744494353ffc88860f3146e17d847bb75111e105c85cae19decd277c84eb8a",
+      "text_layer": "original",
+      "occurrences": [
+        {
+          "start": 2473,
+          "end": 2477,
+          "decision": "rejected",
+          "reason": "uncertainty_or_dash_prefix",
+          "line": "ceed 1–1.5%. ",
+          "locations": [
+            {
+              "page": 3,
+              "line_occurrences": 1,
+              "start": 2343,
+              "text": "re m sw and m dry are masses of swollen and dry membrane \nsamples, respectively. Uncertainty of W measurement did not ex- \nceed 1–1.5%. \nFrom the W values, a molar uptake of solvent λ, which is equal \nto the number of solvents molecules per lithium cation, can be ob- \ntained using the formula:",
+              "text_sha256": "e9b39cf9d71dd643abac0916309c3b94617e144b53664e2fdf0016a99284c07c",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\13-p3.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        },
+        {
+          "start": 10451,
+          "end": 10455,
+          "decision": "cap_omitted",
+          "reason": "max_facts_per_chunk",
+          "line": "data, the error in calculations was ≤2% for bond lengths and ≤1.5% ",
+          "locations": [
+            {
+              "page": 4,
+              "line_occurrences": 1,
+              "start": 2671,
+              "text": "ne \nand ethylene carbonate molecules. Compared to the experimental \ndata, the error in calculations was ≤2% for bond lengths and ≤1.5% \nfor bond angles (see Appendix A in the Supplementary Material, \nFigs. A1 and A2). \nThe basis set superposition error (BSSE) was not taken into \naccount, since",
+              "text_sha256": "7d7d2c961f8cdfed093ef484f7ca509001d599251e186be6eed19dd7ed7499b1",
+              "image": "D:\\Nafion-RAG\\tmp\\pdfs\\occurrence_review_20260914\\13-p4.png"
+            }
+          ],
+          "page_mapping_status": "unique_line_match"
+        }
+      ],
+      "review_status": "assistant_pdf_reviewed",
+      "verdict": "acceptable",
+      "rationale": "Sanginov PDF p. 3 has uncertainty not exceeding 1-1.5 percent. PDF p. 4 gives calculation error at most 1.5 percent for bond angles. Accept removal of unqualified scalar 1.5 percent; restoring this cap-omitted occurrence without its bound would be incorrect."
+    }
+  ]
+}

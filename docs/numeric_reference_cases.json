@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "independent_review": false,
+  "labels": [
+    {
+      "id": "figure_mass",
+      "chunk_id": "bbb70c05-9857-4323-b763-eacc522a6a43",
+      "direction": "added",
+      "candidate": {
+        "article_id": "516d66d5-413d-469b-9b48-f649c1b17b58",
+        "source_chunk_id": "bbb70c05-9857-4323-b763-eacc522a6a43",
+        "entity_type": "numeric_measurement",
+        "field_name": "mass_or_density",
+        "field_value_text": "5g",
+        "field_value_numeric": "5",
+        "unit": "g",
+        "confidence": "0.60",
+        "source": "rule_based_numeric_v1"
+      },
+      "article_checksum": "d11f2fb94662ba9d7e2e72265d46c826c767399f86a326052d655436b5efe631",
+      "page": 7,
+      "text_layer": "original",
+      "start": 3294,
+      "text": "k Li||LFP half cells at a slightly higher cycling rate \n(0.5 C, 1 mA cm−2). As demonstrated in Fig. 5g, the highly conduc-\ntive electrolytes, F3DEE, F4DEE and F5DEE, resulted in stable \ncycling with hig",
+      "text_sha256": "152509c5d91aead5a8d6016f400fa65328cae00924ad9fc27bf6b1176a853dfe",
+      "verdict": "blocker",
+      "review_status": "assistant_pdf_reviewed",
+      "rationale": "Figure panel reference, not mass."
+    },
+    {
+      "id": "figure_temperature",
+      "chunk_id": "bbb70c05-9857-4323-b763-eacc522a6a43",
+      "direction": "added",
+      "candidate": {
+        "article_id": "516d66d5-413d-469b-9b48-f649c1b17b58",
+        "source_chunk_id": "bbb70c05-9857-4323-b763-eacc522a6a43",
+        "entity_type": "numeric_measurement",
+        "field_name": "numeric_value",
+        "field_value_text": "5k",
+        "field_value_numeric": "5",
+        "unit": "k",
+        "confidence": "0.60",
+        "source": "rule_based_numeric_v1"
+      },
+      "article_checksum": "d11f2fb94662ba9d7e2e72265d46c826c767399f86a326052d655436b5efe631",
+      "page": 7,
+      "text_layer": "original",
+      "start": 5369,
+      "text": "aster con-\nducting F4DEE electrolyte outperformed F5DEE, enabling 80–90 \ncycles before fading (Fig. 5k). These fast-cycling conditions are \nharsh for low-cost microparticle-LFP-based anode-free pouch ce",
+      "text_sha256": "e57be52becbba0db5b39cb209c5631a6a92702374198aed43d9dd600f322adcf",
+      "verdict": "blocker",
+      "review_status": "assistant_pdf_reviewed",
+      "rationale": "Figure panel reference, not temperature."
+    },
+    {
+      "id": "deformation_rate",
+      "chunk_id": "af5a561e-e266-4374-9499-664c11d44c60",
+      "direction": "added",
+      "candidate": {
+        "article_id": "80e14389-bff9-4733-9f33-3a5b22678a99",
+        "source_chunk_id": "af5a561e-e266-4374-9499-664c11d44c60",
+        "entity_type": "numeric_measurement",
+        "field_name": "length",
+        "field_value_text": "10 mm",
+        "field_value_numeric": "10",
+        "unit": "mm",
+        "confidence": "0.60",
+        "source": "rule_based_numeric_v1"
+      },
+      "article_checksum": "9a716f6b4522437df79fa3688090573f6f3aba3cc3700886ede00760968ba2bf",
+      "page": 3,
+      "text_layer": "original",
+      "start": 357,
+      "text": "0% RH. The membranes were cut into\nrectangular samples and tested at a constant deformation rate of\n10 mm min\u00011.\n2.7. Single cell test\nA self-made VRB single cell was fabricated by clamping two\npieces of g",
+      "text_sha256": "422cd82069a5975bc81812912788abfe8f64329ef66b7813b76ce8e9df180762",
+      "verdict": "blocker",
+      "review_status": "assistant_pdf_reviewed",
+      "rationale": "PDF gives deformation rate 10 mm min⁻¹; not standalone length. Stored inverse suffix contains escaped control glyph."
+    }
+  ]
+}
