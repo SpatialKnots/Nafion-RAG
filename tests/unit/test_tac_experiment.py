@@ -141,6 +141,35 @@ def test_new_conclusion_stop_variants_exclude_non_results(stop):
     assert [item.quote for item in sections] == ["Measured result.\n"]
 
 
+@pytest.mark.parametrize("stop", [
+    "Conﬂicts of interest", "Conﬂict of interest", "5. Conﬂicts of interest: No conflicts declared.",
+    "CRediT author statement", "CRediT authorship contribution statement",
+])
+def test_source_ligature_and_credit_stops_keep_exact_scientific_quote(stop):
+    from scripts.tac_experiment import STOP
+    from scripts.tac_front_matter import layout_stop
+
+    text = f"Conclusions\nA ﬂuorinated solvent gave ﬁnite conductivity.\n{stop}\nAuthor roles or declarations.\n"
+    source = page(text)
+    sections, _ = heading_spans([source])
+    assert [s.quote for s in sections] == ["A ﬂuorinated solvent gave ﬁnite conductivity.\n"]
+    assert source["text"] == text
+    assert all(text[s.start:s.end] == s.quote for s in sections)
+    assert layout_stop(stop, STOP)
+
+
+@pytest.mark.parametrize("prose", [
+    "We discuss conﬂicts of interest in interpretation.",
+    "Conﬂicts of interest affect the interpretation of these results.",
+    "The CRediT author statement is described elsewhere.",
+    "CRediT author statements may vary across publishers.",
+])
+def test_stop_mentions_in_body_do_not_truncate_conclusions(prose):
+    text = f"Conclusions\nFirst result.\n{prose}\nLast result.\nReferences\nCitation.\n"
+    sections, _ = heading_spans([page(text)])
+    assert [s.quote for s in sections] == [f"First result.\n{prose}\nLast result.\n"]
+
+
 def test_full_paper_summary_is_bounded_by_exact_layout_not_surrounding_body():
     text = "Introduction\nBody precedes summary in extraction order.\nFull Paper: Summary.\nFooter.\n"
     begin = text.index("Full Paper")

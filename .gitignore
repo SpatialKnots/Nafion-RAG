@@ -25,3 +25,18 @@ output/baselines/
 /tmp/
 /data/reviews/
 node_modules/
+
+# Local runtime logs and presentation build intermediates.
+/server.err.log
+/server.out.log
+/presentations/ariadne_v1_1/.chart-data-*/
+/presentations/ariadne_v1_1/build/*
+!/presentations/ariadne_v1_1/build/create_deck.mjs
+!/presentations/ariadne_v1_1/build/deck-content.txt
+# Separate Sites repository; preserve its own Git history locally.
+/presentations/ariadne-box-site/
+
+# Handoff archives and corpus exports contain local literature evidence.
+/handoffs/*.zip
+/handoffs/**/history/*.zip
+/handoffs/**/evidence/*.json

@@ -1,0 +1,96 @@
+{
+  "project": "ARIADNE",
+  "version": "1.1",
+  "date": "2026-10-06",
+  "timezone": "Asia/Yekaterinburg",
+  "status": "Optimized concept; targets unachieved; no procurement or submission",
+  "entrypoint": "00_START_HERE.md",
+  "source_archive_sha256": "d24b9754c713ee294ceea2909742fbb187792cdd999a34e06c5cba78dbc2b1e5",
+  "scope": "Documents and selected historical evidence; not source-code/database/PDF backup",
+  "manifest_exclusions": [
+    "MANIFEST.json",
+    "SHA256SUMS.txt"
+  ],
+  "files": [
+    {
+      "path": "00_START_HERE.md",
+      "bytes": 3896,
+      "sha256": "2950a2d3c6a0edad9476f48cf970938e38912f1d7cb32d54e3617baa0b9ceb83"
+    },
+    {
+      "path": "01_PROJECT_CONCEPT.md",
+      "bytes": 5145,
+      "sha256": "71996ca89bce58107aa0c17f36f81fc0ed3faaa75e527ffb62558d4371e820d7"
+    },
+    {
+      "path": "02_GRANT_CORE_AND_KPI.md",
+      "bytes": 9276,
+      "sha256": "6786c9d96490cdef51836d0844ccbd314f5f3f3aeb531a158b667944d50ad391"
+    },
+    {
+      "path": "03_PRODUCT_AND_COMMERCIALIZATION.md",
+      "bytes": 5090,
+      "sha256": "f52b8d6caa90dab0b3b615eda3d26e8178160abf9365c9bb0ea2940d1c7b875d"
+    },
+    {
+      "path": "04_ARCHITECTURE_AND_IP.md",
+      "bytes": 6583,
+      "sha256": "3201b1ac37917cc709d08e2c4d5dcce6069b043e2765ba3de878ebc426c22b1d"
+    },
+    {
+      "path": "05_HARDWARE_AND_BUDGET.md",
+      "bytes": 7026,
+      "sha256": "3f108f8611aef88eea470719af4aaa2d566420b78586d326f25133bd6a640b8e"
+    },
+    {
+      "path": "06_ROADMAP_AND_TEAM.md",
+      "bytes": 4854,
+      "sha256": "919f28d0a6856ca1df67fccdec9a3f063cecf52516f0c9d13c55e38dc40f0062"
+    },
+    {
+      "path": "07_IHTT_ONE_PAGE_MEMO.md",
+      "bytes": 4295,
+      "sha256": "360fb6075bcab952d55a30193bbc38f9165c0218d26c9172bbb4846be692621d"
+    },
+    {
+      "path": "08_DECISIONS_AND_RISKS.md",
+      "bytes": 3484,
+      "sha256": "7fe88e05b812c2fead0261287fc8fed24b235b7c252fbc054418b5a9e1aa4d88"
+    },
+    {
+      "path": "09_CURRENT_STATE_AND_EVIDENCE.md",
+      "bytes": 3368,
+      "sha256": "35f8c602e8c9e55e7c912d13348d60ed54dc93fa07193f4a8b5285e0f538ac1f"
+    },
+    {
+      "path": "CHANGELOG_v1_1.md",
+      "bytes": 2518,
+      "sha256": "cc6d50611e1ed6204e4394bf69e1861ed3cdc34ad5b88cb34f8c4f682bc38a3f"
+    },
+    {
+      "path": "evidence/ariadne_readiness_audit_2026-10-06.md",
+      "bytes": 10057,
+      "sha256": "a4d65e4c4869b309278c420c3bcc72089cc38551d32e867dcb00bd2c2ffc485b"
+    },
+    {
+      "path": "evidence/corpus_report_20261006T052446Z.json",
+      "bytes": 17915,
+      "sha256": "593eb397fa130cc32ff5d3fbe9c3330e6b337b0575ef60b7212772667aee9aa9"
+    },
+    {
+      "path": "evidence/retrieval_eval_extended_hybrid_20261006T052657Z.json",
+      "bytes": 952228,
+      "sha256": "87502aeb31d4353a711890e8aa7ffe005d4a45a39bae86b350e61f8f8d377729"
+    },
+    {
+      "path": "history/v1_0_original.zip",
+      "bytes": 309504,
+      "sha256": "d24b9754c713ee294ceea2909742fbb187792cdd999a34e06c5cba78dbc2b1e5"
+    },
+    {
+      "path": "MASTER_HANDOFF.md",
+      "bytes": 4265,
+      "sha256": "74bf2e6f78869c73869386c4eed2d5b6a898173e684284f783ebc1ded6ba045b"
+    }
+  ]
+}

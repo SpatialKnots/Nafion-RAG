@@ -21,7 +21,7 @@ from app.evaluation.retrieval import _evaluate_extended_question, load_extended_
 from app.retrieval.cross_lingual import build_query_bundle
 from app.retrieval.search import SearchResponse, SearchResult, search_chunks
 
-RULE_VERSION = "tac_section_proposals_v0.5"
+RULE_VERSION = "tac_section_proposals_v0.6"
 ABSTRACT = re.compile(
     r"^\s*(?:abstract|a\s+b\s+s\s+t\s+r\s+a\s+c\s+t|аннотация|реферат|full\s+paper)(?=\s|[:.–-]|$)\s*[:.–-]?\s*", re.I,
 )
@@ -33,10 +33,10 @@ STOP = re.compile(
     r"^\s*(?:\d+(?:\.\d+)*[.)]?\s*)?(?:introduction|введение|experimental(?:\s+.*)?|materials\s+and\s+methods|"
     r"results(?:\s+and\s+discussion)?|discussion|references(?:\s+and\s+notes)?|literature\s+cited|"
     r"литература|список\s+литературы|благодарности|"
-    r"acknowledg(?:e)?ments?|author\s+contributions|funding|conflicts?\s+of\s+interest|methods|"
+    r"acknowledg(?:e)?ments?|author\s+contributions|funding|con(?:fl|ﬂ)icts?\s+of\s+interest|methods|"
     r"финансирование\s+работы|конфликт\s+интересов|registry\s+no|"
     r"associated\s+content|additional\s+information|online\s+content|оглавление|место\s+выполнения\s+работы|"
-    r"declaration\s+of\s+competing\s+interest|credit\s+authorship\s+contribution\s+statement|"
+    r"declaration\s+of\s+competing\s+interest|credit\s+(?:authorship\s+contribution|author)\s+statement|"
     r"data\s+availability(?:\s+.*)?|supporting\s+information|supplementary\s+(?:materials|information)|"
     r"keywords?\s*:.*|ключевые\s+слова\s*:.*)\s*(?:[.:]\s*.*)?$", re.I,
 )

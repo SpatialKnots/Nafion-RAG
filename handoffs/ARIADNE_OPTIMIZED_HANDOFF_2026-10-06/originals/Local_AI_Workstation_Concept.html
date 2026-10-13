@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Локальная AI-станция — конфигурация и концепция hybrid local + GPT API</title>
+<style>
+:root{
+  --bg:#0b1020;
+  --panel:#121a2d;
+  --panel2:#17223b;
+  --line:#293754;
+  --text:#eaf0ff;
+  --muted:#9fb0ce;
+  --accent:#7db0ff;
+  --accent2:#7be0c3;
+  --warn:#f0c96b;
+  --good:#8ee59f;
+  --danger:#ff9b9b;
+  --chip:#1c2b49;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:linear-gradient(180deg,#09101d 0%,#0b1020 100%);
+  color:var(--text);
+  font-family:Inter,Segoe UI,Arial,sans-serif;
+  line-height:1.55;
+}
+a{color:#9ec5ff;text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1220px;margin:0 auto;padding:32px 24px 64px}
+.hero{
+  background:
+    radial-gradient(circle at 90% 0%, rgba(125,176,255,.18), transparent 35%),
+    radial-gradient(circle at 0% 100%, rgba(123,224,195,.12), transparent 30%),
+    var(--panel);
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:32px;
+  box-shadow:0 20px 60px rgba(0,0,0,.22);
+}
+.eyebrow{color:var(--accent2);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+h1{font-size:clamp(32px,5vw,58px);line-height:1.02;margin:8px 0 18px}
+.lead{font-size:18px;color:#c8d4eb;max-width:920px}
+.badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.badge{background:var(--chip);border:1px solid var(--line);padding:8px 12px;border-radius:999px;color:#dbe7ff;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px;margin-top:20px}
+.card{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:22px;
+}
+.card h2,.card h3{margin-top:0}
+.kpi{grid-column:span 3}
+.kpi .v{font-size:30px;font-weight:800;margin-top:2px}
+.kpi .s{color:var(--muted);font-size:13px}
+.full{grid-column:1/-1}
+.half{grid-column:span 6}
+.third{grid-column:span 4}
+@media(max-width:900px){.kpi,.half,.third{grid-column:1/-1}}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{text-align:left;color:#b9c8e2;font-size:13px}
+td.price{text-align:right;white-space:nowrap;font-weight:700}
+.total td{border-top:2px solid #3b4d72;font-weight:800;font-size:16px}
+.note{color:var(--muted);font-size:14px}
+.callout{
+  border-left:4px solid var(--accent);
+  background:#101a30;
+  padding:15px 17px;
+  border-radius:10px;
+  margin:12px 0;
+}
+.callout.green{border-left-color:var(--accent2)}
+.callout.warn{border-left-color:var(--warn)}
+ul{padding-left:20px}
+li{margin:6px 0}
+.arch{
+  display:grid;
+  grid-template-columns:1fr auto 1fr auto 1fr;
+  align-items:center;
+  gap:14px;
+  margin-top:18px;
+}
+.node{
+  background:var(--panel2);
+  border:1px solid #354565;
+  border-radius:16px;
+  padding:18px;
+  min-height:142px;
+}
+.node strong{display:block;font-size:17px;margin-bottom:8px}
+.arrow{font-size:30px;color:var(--accent)}
+@media(max-width:900px){
+  .arch{grid-template-columns:1fr}
+  .arrow{transform:rotate(90deg);text-align:center}
+}
+.flow{
+  display:grid;
+  gap:12px;
+  counter-reset:step;
+}
+.step{
+  position:relative;
+  padding:16px 16px 16px 54px;
+  background:var(--panel2);
+  border:1px solid var(--line);
+  border-radius:14px;
+}
+.step:before{
+  counter-increment:step;
+  content:counter(step);
+  position:absolute;
+  left:16px;top:14px;
+  width:26px;height:26px;
+  display:grid;place-items:center;
+  border-radius:50%;
+  background:#24385f;
+  color:#fff;font-weight:800;
+}
+code{
+  background:#0a1325;
+  border:1px solid #263856;
+  border-radius:7px;
+  padding:2px 6px;
+  color:#bfe0ff;
+}
+.stack{display:flex;gap:8px;flex-wrap:wrap}
+.stack span{background:#152542;border:1px solid #2a4169;padding:7px 10px;border-radius:9px;font-size:13px}
+.footer{margin-top:24px;color:#8092b2;font-size:13px;text-align:center}
+.small{font-size:12px;color:#8092b2}
+.status{
+  display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700
+}
+.status.fixed{background:rgba(142,229,159,.12);color:var(--good);border:1px solid rgba(142,229,159,.28)}
+.status.plan{background:rgba(125,176,255,.12);color:#bcd7ff;border:1px solid rgba(125,176,255,.28)}
+.section-title{margin:34px 0 10px;font-size:26px}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+
+.buy-links a{
+  display:inline-block;
+  margin:2px 0;
+  padding:3px 7px;
+  border:1px solid #304567;
+  border-radius:7px;
+  background:#101c33;
+  font-size:12px;
+  white-space:nowrap;
+}
+.buy-links a:hover{background:#172846;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<div class="eyebrow">Project passport • 24.09.2026</div>
+<h1>Локальная AI-станция<br/>Hybrid Local + GPT API</h1>
+<p class="lead">Рабочая станция примерно до 500 000 ₽ для локального запуска больших LLM, RAG, научного Python-кода и вычислительных задач. Пользователь сам выбирает уровень обработки: локальная модель для повседневной работы, GPT API для сложных задач или режим проверки, где локальный результат дополнительно отправляется GPT как экспертному слою.</p>
+<div class="badges">
+<span class="badge">AMD EPYC SP3</span>
+<span class="badge">2× Palit RTX 3090 GamingPro 24 GB</span>
+<span class="badge">256 GB ECC RDIMM</span>
+<span class="badge">Ubuntu Linux</span>
+<span class="badge">User-selected routing</span>
+<span class="badge">RAG + GPT API</span>
+</div>
+</section><section id="local-models-section">
+<h2 class="section-title">1. Какие модели эта станция сможет нормально запускать локально</h2>
+<div class="card">
+<p style="font-size:17px;margin-top:0">
+      Конфигурация <strong>2× Palit RTX 3090 GamingPro 24 GB + 256 GB ECC RAM</strong> особенно хорошо подходит
+      для моделей класса <strong>24–32B</strong>: в 4-битной квантизации они обычно помещаются
+      целиком в одну RTX 3090, оставляя вторую GPU свободной для параллельной задачи, embeddings,
+      второго пользователя или другого экземпляра модели. Модели класса <strong>70B</strong>
+      уже имеет смысл распределять между обеими RTX 3090.
+    </p>
+<div class="callout green">
+<strong>Практический центр сборки — 30–32B.</strong>
+      Это тот класс, где уже получается заметно более сильная локальная модель, но без необходимости
+      постоянно использовать CPU-offload. Для повседневной работы я бы начинал именно с Qwen3-32B
+      или Qwen3-30B-A3B, а GPT API оставлял для запросов, которые ты сам помечаешь как экспертные.
+    </div>
+<table class="models-table">
+<thead>
+<tr>
+<th>Модель</th>
+<th>Параметры</th>
+<th>Практичный формат</th>
+<th>Размещение</th>
+<th>Ориентир по VRAM</th>
+<th>Роль на станции</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-32B" rel="noopener noreferrer" target="_blank"><strong>Qwen3-32B</strong></a></td>
+<td>32.8B</td>
+<td>4-bit / Q4</td>
+<td><span class="status fixed">1× RTX 3090</span></td>
+<td>≈19–22 GB*</td>
+<td>Основная универсальная локальная модель: диалог, русский/английский, код, reasoning, работа с инструментами.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-30B-A3B" rel="noopener noreferrer" target="_blank"><strong>Qwen3-30B-A3B</strong></a></td>
+<td>30B total / ~3B active</td>
+<td>4-bit / Q4</td>
+<td><span class="status fixed">1× RTX 3090</span></td>
+<td>≈18–21 GB*</td>
+<td>Быстрый MoE-вариант для ежедневного ассистента, агентов и большого числа коротких запросов.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-32B" rel="noopener noreferrer" target="_blank"><strong>DeepSeek-R1-Distill-Qwen-32B</strong></a></td>
+<td>32B</td>
+<td>4-bit / Q4</td>
+<td><span class="status fixed">1× RTX 3090</span></td>
+<td>≈19–22 GB*</td>
+<td>Отдельная reasoning-модель для математики, логики, расчётов и сложных технических рассуждений.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503" rel="noopener noreferrer" target="_blank"><strong>Mistral Small 3.1 24B</strong></a></td>
+<td>24B</td>
+<td>4–5 bit</td>
+<td><span class="status fixed">1× RTX 3090</span></td>
+<td>≈14–18 GB*</td>
+<td>Быстрая универсальная модель, включая vision-сценарии; хороший вариант для документов и интерфейсного ассистента.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/google/gemma-3-27b-it" rel="noopener noreferrer" target="_blank"><strong>Gemma 3 27B IT</strong></a></td>
+<td>27B</td>
+<td>4-bit / Q4</td>
+<td><span class="status fixed">1× RTX 3090</span></td>
+<td>≈16–19 GB*</td>
+<td>Универсальная мультимодальная модель: текст + изображения; удобна как локальный vision-assistant.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct" rel="noopener noreferrer" target="_blank"><strong>Llama 3.3 70B Instruct</strong></a></td>
+<td>70B</td>
+<td>4-bit / Q4</td>
+<td><span class="status plan">2× RTX 3090</span></td>
+<td>≈40–45 GB* суммарно</td>
+<td>Тяжёлая локальная модель более высокого класса. Требует шардирования между двумя GPU; разумный контекст оставляет запас под KV-cache.</td>
+</tr>
+</tbody>
+</table>
+<p class="note">
+      * Оценки VRAM ориентировочные: реальное потребление зависит от конкретной квантизации
+      (GGUF/AWQ/GPTQ/EXL2), runtime, размера KV-cache и длины контекста.
+      Это не паспортные требования производителя, а практический ориентир для планирования конфигурации.
+    </p>
+<div class="grid" style="margin-top:18px">
+<div class="card third" style="background:var(--panel2)">
+<h3>Самый комфортный класс</h3>
+<div style="font-size:30px;font-weight:800">24–32B</div>
+<p class="note">Одна RTX 3090 на модель. Можно держать вторую карту свободной либо запускать второй сервис.</p>
+</div>
+<div class="card third" style="background:var(--panel2)">
+<h3>Максимум без CPU-offload</h3>
+<div style="font-size:30px;font-weight:800">≈70B Q4</div>
+<p class="note">Шардирование на 2×24 GB. Контекст и KV-cache нужно настраивать разумно.</p>
+</div>
+<div class="card third" style="background:var(--panel2)">
+<h3>256 GB RAM нужны не зря</h3>
+<div style="font-size:30px;font-weight:800">RAG + offload</div>
+<p class="note">Большие индексы, несколько сервисов и экспериментальный CPU-offload моделей крупнее GPU-класса.</p>
+</div>
+</div>
+<div class="callout warn">
+<strong>Что я не считаю режимом «без проблем»:</strong>
+      модели существенно крупнее 70B. 256 GB RAM позволяют экспериментировать с CPU-offload,
+      но скорость уже будет заметно ниже, поэтому такие модели не стоит считать основной целью этой сборки.
+    </div>
+</div>
+</section>
+<div class="grid">
+<div class="card kpi">
+<div class="s">Текущая смета</div>
+<div class="v">≈433 597 ₽</div>
+<div class="s">без UPS и необязательных аксессуаров</div>
+</div>
+<div class="card kpi">
+<div class="s">VRAM</div>
+<div class="v">48 GB</div>
+<div class="s">2×24 GB, не единый физический пул</div>
+</div>
+<div class="card kpi">
+<div class="s">RAM</div>
+<div class="v">256 GB</div>
+<div class="s">4×64 GB ECC RDIMM, апгрейд до 512 GB</div>
+</div>
+<div class="card kpi">
+<div class="s">Остаток до 500k</div>
+<div class="v">≈66 403 ₽</div>
+<div class="s">UPS, кабели, райзеры, второй SSD</div>
+</div>
+</div>
+<h2 class="section-title">2. Текущая аппаратная конфигурация</h2>
+<section class="card">
+<table>
+<thead>
+<tr>
+<th>Компонент</th><th>Ссылки / варианты</th>
+<th>Текущий выбор</th>
+<th>Статус</th>
+<th style="text-align:right">Цена</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPU #1</td>
+<td><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/videokarta_palit_geforce_rtx3090_gaming_pro_24_gb_8318053566" rel="noopener noreferrer" target="_blank">Palit RTX 3090 GamingPro 24 GB</a><br/><span class="small">целевая одинаковая пара: 2× одна и та же модель</span></td><td><div class="buy-links"><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/videokarta_palit_geforce_rtx3090_gaming_pro_24_gb_8318053566" rel="noopener noreferrer" target="_blank">GamingPro — 95 000 ₽</a><br/><a href="https://www.avito.ru/rossiya/tovary_dlya_kompyutera?q=Palit%20RTX%203090%20GamingPro%2024GB" rel="noopener noreferrer" target="_blank">Поиск второй GamingPro</a><br/><a href="https://www.avito.ru/ekaterinburg/tovary_dlya_kompyutera/videokarta_palit_rtx_3090_24gb_gaming_pro_oc_8302776249" rel="noopener noreferrer" target="_blank">GamingPro OC — 98 990 ₽</a></div></td>
+<td><span class="status fixed">целевая пара</span></td>
+<td class="price">95 000 ₽</td>
+</tr>
+<tr>
+<td>GPU #2</td>
+<td><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/videokarta_palit_geforce_rtx3090_gaming_pro_24_gb_8318053566" rel="noopener noreferrer" target="_blank">Palit RTX 3090 GamingPro 24 GB</a><br/><span class="small">целевая одинаковая пара: 2× одна и та же модель</span></td><td><div class="buy-links"><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/videokarta_palit_geforce_rtx3090_gaming_pro_24_gb_8318053566" rel="noopener noreferrer" target="_blank">GamingPro — 95 000 ₽</a><br/><a href="https://www.avito.ru/rossiya/tovary_dlya_kompyutera?q=Palit%20RTX%203090%20GamingPro%2024GB" rel="noopener noreferrer" target="_blank">Поиск второй GamingPro</a><br/><a href="https://www.avito.ru/ekaterinburg/tovary_dlya_kompyutera/videokarta_palit_rtx_3090_24gb_gaming_pro_oc_8302776249" rel="noopener noreferrer" target="_blank">GamingPro OC — 98 990 ₽</a></div></td>
+<td><span class="status fixed">целевая пара</span></td>
+<td class="price">95 000 ₽</td>
+</tr>
+<tr>
+<td>CPU</td>
+<td><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/protsessor_amd_epyc_7402p_100-100000048_100-100000048_3587599077">AMD EPYC 7402P, 24C/48T</a></td><td><div class="buy-links"><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/protsessor_amd_epyc_7402p_100-100000048_100-100000048_3587599077" rel="noopener noreferrer" target="_blank">Москва — 14 987 ₽</a><br/><a href="https://www.avito.ru/krasnoyarsk/tovary_dlya_kompyutera/protsessor_servernyy_24-core_amd_epyc_7402p_2.8ghz_8022670800" rel="noopener noreferrer" target="_blank">Красноярск — 25 000 ₽</a><br/><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/protsessor_amd_epyc_7402p_sp3_lga_24x2.8ghz_2941469049" rel="noopener noreferrer" target="_blank">Москва — 34 200 ₽</a></div></td>
+<td><span class="status fixed">зафиксировано</span></td>
+<td class="price">14 987 ₽</td>
+</tr>
+<tr>
+<td>Материнская плата</td>
+<td><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/mbd-h12ssl-i-b_materinskaya_plata_supermicro_8258552022">Supermicro H12SSL-I</a></td><td><div class="buy-links"><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/mbd-h12ssl-i-b_materinskaya_plata_supermicro_8258552022" rel="noopener noreferrer" target="_blank">Москва — 73 800 ₽</a><br/><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/materinskaya_plata_supermicro_mbd-h12ssl-i-b_2361440620" rel="noopener noreferrer" target="_blank">Москва — 76 931 ₽</a><br/><a href="https://www.avito.ru/sankt-peterburg/tovary_dlya_kompyutera/supermicro_mbd-h12ssl-i-b_intelligent_platform_7205376587" rel="noopener noreferrer" target="_blank">СПб — 77 990 ₽</a></div></td>
+<td><span class="status fixed">основной кандидат</span></td>
+<td class="price">73 800 ₽</td>
+</tr>
+<tr>
+<td>RAM</td>
+<td><a href="https://www.avito.ru/ekaterinburg/tovary_dlya_kompyutera/samsung_64gb_2rx4_pc4-3200aa_reg_ecc_256gb_8344229096">Samsung M393A8G40AB2-CWEBY, 4×64 GB DDR4-3200 ECC RDIMM</a></td><td><div class="buy-links"><a href="https://www.avito.ru/ekaterinburg/tovary_dlya_kompyutera/samsung_64gb_2rx4_pc4-3200aa_reg_ecc_256gb_8344229096" rel="noopener noreferrer" target="_blank">Комплект 4×64 — 60 000 ₽</a><br/><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/servernaya_pamyat_samsung_m393a8g40ab2-cweby_8283213202" rel="noopener noreferrer" target="_blank">M393A8G40AB2-CWEBY — 65 000 ₽</a><br/><a href="https://www.avito.ru/rossiya/tovary_dlya_kompyutera?q=M393A8G40AB2-CWEBY" rel="noopener noreferrer" target="_blank">Поиск точной модели</a></div></td>
+<td><span class="status fixed">зафиксировано</span></td>
+<td class="price">60 000 ₽</td>
+</tr>
+<tr>
+<td>SSD</td>
+<td><a href="https://www.avito.ru/barnaul/tovary_dlya_kompyutera/novyy_ssd_kingston_kc3000_2tb_pcie_4_m.2_garantiya_7894489445">Kingston KC3000 2 TB NVMe</a></td><td><div class="buy-links"><a href="https://www.avito.ru/barnaul/tovary_dlya_kompyutera/novyy_ssd_kingston_kc3000_2tb_pcie_4_m.2_garantiya_7894489445" rel="noopener noreferrer" target="_blank">Новый, Барнаул — 25 000 ₽</a><br/><a href="https://www.avito.ru/krasnodar/tovary_dlya_kompyutera/ssd_m2_kingston_kc3000_2tb_8252844854" rel="noopener noreferrer" target="_blank">Почти новый — 17 000 ₽</a><br/><a href="https://www.avito.ru/sankt-peterburg/tovary_dlya_kompyutera/2000_gb_m.2_nvme_nakopitel_kc3000_skc3000d2048g_8307536678" rel="noopener noreferrer" target="_blank">СПб — 35 408 ₽</a></div></td>
+<td><span class="status fixed">зафиксировано</span></td>
+<td class="price">25 000 ₽</td>
+</tr>
+<tr>
+<td>Блок питания</td>
+<td><a href="https://www.regard.ru/product/796274/blok-pitaniia-1600w-seasonic-prime-px-1600-atx-31">Seasonic PRIME PX-1600 ATX 3.1, 1600 W, Platinum</a></td><td><div class="buy-links"><a href="https://www.regard.ru/product/796274/blok-pitaniia-1600w-seasonic-prime-px-1600-atx-31" rel="noopener noreferrer" target="_blank">PX-1600 — Регард</a><br/><a href="https://www.regard.ru/product/708883/blok-pitaniia-1600w-seasonic-prime-tx-1600-atx-31" rel="noopener noreferrer" target="_blank">TX-1600 — Регард</a><br/><a href="https://www.technocity.ru/catalog/detail/1859363/" rel="noopener noreferrer" target="_blank">TX-1600 — ТехноСити</a></div></td>
+<td><span class="status plan">текущий основной</span></td>
+<td class="price">43 300 ₽</td>
+</tr>
+<tr>
+<td>Кулер CPU</td>
+<td><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/arctic_freezer_4u-m_rev._2_sp3_8403404397">ARCTIC Freezer 4U-M Rev.2 SP3</a></td><td><div class="buy-links"><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/arctic_freezer_4u-m_rev._2_sp3_8403404397" rel="noopener noreferrer" target="_blank">Rev.2 SP3 — 5 500 ₽</a><br/><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/nabor_2sht_acfre00133b_kuler_arctic_freezer_4u-m_rev_7345051371" rel="noopener noreferrer" target="_blank">2× ACFRE00133B — 10 362 ₽</a><br/><a href="https://www.arctic.de/en/Freezer-4U-M-Rev.-2/ACFRE00133B" rel="noopener noreferrer" target="_blank">ARCTIC — спецификация</a></div></td>
+<td><span class="status fixed">выбран</span></td>
+<td class="price">5 500 ₽</td>
+</tr>
+<tr>
+<td>Корпус</td>
+<td><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/korpus_phanteks_enthoo_pro_2_server_edition_ph-es620pc_bk02_8385720581">Phanteks Enthoo Pro 2 Server Edition</a></td><td><div class="buy-links"><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/korpus_phanteks_enthoo_pro_2_server_edition_ph-es620pc_bk02_8385720581" rel="noopener noreferrer" target="_blank">Москва — 16 480 ₽</a><br/><a href="https://www.avito.ru/moskva/tovary_dlya_kompyutera/korpus_full-tower_phanteks_enthoo_pro_2_server_edition_xl-atx_e-atx_chernyy_ph-es620pc_bk02_ru_8323625935" rel="noopener noreferrer" target="_blank">Москва — 16 789 ₽</a><br/><a href="https://www.avito.ru/sankt-peterburg_pushkin/tovary_dlya_kompyutera/korpus_phanteks_enthoo_pro_2_server_edition_black_8345596736" rel="noopener noreferrer" target="_blank">Пушкин — 23 900 ₽</a></div></td>
+<td><span class="status fixed">выбран</span></td>
+<td class="price">16 480 ₽</td>
+</tr>
+<tr>
+<td>Корпусные вентиляторы</td>
+<td><a href="https://www.ozon.ru/product/ventilyator-dlya-korpusa-pk-arctic-p14-pro-pst-black-2978314488/">6× ARCTIC P14 Pro PST Black, 140 mm PWM</a></td><td><div class="buy-links"><a href="https://www.ozon.ru/product/ventilyator-dlya-korpusa-pk-arctic-p14-pro-pst-black-2978314488/" rel="noopener noreferrer" target="_blank">Ozon — P14 Pro PST</a><br/><a href="https://www.arctic.de/en/P14-Pro-PST/ACFAN00314A" rel="noopener noreferrer" target="_blank">ARCTIC — спецификация</a><br/><a href="https://www.ozon.ru/category/ventilyatory-kompyuternye-15731/arctic-80858456/?text=ARCTIC+P14" rel="noopener noreferrer" target="_blank">Ozon — поиск ARCTIC P14</a></div></td>
+<td><span class="status plan">план</span></td>
+<td class="price">4 530 ₽</td>
+</tr>
+<tr class="total">
+<td colspan="4">Итого</td>
+<td class="price">≈433 597 ₽</td>
+</tr>
+</tbody>
+</table><div class="callout green" id="identical-gpu-note"><strong>GPU-стратегия:</strong> целимся в две одинаковые Palit RTX 3090 GamingPro 24 GB. Так проще с физической компоновкой, охлаждением, power limit/undervolt и обслуживанием. Версию GamingPro OC оставляем только как запасной вариант, если вторую обычную GamingPro по сопоставимой цене найти не удастся.</div><p class="note" id="links-note">В колонке «Ссылки / варианты» основной выбранный вариант указан первым. Для позиций, где сохранено меньше трёх сопоставимых предложений, добавлена ссылка на точную модель/спецификацию или поиск по точному артикулу.</p>
+<div class="callout warn">
+<strong>Важно по VRAM:</strong> две RTX 3090 дают 48 GB суммарной видеопамяти,
+      но это не единый физический пул. Для моделей крупнее 24 GB необходим runtime,
+      умеющий шардировать веса между GPU.
+    </div>
+</section>
+<h2 class="section-title">3. Концепция машины</h2>
+<section class="card">
+<div class="arch">
+<div class="node">
+<strong>Пользователь / интерфейс</strong>
+        Open WebUI, браузер, CLI, Jupyter, API-клиенты.
+      </div>
+<div class="arrow">→</div>
+<div class="node">
+<strong>Router / Orchestrator</strong>
+        Получает выбранный пользователем режим, подключает RAG/инструменты и направляет запрос локальной модели, GPT API или в цепочку проверки.
+      </div>
+<div class="arrow">→</div>
+<div class="node">
+<strong>Исполнители</strong>
+        Local LLM + Python/Jupyter + RAG + GPT API.
+      </div>
+</div>
+<div class="callout green">
+      Базовый принцип: <strong>режим выбирает пользователь</strong>. По умолчанию можно работать локально, а для действительно сложных или важных задач вручную включать GPT API либо режим проверки локального ответа.
+    </div>
+<div class="callout green" id="manual-routing-note"><strong>Ключевое решение:</strong> сложность задачи задаёт пользователь. Router не принимает решение о необходимости GPT API самостоятельно.</div></section>
+<div class="grid">
+<section class="card half">
+<h3>Локально</h3>
+<ul>
+<li>обычные диалоги и справочные задачи;</li>
+<li>RAG по локальной базе документов;</li>
+<li>суммаризация, форматирование, извлечение данных;</li>
+<li>генерация и правка кода;</li>
+<li>первичный анализ таблиц, логов и текстов;</li>
+<li>подготовка промпта/контекста для внешнего эксперта;</li>
+<li>работа с чувствительными локальными данными без отправки наружу;</li>
+<li>научные Python/Jupyter-вычисления и детерминированные процедуры.</li>
+</ul>
+</section>
+<section class="card half">
+<h3>Через GPT API</h3>
+<ul>
+<li>сложное многошаговое планирование;</li>
+<li>критика и проверка локального ответа;</li>
+<li>методология научных расчётов;</li>
+<li>поиск противоречий и логических дыр;</li>
+<li>сложная работа с неоднозначными требованиями;</li>
+<li>финальная экспертная редактура важных результатов;</li>
+<li>задачи, где локальная модель не достигает заданного уровня уверенности.</li>
+</ul>
+</section>
+</div>
+<h2 class="section-title">4. Логика ручного выбора режима и передачи запросов в GPT API</h2>
+<section class="card">
+<div class="flow">
+<div class="step">
+<strong>Приём запроса.</strong> Router получает текст, вложения и метаданные режима.
+      </div>
+<div class="step">
+<strong>Выбор режима пользователем.</strong> Перед отправкой запроса пользователь выбирает: локальный ответ, GPT API, автоматическое подключение инструментов без оценки сложности или обязательную проверку локального ответа через GPT API.
+      </div>
+<div class="step">
+<strong>Попытка локального решения.</strong> Local LLM формирует первичный ответ,
+        при необходимости вызывает Python/Jupyter и извлекает контекст из RAG.
+      </div>
+<div class="step">
+<strong>Маршрутизация по выбранному режиму.</strong> Router не оценивает «сложность» сам. Он просто исполняет выбранный сценарий: local, expert или verify.
+      </div>
+<div class="step">
+<strong>Минимизация отправляемого контекста.</strong> В API передаётся только нужный фрагмент:
+        постановка задачи, релевантный RAG-контекст, промежуточный локальный результат и конкретная инструкция эксперту.
+      </div>
+<div class="step">
+<strong>Сведение результатов.</strong> Router объединяет локальный результат и ответ GPT API,
+        сохраняет источники/промежуточные результаты и возвращает финальный ответ пользователю.
+      </div>
+</div>
+<hr/>
+<h3>Предлагаемые ручные режимы</h3>
+<ul>
+<li><code>/local</code> — принудительно только локальная модель, без внешнего API;</li>
+<li><code>/expert</code> — сразу использовать GPT API как экспертный слой;</li>
+<li><code>/tools</code> — локальная модель + RAG/Python/Jupyter; Router сам подключает инструменты, но не решает, нужен ли GPT API;</li>
+<li><code>/verify</code> — локальный ответ формируется первым, затем обязательно проверяется GPT API.</li>
+</ul>
+</section>
+<h2 class="section-title">5. Предполагаемый software stack</h2>
+<section class="card">
+<div class="stack">
+<span>Ubuntu Linux native</span>
+<span>NVIDIA Driver</span>
+<span>CUDA</span>
+<span>llama.cpp</span>
+<span>vLLM</span>
+<span>SGLang</span>
+<span>Open WebUI</span>
+<span>FastAPI router</span>
+<span>Local RAG</span>
+<span>Python</span>
+<span>Jupyter</span>
+<span>GPT API</span>
+</div>
+<div class="callout">
+      На старте необязательно разворачивать все inference-runtime одновременно.
+      Практичный путь — начать с одного основного runtime, Open WebUI, RAG и простого FastAPI-router,
+      а затем добавлять второй runtime только при реальной необходимости.
+    </div>
+</section>
+<h2 class="section-title">6. Аппаратная логика платформы</h2>
+<div class="grid">
+<section class="card third">
+<h3>Почему EPYC SP3</h3>
+<ul>
+<li>много PCIe-линий;</li>
+<li>удобство multi-GPU;</li>
+<li>8 каналов DDR4;</li>
+<li>ECC RDIMM;</li>
+<li>серверная плата с IPMI/BMC.</li>
+</ul>
+</section>
+<section class="card third">
+<h3>Почему 2× RTX 3090</h3>
+<ul>
+<li>24 GB VRAM на карту;</li>
+<li>48 GB суммарно для шардирования;</li>
+<li>CUDA-экосистема;</li>
+<li>хорошая цена на вторичном рынке;</li>
+<li>возможность undervolt/power limit.</li>
+</ul>
+</section>
+<section class="card third">
+<h3>Почему 256 GB RAM</h3>
+<ul>
+<li>RAG и большие индексы;</li>
+<li>CPU-offload;</li>
+<li>научные задачи;</li>
+<li>контейнеры/сервисы;</li>
+<li>апгрейд 4×64 → 8×64 = 512 GB.</li>
+</ul>
+</section>
+</div>
+<h2 class="section-title">7. Проверки перед покупкой</h2>
+<section class="card">
+<ul>
+<li><strong>EPYC:</strong> CPU neutral/unlocked, без PSB vendor lock.</li>
+<li><strong>H12SSL-I:</strong> проверить официальный PCIe slot map, электрические режимы и физическое расстояние между слотами.</li>
+<li><strong>RTX 3090:</strong> OCCT VRAM, температура memory junction/hotspot, отсутствие артефактов и сбросов драйвера.</li>
+<li><strong>PSU:</strong> убедиться в полном комплекте независимых PCIe 6+2 pin кабелей.</li>
+<li><strong>Корпус:</strong> подтвердить реальный fit двух 2.7-slot GPU, кулера и длинного 1600-W PSU.</li>
+<li><strong>BIOS:</strong> Above 4G Decoding и настройки multi-GPU.</li>
+<li><strong>Электропитание:</strong> бытовая линия должна уверенно держать нагрузку порядка 1 кВт и выше.</li>
+</ul>
+</section>
+<h2 class="section-title">8. Что ещё не закрыто</h2>
+<section class="card">
+<ul>
+<li>окончательный физический compatibility audit по официальным мануалам;</li>
+<li>UPS — нужен ли сразу и какой мощности;</li>
+<li>нужны ли PCIe-райзеры/дополнительные крепления;</li>
+<li>второй SSD под модели, embeddings и RAG-кэш;</li>
+<li>финальная схема airflow и направление 6×140-mm вентиляторов;</li>
+<li>выбор основной локальной модели и формата квантизации;</li>
+<li>финальные правила ручного выбора режимов и лимиты расходов GPT API.</li>
+</ul>
+</section>
+<div class="footer">
+    Local AI Workstation • текущая рабочая версия проекта • 24 сентября 2026
+  </div>
+</div>
+</body>
+</html>

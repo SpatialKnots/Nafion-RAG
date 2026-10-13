@@ -4,247 +4,107 @@
 
 # ARIADNE
 
-Current planning: [дорожная карта проекта](docs/roadmap.md) — состояние реализации,
-ближайшие этапы и критерии готовности (сверка 2026-09-07).
+Локальная система для работы с научной литературой о Nafion/PFSA и связанных аккумуляторных материалах. Сохраняет оригинальные PDF, извлекает текст по страницам, строит фрагменты с привязкой к источнику и предоставляет поиск, просмотр доказательств и ответы с цитатами.
 
-Stage 3 update, 2026-09-09: [numeric scalar guards](docs/stage3_numeric_guards_2026-09-09.md)
-reject four source-verified extraction errors. Full pytest: 492 passed. Scientific
-acceptance remains open. A subsequent [PDF and cap review](docs/stage3_numeric_cap_review_2026-09-09.md)
-classified nine of 878 changes: five blockers, four acceptable, 869 unreviewed.
-The production cap remains 12; persisted facts have not been refreshed.
-The subsequent [glyph/unit fix](docs/stage3_numeric_glyph_fix_2026-09-09.md)
-rejects all seven historical false candidates in live source replay; 506 tests
-passed. Its regenerated diff has 939 unreviewed changes and remains unaccepted.
-Latest [figure-reference/rate fix](docs/stage3_numeric_reference_fix_2026-09-09.md):
-523 tests passed, 10/10 source-bound false candidates rejected; the regenerated
-diff has 981 unreviewed changes. Next work is occurrence and cap diagnostics.
+Состояние сверено с исходниками **13 октября 2026 года**. Версия Python-пакета — `0.1.0`; концепция проекта `v1.1` в презентациях не является версией программного релиза. Рабочая директория исторически называется `Nafion-RAG`.
 
-## Current Status — 2026-09-07
+## Что реализовано
 
-ARIADNE is in stage 2 of the [roadmap](docs/roadmap.md): retrieval quality
-evaluation. The core PDF ingestion, OCR, indexing, search and source-navigation
-workflow has passed an [integration acceptance check](docs/stage1_acceptance_2026-09-07.md).
-Full failure-recovery and scaling acceptance remain open.
+| Подсистема | Возможности в исходниках | Ограничения |
+| --- | --- | --- |
+| PDF ingestion | Импорт файла/папки через CLI, загрузка через UI/API, постоянные локальные библиотеки, очередь и worker | Нужны PostgreSQL, миграции и доступные файлы |
+| Текст и источники | PyMuPDF, OCRmyPDF, оригинальный/OCR/выбранный текстовый слой, детерминированные чанки, контроль PDF и ссылки на страницы | Ошибки OCR, повреждённые глифы и сложная геометрия PDF остаются возможны |
+| Retrieval | `exact`, `semantic`, `hybrid`, `hybrid_cross_lingual`, фильтры и группировка; локальные FastEmbed-векторы | Семантическим методам нужен индекс; ограничения группировки могут скрывать нужные фрагменты |
+| Индекс | Состояния и поколения индекса, очередь пересборки, фоновая пересборка и очистка поколений | Готовность текста и готовность векторного индекса различаются |
+| Ответы | OpenAI provider, проверка citation IDs, отказы по эвристике достаточности, mini-review по статьям | Цитата и прохождение эвристик не доказывают научную корректность утверждения |
+| Числовые кандидаты | Извлечение, source/context diagnostics, аудит изменений и локальный review UI | Научное принятие извлечения и массовое обновление фактов остаются открытыми |
+| Experimental records | Draft contract, точные source regions, manifests, проверка evidence integrity, review worksheets, локальный smoke и offline comparison | Development harness; автоматически принятые научные записи не реализованы |
+| TAC и Terms | Экспериментальные скрипты извлечения Title/Abstract/Conclusions, метаданных, аудита границ и предложений терминов; HTML review | Не подключены к production indexing; результаты требуют review |
 
-The checked local corpus contains 33 articles, 493 pages and 619 chunks.
-On the 46-question extended gold set, all four audited retrieval methods retained
-article Recall@10=1.0. The [grouping audit](docs/stage2_grouping_audit_2026-09-07.md)
-found that keeping one chunk per article can hide required semantic evidence:
-chunk Recall fell from 1.0 to 0.923077 across the 13 questions with chunk targets.
-Keeping two chunks preserved Recall on this set. An
-[additional user-gold audit on September 8](docs/stage2_adequacy_grouping_audit_2026-09-08.md)
-found evidence losses with a two-chunk cap for exact and hybrid retrieval, so this
-cap is not generally safe. Cross-lingual retrieval retained all targets on that
-ten-question user set.
+Внешний поиск метаданных и полноценный разговорный chat UI не реализованы. `GROBID_URL` и `ENABLE_EXTERNAL_METADATA_LOOKUP` в конфигурации сами по себе не подтверждают наличие работающей интеграции.
 
-Evidence adequacy is heuristic: an unanswerable PBI question was incorrectly
-accepted as having sufficient evidence by cross-lingual retrieval. The September 8
-audit reproduced this through the answer service with a local extractive provider;
-no external generation was invoked. A subsequent
-[required-substance gate](docs/stage2_required_concepts_2026-09-08.md) now refuses
-that PBI question. Its initial seven-substance identity catalogue also exposes
-incomplete selected evidence as explicit refusals; it does not validate scientific
-relationships or every generated claim.
-[Evidence retention](docs/stage2_evidence_retention_2026-09-08.md) now preserves
-required-substance fragments lost by selection within the retrieved window;
-automatic wider-window or neighboring-context expansion remains disabled after
-an [audit of scientific support](docs/stage2_candidate_expansion_2026-09-08.md).
-The [fragment-relation evaluation](docs/stage2_relation_annotations_2026-09-08.md)
-now checks nine PDF-reviewed cases in Russian and English: 23/36 gate decisions
-agree with annotations, with eight false accepts and five false refusals.
-These annotations await independent scientific review.
-A subsequent [experimental-context filter](docs/stage2_relation_context_2026-09-08.md)
-reduces false accepts to 0 on that same development set (31/36 agreement; five
-false refusals remain). It only vetoes missing context for two narrow question
-families; it is not scientific entailment validation or independent acceptance.
-Citation
-validation does not establish scientific correctness. Scientific acceptance of
-numeric extraction and generated answers, plus scaling benchmarks, remains ahead.
+## Текущий экспериментальный статус
 
-A [synthetic relation stress audit](docs/stage2_relation_stress_2026-09-08.md)
-found five false accepts and one false refusal across ten constructed lexical-gate
-cases, including unperformed experiments and an untested hypothesis. These are
-development counterexamples, not corpus prevalence estimates; the earlier result
-on the original annotations does not establish general relation-validation quality.
-The subsequent [statement exclusion safeguard](docs/stage2_relation_statements_2026-09-08.md)
-reduces this to one false accept and one false refusal on the same synthetic set;
-the original source-backed relation results remain unchanged. This narrow lexical
-veto preserves observed null effects but does not validate experimental relationships.
-An [experimental-link audit](docs/stage2_relation_links_2026-09-08.md) subsequently
-rejected a stricter local-word-pair veto: it introduced a pronoun-reference false
-refusal while still accepting incompatible samples. Local-link diagnostics are
-available; this candidate does not alter production adequacy decisions.
-The first [numeric-extraction audit](docs/stage3_numeric_baseline_2026-09-08.md)
-visually checked three PDF pages: four of ten targeted numeric values were detected,
-while operators, materials and conditions remain unrepresented in the candidate
-structure. This is targeted development coverage, not overall extraction accuracy.
-The [typography patch](docs/stage3_numeric_typography_2026-09-08.md) raises this to
-six of ten numeric targets while preserving source lexemes and unit scales. It
-does not reconstruct ranges or table context; persisted facts have not been refreshed.
-A [changed-candidate review](docs/stage3_numeric_change_review_2026-09-08.md)
-subsequently found four PDF-confirmed blockers, including an exponent misread as
-negative conductivity and a Raman shift misread as length. Bulk fact refresh is
-not accepted; the remaining review queue is explicitly unapproved.
+Основной pipeline ingestion → retrieval → ответы присутствует в коде. Октябрьские циклы отдельно исследуют experimental records и TAC; их номера этапов относятся к разным экспериментам.
 
-## Overview
+**Experimental records, S01–S06.** Реализованы профиль Li-Nafion, контракт кандидатов, экспорт источников и сравнение сохранённых single-field ответов. Предварительный эталон содержит 3 development случая / 30 полей и имеет статус `needs_independent_review`. При повторной проверке сохранённых ответов 12 октября у Qwen2.5-1.5B и Qwen2.5-3B было по 3/30 совпадения с этим эталоном, все — отказы. Это не независимая оценка научной accuracy и не доказательство готовности автоматического extraction adapter. Разметка, связь sample/conditions/method/origin и научное принятие остаются открытыми. Подробнее: [план разработки](docs/ariadne_development_plan_2026-10-09.md), [S06 comparison](docs/ariadne_s06_reference_comparison_2026-10-09.md), [проверка сессии](docs/ariadne_session_review_2026-10-12.md).
 
-ARIADNE is a local-first research system for building a trustworthy scientific memory from a focused PDF corpus about Nafion, PFSA membranes, and related lithium-ion battery literature.
+**TAC, stages 05–07.** Проверены границы сохранённых предложений, исправлены два варианта административных stop headings, добавлены source-bound Terms proposals. Текущие версии: `tac_section_proposals_v0.6` и `tac_term_candidates_v0.3`. Замороженный development snapshot содержит 33 документа, 493 выбранные страницы и 619 чанков, включая повторную загрузку Welch. В сохранённом результате stage 07: 377 предложений терминов / 1 087 точных evidence occurrences. Это количество результатов, не precision/recall. Ошибки границ и повреждённые исходные глифы сохраняются в диагностике; независимая точность 95% не подтверждена. Подробнее: [stage 05](docs/tac_stage05_boundary_audit_2026-10-12.md), [stage 06](docs/tac_stage06_stop_headings_2026-10-12.md), [stage 07](docs/tac_stage07_terms_2026-10-12.md).
 
-The project is built around a simple principle: every answer must remain connected to the document that supports it. ARIADNE takes raw scientific PDFs, preserves the original files, extracts page-level text, breaks the corpus into stable source-linked fragments, and lets the user search or ask questions against that evidence. When the system answers, it returns citations back to the article, chunk, and page instead of treating generated text as a source of truth.
+Размер корпуса и результаты выше относятся к указанным сохранённым входам. Они не являются новым измерением состояния живой БД. Исторические retrieval и numeric audits доступны в [roadmap](docs/roadmap.md) и [аудите numeric occurrences](docs/stage3_numeric_occurrences_2026-09-14.md).
 
-This makes ARIADNE useful as a local research companion for careful literature work: it helps inspect a specialized corpus, compare evidence across articles, catch weak or missing support, and keep scientific claims traceable. The system is intentionally conservative: if the retrieved evidence is not strong enough, it should refuse or expose the limitation rather than invent a confident answer.
+## Быстрый запуск
 
-## How It Works
+Нужны Python 3.11+, PostgreSQL и доступная локальная БД. Для сканированных PDF дополнительно нужны OCRmyPDF, Tesseract с языками из `OCR_LANGUAGES` и Ghostscript. Начальная конфигурация OCR использует `eng+rus`.
 
-ARIADNE turns a folder of PDFs into an auditable retrieval and answer pipeline:
-
-1. Original PDFs are copied into local storage and kept immutable.
-2. Page text is extracted from the PDF text layer, with OCR available for scanned documents.
-3. Extracted text is stored in PostgreSQL with article, page, chunk, source type, and text-layer provenance.
-4. Search can use exact matching, a local semantic vector index, or a hybrid of both.
-5. Answer generation receives only retrieved evidence fragments and must cite known evidence IDs.
-6. The API and local HTML UI expose search results, citations, PDF page links, and answer diagnostics.
-
-The result is not a generic chatbot over PDFs. It is a source-preserving workflow where ingestion, retrieval, generation, and evaluation each leave evidence that can be inspected.
-
-## Technical Map
-
-```text
-PDF files
-  |
-  v
-Upload or CLI ingestion
-  |
-  v
-Text extraction / optional OCR
-  |
-  v
-PostgreSQL
-  - articles
-  - pages
-  - chunks
-  - ingestion jobs
-  |
-  +--> exact search
-  |
-  +--> local vector index
-         |
-         v
-       semantic search
-  |
-  v
-hybrid search
-  |
-  v
-evidence check
-  |
-  v
-answer provider
-  - OpenAI
-  |
-  v
-answer with citations
-```
-
-Main entry points:
-
-- API: `app/main.py`
-- Local HTML UI: `app/ui.py`
-- PDF ingestion: `app/ingestion/`
-- Retrieval: `app/retrieval/`
-- Answer generation: `app/generation/`
-- Evaluation: `app/evaluation/`
-- Operational details: `docs/operations.md`
-
-## What It Can Do
-
-- Import one PDF or a folder of PDFs.
-- Add persistent local PDF libraries and scan them from the UI.
-- Keep the original PDF unchanged in local storage.
-- Extract page text with PyMuPDF.
-- Use OCRmyPDF when a PDF has no usable text layer.
-- Split text into deterministic page-linked chunks.
-- Search by exact, semantic, or hybrid retrieval.
-- Build a local FastEmbed vector index.
-- Answer questions with source-linked citations.
-- Produce OpenAI mini-reviews grouped by article.
-- Link answer citation markers to the cited PDF page.
-- Apply an evidence-adequacy heuristic that can refuse answers when support appears too weak.
-- Suggest likely domain query fixes, for example `litation -> lithiation`.
-- Evaluate retrieval and answer behavior with YAML question sets.
-
-Not implemented as a completed feature:
-
-- External metadata lookup.
-- A full conversational chat UI.
-
-Vector-index rebuilds run in the background when `VECTOR_AUTO_REBUILD_ENABLED=true`
-and a worker with role `vector` or `all` is running. Upload completion means text
-is ready; semantic/hybrid readiness follows the separate index state. Rebuild
-requests are coalesced, so this is not a synchronous rebuild for every upload.
-
-## Quick Start
-
-Prerequisites:
-
-- Python 3.11 or newer.
-- A local PostgreSQL server.
-- A database URL in `.env`.
-- OCRmyPDF and Tesseract only if scanned PDFs must be processed.
-
-Create local config:
+Из корня репозитория в PowerShell:
 
 ```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
-Install the project:
+Копируйте `.env.example` только при первоначальной настройке. В `.env` задайте `DATABASE_URL` для существующей БД и проверьте `DATA_ROOT`, OCR и параметры индекса. `.env` не хранится в Git.
 
 ```powershell
-python -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m app.ingestion.cli doctor
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Run database migrations:
+В другом терминале запустите worker:
 
 ```powershell
-python -m alembic upgrade head
+.\.venv\Scripts\python.exe -m app.workers.worker
 ```
 
-Start the API and UI:
+Откройте [локальный dashboard](http://127.0.0.1:8000/ui/) или [API docs](http://127.0.0.1:8000/docs). После настройки окружения доступен Windows launcher `scripts/ARIADNE.cmd`.
+
+`GET /health` возвращает состояние HTTP-приложения; он не заменяет `doctor` с проверкой БД, миграций, файлов и OCR. Подробности: [operations](docs/operations.md).
+
+## Добавление PDF
 
 ```powershell
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m app.ingestion.cli file data/inbox/example.pdf --collection literature
+.\.venv\Scripts\python.exe -m app.ingestion.cli folder data/inbox --collection literature
 ```
 
-Open the UI:
+`example.pdf` здесь — путь к вашему входному файлу. В UI доступны [загрузка](http://127.0.0.1:8000/ui/ingestion) и [локальные библиотеки](http://127.0.0.1:8000/ui/libraries). Добавьте папку через Add Library и запустите Scan Now. При `LIBRARY_SCAN_ENABLED=true` worker периодически сканирует включённые библиотеки.
 
-```text
-http://127.0.0.1:8000/ui/answer
-```
+Оригинальные PDF сохраняются отдельно и должны оставаться неизменными. OCR создаёт отдельный производный файл. У evidence сохраняются article, PDF path, страница/диапазон, source type, выбранный текстовый слой и исходный текст.
 
-Start the ingestion worker in another terminal:
+Статус ingestion `indexed` означает готовность article/page/chunk evidence в PostgreSQL. Семантический поиск зависит от отдельного состояния индекса.
+
+## Поиск и векторный индекс
+
+Для семантического поиска постройте поколение индекса:
 
 ```powershell
-python -m app.workers.worker
+.\.venv\Scripts\python.exe -m app.retrieval.cli build-generation --collection literature
+.\.venv\Scripts\python.exe -m app.retrieval.cli status --collection literature
 ```
 
-## Example
+Модель задаётся `EMBEDDING_MODEL`; начальное значение — `BAAI/bge-small-en-v1.5`. Первое использование может потребовать загрузки модели. При `VECTOR_AUTO_REBUILD_ENABLED=true` и `WORKER_ROLE=vector` или `all` пересборка запускается в фоне, а запросы на неё объединяются.
 
-Ask a question through the local UI:
-
-```text
-Li-Nafeon membrane litation pratocole
+```powershell
+Invoke-RestMethod 'http://127.0.0.1:8000/search?q=Li-Nafion&collection=literature&top_k=10&method=exact'
+Invoke-RestMethod 'http://127.0.0.1:8000/search?q=proton%20transport&collection=literature&top_k=10&method=hybrid'
 ```
 
-The UI should suggest a corrected query:
+Доступны также `semantic` и `hybrid_cross_lingual`. Последний использует варианты запроса и доменный RU/EN glossary; это не гарантия универсального перевода или полноты retrieval. Группировку и число фрагментов на статью оценивайте на задаче: ограничения одного/двух чанков уже приводили к потере нужного evidence в audits.
 
-```text
-Li-Nafion membrane lithiation protocol
+## Ответы с цитатами
+
+Поиск и просмотр источников доступны без ключа генерации. Для ответов через настраиваемый provider в `.env` нужны:
+
+```dotenv
+RAG_PROVIDER=openai
+RAG_OPENAI_API_KEY=YOUR_API_KEY
+RAG_OPENAI_MODEL=YOUR_MODEL
 ```
 
-After using the suggestion, the answer layer searches the corpus with cross-lingual query variants, checks whether the evidence is strong enough, and returns a cited answer or a refusal.
-
-API example:
+Provider отправляет вопрос и выбранные фрагменты настроенному OpenAI API endpoint. Таким образом, хранение и retrieval локальные, а этот путь генерации использует внешний сервис. Локальный model smoke для experimental records — отдельный harness.
 
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/answer `
@@ -252,101 +112,55 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/answer `
   -Body '{"question":"Li-Nafion membrane lithiation protocol","method":"hybrid_cross_lingual","top_k":5,"answer_style":"mini_review"}'
 ```
 
-Search example:
+[Answer UI](http://127.0.0.1:8000/ui/answer) показывает ответ/отказ и evidence. Проверка отбрасывает claims без цитат или с неизвестными evidence IDs. Mini-review группирует evidence по статье; citation markers ведут на исходную PDF-страницу. Эвристические проверки достаточности и контекста не устанавливают научную истинность или корректность каждой связи между утверждениями.
 
-```text
-GET /search?q=Li-Nafion%20conductivity&collection=literature&top_k=10&method=hybrid
-```
+## Локальный TAC review
 
-## Add PDFs
+Основные колонки HTML: **Title, Authors, Journal, Year, Abstract, Conclusions, Terms, ссылка на исходный PDF**. Таблица содержит поиск, раскрытие полных текстов, source diagnostics и optional boundary assessments. Terms остаются предложениями с точными цитатами; score не является вероятностью корректности.
 
-Put PDFs in `data/inbox/`, then ingest one file:
+Для существующей рабочей копии итоговый stage 07 HTML находится в `output/tac_stage07_terms_20261012/ARIADNE_TAC_terms_2026-10-12.html`. Оригиналы, замороженные snapshots и отчёты с текстом литературы остаются локальными и не входят в Git. Свежий clone этих файлов не содержит.
 
-```powershell
-python -m app.ingestion.cli file data/inbox/example.pdf --collection literature
-```
-
-Or ingest a folder:
+Повторная генерация по сохранённым локальным входам в **новые** файлы:
 
 ```powershell
-python -m app.ingestion.cli folder data/inbox --collection literature
+.\.venv\Scripts\python.exe -m scripts.tac_terms --snapshot data/experiments/tac/20261012_v01/corpus.json --profiles data/experiments/tac/20261012_stage06/profiles_final.json --boundary-review data/experiments/tac/20261012_stage06/boundary_review_final.json --output output/tac_readme_replay/terms.json
+.\.venv\Scripts\python.exe -m scripts.tac_review_html --snapshot data/experiments/tac/20261012_v01/corpus.json --profiles data/experiments/tac/20261012_stage06/profiles_final.json --metadata data/experiments/tac/20261012_stage06/metadata_final.json --boundary-review data/experiments/tac/20261012_stage06/boundary_review_final.json --terms output/tac_readme_replay/terms.json --output output/tac_readme_replay/review.html --source-root .
 ```
 
-You can also upload through the browser:
+Скрипты отказываются перезаписывать существующие результаты. Sidecars связываются с snapshot/profiles через hashes и точные source spans. Проверка целостности не подтверждает научное решение рецензента. Полные рецепты и ограничения — в отчётах stages 05–07, перечисленных выше.
 
-```text
-http://127.0.0.1:8000/ui/ingestion
-```
-
-An upload marked `indexed` means PostgreSQL article/page/chunk evidence is ready. Semantic and hybrid retrieval still require a current local vector index.
-
-Persistent local folders can be added at:
-
-```text
-http://127.0.0.1:8000/ui/libraries
-```
-
-Use `Add Library` to register a folder and `Scan Now` to discover PDFs and queue ingestion jobs. The worker also scans enabled libraries periodically when `LIBRARY_SCAN_ENABLED=true`.
-
-The dashboard, ingestion page, and libraries page show recognition and text-analysis progress from persisted job and library-file statuses, including discovered, queued, in-processing, text/OCR-ready, duplicate, missing, and failed files.
-
-## Build The Vector Index
-
-Build the local semantic index:
+## Проверки и evaluation
 
 ```powershell
-python -m app.retrieval.cli build --embedding-model BAAI/bge-small-en-v1.5 --batch-size 64
+.\.venv\Scripts\python.exe -m ruff check app tests scripts
+.\.venv\Scripts\python.exe -m mypy app
+.\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Then use semantic, hybrid, or cross-lingual hybrid retrieval:
+На рабочей копии 13 октября 2026: **851 passed, 1 warning**, `ruff check` прошёл, `mypy app` — без ошибок в 84 source files. Warning — существующий `StarletteDeprecationWarning` об использовании httpx с Starlette TestClient. Полный pytest выполнен вне sandbox с новым `--basetemp` после задержки sandbox запуска; прерванному запуску успешный результат не приписывается. Эти проверки не заменяют live integration, независимый научный review или проверку установки в чистом окружении.
 
-```text
-GET /search?q=proton%20transport&collection=literature&top_k=10&method=semantic
-GET /search?q=proton%20transport&collection=literature&top_k=10&method=hybrid
-GET /search?q=proton%20transport&collection=literature&top_k=10&method=hybrid_cross_lingual
-```
-
-## Answer Providers
-
-Supported provider:
-
-```text
-RAG_PROVIDER=openai
-RAG_OPENAI_API_KEY=...
-RAG_OPENAI_MODEL=...
-```
-
-OpenAI generates structured evidence-grounded claims from retrieved source fragments. Generated claims are rejected if they omit citations or cite unknown evidence IDs.
-
-For `answer_style=mini_review`, the answer layer keeps the output article-centered: evidence from the same article is consolidated into one article/work claim with all relevant citation IDs attached once. Citation markers such as `[E1]` and `[E2]` resolve to the original PDF page where the cited fragment starts, while the UI still exposes context links for inspecting neighboring chunks.
-
-## Evaluation
-
-Run the baseline retrieval evaluation:
+Evaluation на собственной настроенной БД и индексе:
 
 ```powershell
-python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10
+.\.venv\Scripts\python.exe -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10
+.\.venv\Scripts\python.exe -m app.evaluation.cli retrieval-extended docs/evaluation_questions_extended.yaml --top-k 10 --method hybrid --check-thresholds
+.\.venv\Scripts\python.exe -m app.evaluation.cli answers docs/evaluation_questions.yaml --top-k 5 --method hybrid
 ```
 
-Run the extended evaluation:
+Answer evaluation использует настроенный provider. Новые live retrieval/model benchmarks при актуализации README не запускались. Данные development audits и агентские reference agreements нельзя выдавать за независимый gold.
 
-```powershell
-python -m app.evaluation.cli retrieval-extended docs/evaluation_questions_extended.yaml --top-k 10 --method hybrid --check-thresholds
-```
+## Навигация по репозиторию
 
-Run answer evaluation:
+| Путь | Назначение |
+| --- | --- |
+| `app/main.py`, `app/ui.py` | FastAPI и локальный HTML UI |
+| `app/ingestion/`, `app/extraction/`, `app/chunking/` | PDF, текст/OCR и source-linked chunks |
+| `app/library/`, `app/workers/` | Постоянные библиотеки и фоновые задачи |
+| `app/retrieval/`, `app/generation/`, `app/evaluation/` | Поиск, ответы и evaluation |
+| `app/facts/`, `app/records/` | Числовые кандидаты и experimental record harness |
+| `scripts/tac_*.py` | Изолированные TAC/metadata/Terms эксперименты |
+| `alembic/`, `tests/` | Миграции и тесты |
+| `docs/`, `handoffs/` | Контракты, планы, отчёты и материалы передачи контекста |
+| `presentations/` | Концепция проекта и презентации; не runtime приложения |
 
-```powershell
-python -m app.evaluation.cli answers docs/evaluation_questions.yaml --top-k 5 --method hybrid
-```
-
-## Development Checks
-
-```powershell
-ruff check .
-ruff format --check .
-mypy app
-pytest -q
-```
-
-For the full operational checklist, see `docs/operations.md`.
+Границы научных утверждений и правила разработки: [AGENTS.md](AGENTS.md). Контракт experimental records: [experimental_record_contract.md](docs/records/experimental_record_contract.md). Локальные runtime logs, corpus exports в handoff-пакетах, содержащие их ZIP, промежуточные сборки и renders исключены из Git; исходники и готовые презентационные материалы сохраняются отдельно от приватного корпуса. Исторические handoff manifests описывают полные локальные пакеты, включая исключённые evidence/archives; clone не воспроизводит эти пакеты целиком. `presentations/ariadne-box-site/` — отдельный вложенный Git-репозиторий статической страницы, исключённый из Git ARIADNE.

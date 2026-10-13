@@ -1,0 +1,82 @@
+[
+  {
+    "path": "00_START_HERE.md",
+    "bytes": 5528,
+    "sha256": "009818CD1AF9476B3ACB6912768F686A1C4C5416E559F670DF8C94D589FC4757"
+  },
+  {
+    "path": "01_OPTIMIZED_PROJECT.md",
+    "bytes": 5439,
+    "sha256": "F49BAD8E2C0FDE806B307C525EED3D4B7CFA3D603DD28BC10BC3A280F5362166"
+  },
+  {
+    "path": "02_CURRENT_STATE.md",
+    "bytes": 3911,
+    "sha256": "9972BBAC79EB066F30AC5A1AA03272170111C4CCFF15F9095F0810B1D7AFB058"
+  },
+  {
+    "path": "03_PRODUCT_AND_HARDWARE.md",
+    "bytes": 5675,
+    "sha256": "E1E3701200067EF4870B2BA7E854690C5D3091D7BC9704D0BCDD0E53AD5787C9"
+  },
+  {
+    "path": "04_BUDGET_AND_CONTEST.md",
+    "bytes": 3722,
+    "sha256": "4886E96C5F592474DEE3C0EE5C1B9EDAE71BC1D83A59CC10DF8F2C5DE18C4DE3"
+  },
+  {
+    "path": "05_OPEN_QUESTIONS.md",
+    "bytes": 3896,
+    "sha256": "120128FCD7E7A08DA5F05F205B136BD299048E80228B3CD2D4C98BFE7821DEEF"
+  },
+  {
+    "path": "evidence\\corpus_report_20261006T052446Z.json",
+    "bytes": 17915,
+    "sha256": "593EB397FA130CC32FF5D3FBE9C3330E6B337B0575EF60B7212772667AEE9AA9"
+  },
+  {
+    "path": "evidence\\retrieval_eval_extended_hybrid_20261006T052657Z.json",
+    "bytes": 952228,
+    "sha256": "87502AEB31D4353A711890E8AA7FFE005D4A45A39BAE86B350E61F8F8D377729"
+  },
+  {
+    "path": "materials\\ariadne_budget_pc_1m_2026-10-06.md",
+    "bytes": 10716,
+    "sha256": "633B6899914879FC41789A2296A06F56007157EB7F8DE67D95034ADBB179BC74"
+  },
+  {
+    "path": "materials\\ariadne_contest_strategy_2026-10-06.md",
+    "bytes": 65267,
+    "sha256": "208072EEA0FF2187D85ABFB6857BB15EC609DFA5E6BF2F72C7B33509F3608C78"
+  },
+  {
+    "path": "materials\\ariadne_first_month_codex_plan_2026-10-06.md",
+    "bytes": 10188,
+    "sha256": "55727F8B168C60A657731AB01A191B9131CF1CE805FB32591F0F08A1839CCD32"
+  },
+  {
+    "path": "materials\\ariadne_ihtt_memo_draft_2026-10-06.md",
+    "bytes": 6227,
+    "sha256": "6AD2C1A18D47EF92458C36486FF3D04A42AB660FA5BF51B193675C5C9FEAB333"
+  },
+  {
+    "path": "materials\\ariadne_readiness_audit_2026-10-06.md",
+    "bytes": 10057,
+    "sha256": "A4D65E4C4869B309278C420C3BCC72089CC38551D32E867DCB00BD2C2FFC485B"
+  },
+  {
+    "path": "materials\\ariadne_workstation_hard_cap_1m_2026-10-06.md",
+    "bytes": 11355,
+    "sha256": "CF15BC497A6EC1F3A4A1FF2EB7BA285D8BE95A473CDE654B5C48F0076778E759"
+  },
+  {
+    "path": "originals\\Local_AI_Workstation_Concept.html",
+    "bytes": 34284,
+    "sha256": "E0573AF3B3118EF5A7046B500FAD2CB17FBE1D85AB6EC0CBD4F7FD0F85C1333C"
+  },
+  {
+    "path": "originals\\MASTER_HANDOFF_ARIADNE_CU_IHTT_2026-10-06.md",
+    "bytes": 31738,
+    "sha256": "3908E54FCF982735319E94D027D03B152D9D6809FA62B8BE1DA0DC861250D0FA"
+  }
+]

@@ -9,8 +9,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from scripts.tac_boundary_review import KINDS, LABELS, review_counts, validate_review
 from scripts.tac_experiment import validate_profiles
 from scripts.tac_metadata import validate_metadata
+from scripts.tac_terms import validate_terms
 
 HEADERS = ("Title", "Authors", "Journal", "Year", "Abstract", "Conclusions", "Terms", "hyperlink to original file")
 MISSING = "Не заполнено"
@@ -30,6 +32,20 @@ def section_cell(text: str) -> str:
         return f'<span class="missing">{UNDETECTED}</span>'
     preview = " ".join(text.split())[:160]
     return f"<details><summary>{esc(preview)}…</summary><pre>{esc(text)}</pre></details>"
+
+
+def boundary_badge(record: dict[str, Any], kind: str, source_root: Path) -> str:
+    assessment = record["assessments"][kind]
+    status = assessment["status"]
+    links = " ".join(
+        f'<a href="{esc((source_root / p["image"]).resolve().as_uri())}">PDF page {p["page"]}: изображение</a>'
+        for p in record["reviewed_pages"]
+    )
+    return (
+        f'<details class="boundary-review {status}" data-kind="{kind}" data-status="{status}">'
+        f'<summary>{esc(LABELS[status])}</summary><p>{esc(assessment["note"])}</p>'
+        f'<p>Оценка агента; подтверждение человеком ожидается. {links}</p></details>'
+    )
 
 
 def metadata_cell(field: str, stored: dict[str, Any], url: str) -> str:
@@ -59,6 +75,35 @@ def metadata_cell(field: str, stored: dict[str, Any], url: str) -> str:
     )
 
 
+def terms_cell(record: dict[str, Any] | None, url: str) -> str:
+    if record is None:
+        return '<span class="missing">Извлечение Terms не реализовано</span>'
+    terms = record["terms"]
+    if not terms:
+        return '<span class="missing">Кандидаты Terms не найдены в TAC</span>'
+    items = []
+    for term in terms:
+        sources = "".join(
+            f'<p><a href="{esc(url)}#page={e["page"]}">{esc(e["kind"])}: PDF page {e["page"]}</a>, '
+            f'{esc(e["layer"])}, offsets [{e["start"]}, {e["end"]}), '
+            f'границы TAC: {esc(e["tac_boundary_status"])}.</p><pre class="term-quote">{esc(e["quote"])}</pre>'
+            for e in term["evidence"]
+        )
+        items.append(
+            f'<details class="term" data-term="{esc(term["term"])}"><summary>{esc(term["label"])}</summary>'
+            f'<p>Предложение; методов: {esc(", ".join(term["methods"]))}. '
+            f'Ранг: {esc(term["score"])}; вхождений: {term["occurrences"]}.</p>'
+            f'<p>Совпадения со словарём: {esc(", ".join(term["seed_concepts"]) or "нет")}.</p>{sources}</details>'
+        )
+    preview = "; ".join(t["label"] for t in terms[:5])
+    return (
+        f'<details class="terms"><summary>Кандидаты ({len(terms)}): {esc(preview)}</summary>'
+        '<p>Автоматический набор из TAC; научное подтверждение не выполнено. '
+        'Ранг — эвристика, не вероятность корректности. Переводы и раскрытия сокращений не добавляются.</p>'
+        f'{"".join(items)}<p>{esc("; ".join(record["diagnostics"]))}</p></details>'
+    )
+
+
 def render_table(
     snapshot: dict[str, Any],
     profiles: dict[str, Any],
@@ -67,7 +112,35 @@ def render_table(
     profiles_sha256: str,
     metadata_sha256: str = "не указан",
     previous_profiles: dict[str, Any] | None = None,
+    boundary_review: dict[str, Any] | None = None,
+    boundary_review_sha256: str = "не указан",
+    terms: dict[str, Any] | None = None,
+    terms_sha256: str = "не указан",
 ) -> str:
+    if terms is not None:
+        validate_terms(snapshot, profiles, terms, profiles_sha256)
+    term_records = {a["article_id"]: a for a in terms["articles"]} if terms else {}
+    terms_description = (
+        "Terms — автоматические кандидаты из TAC; раскрытие показывает весь список и исходные фрагменты."
+        if terms else "Terms ещё не извлекаются."
+    )
+    terms_identity = (
+        f'<p class="identity">Terms: {esc(terms["schema"])}. SHA-256: {esc(terms_sha256)}. '
+        f'Словарь: {esc(terms["glossary_sha256"])}.</p>' if terms else ""
+    )
+    reviewed = validate_review(snapshot, profiles, boundary_review, profiles_sha256) if boundary_review is not None else {}
+    audit_summary = ""
+    if boundary_review is not None:
+        counts = review_counts(boundary_review)
+        totals = "; ".join(f"{LABELS[k]}: {counts['total'].get(k, 0)}" for k in LABELS)
+        audit_summary = (
+            f'<div class="audit-summary"><p><strong>Аудит границ: {counts["slots"]} ячеек.</strong> {esc(totals)}.</p>'
+            f'<p>Применимые ячейки: {counts["applicable_slots"]}; исключения показаны отдельно. '
+            'Это оценка агента на development корпусе, не независимая точность. '
+            'Проверены выбранные страницы разделов, не все страницы документов. '
+            'Статус без замечаний не подтверждает точность символов, научных значений или полноту всей статьи.</p>'
+            f'<p class="identity">Аудит: {esc(boundary_review["schema"])}. SHA-256: {esc(boundary_review_sha256)}.</p></div>'
+        )
     previous = {}
     if previous_profiles is not None:
         validate_profiles(snapshot, previous_profiles, profiles["snapshot_sha256"])
@@ -83,6 +156,9 @@ def render_table(
     rows = []
     count = len(profiles["profiles"])
     for profile in profiles["profiles"]:
+        review = reviewed.get(profile["article_id"])
+        badges = {k: boundary_badge(review, k, source_root) if review else "" for k in KINDS}
+        problems = bool(review and any(review["assessments"][k]["status"] in {"boundary_error", "missed", "unresolved"} for k in KINDS))
         article, stored = articles[profile["article_id"]], meta[profile["article_id"]]
         if stored["checksum_sha256"] != article["original_pdf_sha256"]:
             raise ValueError("Metadata source checksum mismatch")
@@ -121,11 +197,12 @@ def render_table(
         )
         warnings = "".join(f"<p>PDF page {w['page']}: {esc(w['messages'])}</p>" for w in profile.get("layout_warnings", []))
         rows.append(
-            f'<tr data-id="{esc(profile["article_id"])}"><td>{tags["T"]}<strong>{esc(title or UNDETECTED)}</strong></td>'
+            f'<tr data-id="{esc(profile["article_id"])}" data-problems="{str(problems).lower()}">'
+            f'<td>{badges["T"]}{tags["T"]}<strong>{esc(title or UNDETECTED)}</strong></td>'
             f"<td>{metadata_cell('authors', stored, url)}</td><td>{metadata_cell('journal', stored, url)}</td>"
             f"<td>{metadata_cell('year', stored, url)}</td>"
-            f"<td>{tags['A']}{abstract_cell}</td><td>{tags['C']}{conclusion_cell}</td>"
-            '<td class="missing">Извлечение Terms не реализовано</td>'
+            f"<td>{badges['A']}{tags['A']}{abstract_cell}</td><td>{badges['C']}{tags['C']}{conclusion_cell}</td>"
+            f'<td>{terms_cell(term_records.get(profile["article_id"]), url)}</td>'
             f'<td><a class="original" href="{esc(url)}">Открыть оригинальный PDF</a>'
             '<details class="provenance"><summary>Источник и диагностика</summary>'
             f"<p>{esc(profile['metadata_title'])}</p><p>Article UUID: {esc(profile['article_id'])}</p>"
@@ -152,28 +229,40 @@ pre{{white-space:pre-wrap;font:inherit;line-height:1.5;margin:14px 0}}summary{{c
 .missing{{color:#79532c}}a{{color:#087c83}}.provenance{{font-size:12px;margin-top:16px}}.provenance p{{margin:8px 0}}
 .identity{{font-size:12px;color:#536273;overflow-wrap:anywhere}}
 .change{{display:block;font-size:11px;color:#79532c;background:#fff0bc;width:max-content;padding:3px 6px;margin-bottom:7px}}
+.boundary-review{{padding:8px;margin-bottom:12px;border-left:4px solid #6d7b85;background:#eef1f3}}
+.boundary-review.pass{{border-color:#25764e}}.boundary_error,.missed{{border-color:#ac3636;background:#fff0ed}}
+.audit-summary{{padding:8px 18px;border:1px solid #c9d2da;background:white}}
 </style></head><body>
 <h1>ARIADNE — TAC для проверки</h1>
+{audit_summary}
 <p>{count} документов. Сохранённые предложения алгоритма без ручных исправлений. Границы требуют проверки.
 Authors, Journal и Year — сохранённые метаданные или предложения локального PDF-алгоритма.
-Раскройте ячейку метаданных для списка авторов, цитат и диагностики. Terms ещё не извлекаются.</p>
+Раскройте ячейку метаданных для списка авторов, цитат и диагностики.
+{terms_description}</p>
 <p class="identity">Версия: {esc(profiles["schema"])}. Snapshot SHA-256: {esc(profiles["snapshot_sha256"])}.
 Profiles SHA-256: {esc(profiles_sha256)}. Снимок корпуса: {esc(snapshot.get("created_at", "не указан"))}.</p>
 <p class="identity">Метаданные: {esc(metadata.get("schema", "existing database metadata"))}.
 Metadata SHA-256: {esc(metadata_sha256)}. Источник: {esc(metadata.get("source", "не указан"))}.</p>
+{terms_identity}
 <p>Сравнение: {esc(previous_profiles["schema"] if previous_profiles else "не задано")}.
 Метка «Изменено» показывает отличия текста или страницы T/A/C. Прежний текст доступен в диагностике источника.</p>
 <p>Нажмите на Abstract или Conclusions для полного текста. Исходные переносы сохранены.
 Управляющие символы отображаются как ⟦U+XXXX⟧. PDF-ссылки рассчитаны на этот компьютер.</p>
 <div class="toolbar"><input id="query" aria-label="Поиск по таблице" placeholder="Поиск по полному тексту таблицы">
 <button id="expand">Раскрыть все тексты</button><span id="count">{count} / {count}</span></div>
+{'<p><button id="issues" aria-pressed="false">Только замечания</button></p>' if reviewed else ''}
 <div class="scroll"><table><thead><tr>{header}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>
-<script>const total={count};document.querySelector('#query').addEventListener('input',e=>{{
-const q=e.target.value.toLocaleLowerCase();let count=0;for(const row of document.querySelectorAll('tbody tr')){{
-row.hidden=!row.textContent.toLocaleLowerCase().includes(q);if(!row.hidden)count++;}}
-document.querySelector('#count').textContent=count+' / '+total;}});let expanded=false;
+<script>const total={count};let issuesOnly=false;function filterRows(){{
+const q=document.querySelector('#query').value.toLocaleLowerCase();let count=0;for(const row of document.querySelectorAll('tbody tr')){{
+row.hidden=!row.textContent.toLocaleLowerCase().includes(q)||(issuesOnly&&row.dataset.problems!=='true');if(!row.hidden)count++;}}
+document.querySelector('#count').textContent=count+' / '+total;}}
+document.querySelector('#query').addEventListener('input',filterRows);
+document.querySelector('#issues')?.addEventListener('click',e=>{{issuesOnly=!issuesOnly;
+e.target.setAttribute('aria-pressed',String(issuesOnly));
+e.target.textContent=issuesOnly?'Все документы':'Только замечания';filterRows();}});
+let expanded=false;
 document.querySelector('#expand').addEventListener('click',e=>{{expanded=!expanded;
-for(const d of document.querySelectorAll('td:nth-child(5) details,td:nth-child(6) details'))d.open=expanded;
+for(const d of document.querySelectorAll('td:nth-child(5) details,td:nth-child(6) details,td:nth-child(7) details'))d.open=expanded;
 e.target.textContent=expanded?'Свернуть тексты':'Раскрыть все тексты';}});</script></body></html>"""
 
 
@@ -185,11 +274,14 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--source-root", type=Path, default=Path("."))
     parser.add_argument("--previous-profiles", type=Path)
+    parser.add_argument("--boundary-review", type=Path, help="Optional source-bound assistant development audit; never corrects proposals")
+    parser.add_argument("--terms", type=Path, help="Optional proposed article keyword sidecar")
     args = parser.parse_args()
     snapshot_raw, profiles_raw = args.snapshot.read_bytes(), args.profiles.read_bytes()
     snapshot, profiles = json.loads(snapshot_raw), json.loads(profiles_raw)
     validate_profiles(snapshot, profiles, hashlib.sha256(snapshot_raw).hexdigest())
     metadata_raw = args.metadata.read_bytes()
+    terms_raw = args.terms.read_bytes() if args.terms else None
     result = render_table(
         snapshot,
         profiles,
@@ -198,6 +290,10 @@ def main() -> None:
         hashlib.sha256(profiles_raw).hexdigest(),
         hashlib.sha256(metadata_raw).hexdigest(),
         json.loads(args.previous_profiles.read_bytes()) if args.previous_profiles else None,
+        json.loads(args.boundary_review.read_bytes()) if args.boundary_review else None,
+        hashlib.sha256(args.boundary_review.read_bytes()).hexdigest() if args.boundary_review else "не указан",
+        json.loads(terms_raw) if terms_raw else None,
+        hashlib.sha256(terms_raw).hexdigest() if terms_raw else "не указан",
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x", encoding="utf-8") as stream:
