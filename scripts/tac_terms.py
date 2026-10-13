@@ -21,6 +21,8 @@ from scripts.tac_boundary_review import validate_review
 from scripts.tac_experiment import digest, validate_profiles, write_new
 
 VERSION = "tac_term_candidates_v0.3"
+INVENTORY_VERSION = "tac_term_inventory_v0.1"
+PREVIEW_POLICY = "legacy_greedy_surface_v0.3"
 WEIGHTS = {"T": 3, "A": 2, "C": 1}
 LIGATURES = {"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl"}
 TOKEN = re.compile(r"[^\W_]+(?:[./-][^\W_]+)*\+?", re.UNICODE)
@@ -153,10 +155,9 @@ def evidence(section: dict[str, Any], start: int, end: int, status: str) -> dict
             "tac_boundary_status": status}
 
 
-def propose_article(profile: dict[str, Any], seeds: list[dict[str, str]], max_terms: int,
-                    assessments: dict[str, Any] | None = None) -> dict[str, Any]:
-    if not 1 <= max_terms <= 50:
-        raise ValueError("max_terms must be between 1 and 50")
+def generate_candidates(profile: dict[str, Any], seeds: list[dict[str, str]],
+                        assessments: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Complete ranked lexical output before preview selection; no semantic admission."""
     candidates: dict[str, dict[str, Any]] = {}
 
     def add(section: dict[str, Any], view: str, offsets: list[int], begin: int, end: int,
@@ -221,16 +222,34 @@ def propose_article(profile: dict[str, Any], seeds: list[dict[str, str]], max_te
         item["seed_concepts"].sort()
         ranked.append(item)
     ranked.sort(key=lambda c: (-c["score"], -len(c["term"]), c["term"]))
+    return ranked
+
+
+def select_preview(ranked: list[dict[str, Any]], limit: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 50:
+        raise ValueError("Terms preview limit must be between 1 and 50")
     selected = []
-    suppressed = 0
+    decisions = []
     for item in ranked:
         # Keep one nested surface phrase, not a claim of scientific synonymy.
-        if any(re.search(r"(?<!\w)" + re.escape(item["term"]) + r"(?!\w)", s["term"]) or
-               re.search(r"(?<!\w)" + re.escape(s["term"]) + r"(?!\w)", item["term"]) for s in selected):
-            suppressed += 1
-            continue
-        if len(selected) < max_terms:
+        against = [s["term"] for s in selected if
+                   re.search(r"(?<!\w)" + re.escape(item["term"]) + r"(?!\w)", s["term"]) or
+                   re.search(r"(?<!\w)" + re.escape(s["term"]) + r"(?!\w)", item["term"])]
+        state = "nested_surface_suppressed" if against else "preview_limit" if len(selected) >= limit else "selected"
+        decisions.append({"term": item["term"], "state": state, "against_terms": against})
+        if state == "selected":
             selected.append(item)
+    return selected, decisions
+
+
+def propose_article(profile: dict[str, Any], seeds: list[dict[str, str]], max_terms: int,
+                    assessments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Compatibility path: preserve the v0.3 selected-only article contract."""
+    if not 1 <= max_terms <= 50:
+        raise ValueError("max_terms must be between 1 and 50")
+    ranked = generate_candidates(profile, seeds, assessments)
+    selected, decisions = select_preview(ranked, max_terms)
+    suppressed = sum(d["state"] == "nested_surface_suppressed" for d in decisions)
     return {"article_id": profile["article_id"], "original_pdf_sha256": profile["original_pdf_sha256"],
             "original_pdf_path": profile["original_pdf_path"], "terms": selected, "candidate_count": len(ranked),
             "nested_candidates_suppressed": suppressed, "status": "proposed" if selected else "not_detected",
@@ -240,13 +259,55 @@ def propose_article(profile: dict[str, Any], seeds: list[dict[str, str]], max_te
                             f"Display limit {max_terms}; candidate inventory {len(ranked)}."]}
 
 
+def candidate_id(article_id: str, term: str) -> str:
+    """Article-scoped lexical identity, not a global concept or source-mention ID."""
+    return digest(json.dumps([article_id, term], ensure_ascii=False, separators=(",", ":")).encode())
+
+
+def inventory_digest(inventory: list[dict[str, Any]]) -> str:
+    return digest(json.dumps(inventory, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode())
+
+
+def rank_features(term: dict[str, Any]) -> dict[str, Any]:
+    counts = Counter(e["kind"] for e in term["evidence"])
+    return {"occurrences_by_kind": dict(sorted(counts.items())),
+            "weighted_capped_occurrences": sum(WEIGHTS[k] * min(n, 3) for k, n in counts.items()),
+            "token_count": len(list(TOKEN.finditer(term["term"]))), "seed_match": bool(term["seed_concepts"])}
+
+
+def preview_record(ranked: list[dict[str, Any]], limit: int) -> dict[str, Any]:
+    selected, decisions = select_preview(ranked, limit)
+    identifiers = {t["term"]: t["candidate_id"] for t in ranked}
+    return {"limit": limit, "policy": PREVIEW_POLICY, "candidate_ids": [t["candidate_id"] for t in selected],
+            "decisions": [{"candidate_id": identifiers[d["term"]], "state": d["state"],
+                           "against_candidate_ids": [identifiers[t] for t in d["against_terms"]]} for d in decisions]}
+
+
+def propose_inventory(profile: dict[str, Any], seeds: list[dict[str, str]], preview_limit: int,
+                      assessments: dict[str, Any] | None = None) -> dict[str, Any]:
+    ranked = generate_candidates(profile, seeds, assessments)
+    for index, term in enumerate(ranked, 1):
+        term.update(candidate_id=candidate_id(profile["article_id"], term["term"]),
+                    rank=index, rank_features=rank_features(term))
+    preview = preview_record(ranked, preview_limit)
+    return {"article_id": profile["article_id"], "original_pdf_sha256": profile["original_pdf_sha256"],
+            "original_pdf_path": profile["original_pdf_path"], "inventory": ranked,
+            "inventory_sha256": inventory_digest(ranked), "candidate_count": len(ranked), "preview": preview,
+            "status": "proposed" if ranked else "not_detected",
+            "diagnostics": ["Complete output of the current lexical generator, not all scientific concepts in the article.",
+                            "TAC source boundaries and glyph damage may affect candidates.",
+                            "Broken line-end words and standalone unit tokens excluded; no spelling repair.",
+                            "Nested surface candidates retained; preview suppression does not establish semantic relations."]}
+
+
 def validate_terms(snapshot: dict[str, Any], profiles: dict[str, Any], terms: dict[str, Any], profiles_sha256: str) -> None:
-    if terms.get("schema") != VERSION or terms.get("profiles_sha256") != profiles_sha256:
+    if terms.get("schema") not in {VERSION, INVENTORY_VERSION} or terms.get("profiles_sha256") != profiles_sha256:
         raise ValueError("Terms schema/profile hash mismatch")
+    inventory_mode = terms["schema"] == INVENTORY_VERSION
     validate_profiles(snapshot, profiles, terms.get("snapshot_sha256", ""))
     if terms.get("state") != "proposed_for_article_review":
         raise ValueError("Terms must remain proposals")
-    limit = terms.get("settings", {}).get("max_terms")
+    limit = terms.get("settings", {}).get("preview_limit" if inventory_mode else "max_terms")
     if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 50:
         raise ValueError("Terms display limit invalid")
     articles = {a["article_id"]: a for a in snapshot["articles"]}
@@ -258,10 +319,13 @@ def validate_terms(snapshot: dict[str, Any], profiles: dict[str, Any], terms: di
         article = articles[identifier]
         if row["original_pdf_sha256"] != article["original_pdf_sha256"] or row["original_pdf_path"] != article["original_pdf_path"]:
             raise ValueError("Terms PDF identity mismatch")
-        if len(row["terms"]) > limit or row.get("status") != ("proposed" if row["terms"] else "not_detected"):
+        candidates = row.get("inventory" if inventory_mode else "terms")
+        if not isinstance(candidates, list) or row.get("status") != ("proposed" if candidates else "not_detected"):
+            raise ValueError("Terms row state/limit invalid")
+        if not inventory_mode and len(candidates) > limit:
             raise ValueError("Terms row state/limit invalid")
         seen = set()
-        for term in row["terms"]:
+        for term in candidates:
             if term["status"] != "proposed" or not term["term"] or term["term"] in seen or not term["evidence"]:
                 raise ValueError("Term state/duplicate/evidence invalid")
             if not term["methods"] or not set(term["methods"]) <= {"existing_glossary_match", "TAC_lexical_phrase"}:
@@ -289,6 +353,21 @@ def validate_terms(snapshot: dict[str, Any], profiles: dict[str, Any], terms: di
                 expected = section["quote"][e["start"]-section["start"]:e["end"]-section["start"]]
                 if e["quote"] != expected or normalized_view(expected)[0] != term["term"]:
                     raise ValueError("Term exact quote/display mismatch")
+            if inventory_mode:
+                features = rank_features(term)
+                expected_score = features["weighted_capped_occurrences"] * features["token_count"] + features["seed_match"]
+                if (term.get("candidate_id") != candidate_id(identifier, term["term"])
+                        or term.get("rank_features") != features or term["score"] != expected_score
+                        or len({json.dumps(e, sort_keys=True) for e in term["evidence"]}) != len(term["evidence"])):
+                    raise ValueError("Term inventory identity/rank features/evidence duplicates invalid")
+        if inventory_mode:
+            if (type(row.get("candidate_count")) is not int or row["candidate_count"] != len(candidates)
+                    or row.get("inventory_sha256") != inventory_digest(candidates)
+                    or [t.get("rank") for t in candidates] != list(range(1, len(candidates) + 1))
+                    or candidates != sorted(candidates, key=lambda t: (-t["score"], -len(t["term"]), t["term"]))):
+                raise ValueError("Terms complete inventory count/hash/order invalid")
+            if terms.get("settings", {}).get("preview_policy") != PREVIEW_POLICY or row.get("preview") != preview_record(candidates, limit):
+                raise ValueError("Terms preview references/policy/decisions invalid")
 
 
 def main() -> None:
@@ -297,31 +376,50 @@ def main() -> None:
     parser.add_argument("--profiles", type=Path, required=True)
     parser.add_argument("--glossary", type=Path, default=Path("docs/cross_lingual_glossary.yaml"))
     parser.add_argument("--boundary-review", type=Path)
-    parser.add_argument("--max-terms", type=int, default=12)
+    parser.add_argument("--format", choices=("legacy-v0.3", "inventory"), default="legacy-v0.3",
+                        help="Explicit new complete inventory, or backward-compatible selected-only v0.3 (default)")
+    limits = parser.add_mutually_exclusive_group()
+    limits.add_argument("--max-terms", type=int, help="Legacy stored-list limit; only with --format legacy-v0.3")
+    limits.add_argument("--preview-limit", type=int, help="Preview only; requires --format inventory; default 12")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    inventory_mode = args.format == "inventory"
+    if (inventory_mode and args.max_terms is not None) or (not inventory_mode and args.preview_limit is not None):
+        parser.error("Use --preview-limit with --format inventory; --max-terms applies only to legacy-v0.3")
+    limit = args.preview_limit if inventory_mode else args.max_terms
+    limit = 12 if limit is None else limit
+    if not 1 <= limit <= 50:
+        parser.error("Terms preview/legacy limit must be between 1 and 50")
     snapshot_raw, profiles_raw, seed_raw = args.snapshot.read_bytes(), args.profiles.read_bytes(), args.glossary.read_bytes()
     snapshot, profiles = json.loads(snapshot_raw), json.loads(profiles_raw)
     validate_profiles(snapshot, profiles, digest(snapshot_raw))
     review_raw = args.boundary_review.read_bytes() if args.boundary_review else None
     reviewed = validate_review(snapshot, profiles, json.loads(review_raw), digest(profiles_raw)) if review_raw else {}
     seeds = load_seeds(args.glossary)
-    articles = [propose_article(p, seeds, args.max_terms, reviewed.get(p["article_id"], {}).get("assessments"))
+    proposer = propose_inventory if inventory_mode else propose_article
+    articles = [proposer(p, seeds, limit, reviewed.get(p["article_id"], {}).get("assessments"))
                 for p in profiles["profiles"]]
-    result = {"schema": VERSION, "created_at": datetime.now(UTC).isoformat(), "state": "proposed_for_article_review",
+    result = {"schema": INVENTORY_VERSION if inventory_mode else VERSION,
+              "created_at": datetime.now(UTC).isoformat(), "state": "proposed_for_article_review",
               "snapshot_sha256": digest(snapshot_raw), "profiles_sha256": digest(profiles_raw),
               "glossary_sha256": digest(seed_raw), "review_sha256": digest(review_raw) if review_raw else None,
               "code_sha256": digest(Path(__file__).read_bytes()),
-              "settings": {"max_terms": args.max_terms, "max_phrase_tokens": 4, "section_weights": WEIGHTS,
+              "settings": {"max_phrase_tokens": 4, "section_weights": WEIGHTS,
                            "score": "sum(section_weight * min(occurrences_in_kind, 3)) * token_count + seed_match",
                            "stopwords": sorted(STOPWORDS), "reporting_stems": REPORTING_STEMS,
                            "english_noun_anchors": sorted(EN_NOUNS), "russian_anchors": RU_ANCHORS,
-                           "nested_surface_suppression": True}, "articles": articles}
+                           }, "articles": articles}
+    result["settings"].update({"preview_limit": limit, "preview_policy": PREVIEW_POLICY, "nested_surface_preview_only": True}
+                              if inventory_mode else {"max_terms": limit, "nested_surface_suppression": True})
     validate_terms(snapshot, profiles, result, digest(profiles_raw))
     write_new(args.output, result)
-    print(json.dumps({"documents": len(articles), "with_terms": sum(bool(a["terms"]) for a in articles),
-                      "proposed_terms": sum(len(a["terms"]) for a in articles),
-                      "methods": dict(Counter(m for a in articles for t in a["terms"] for m in t["methods"]))}))
+    field = "inventory" if inventory_mode else "terms"
+    summary = {"documents": len(articles), "with_terms": sum(bool(a[field]) for a in articles),
+               "proposed_terms": sum(len(a[field]) for a in articles),
+               "methods": dict(Counter(m for a in articles for t in a[field] for m in t["methods"]))}
+    if inventory_mode:
+        summary.update(schema=result["schema"], preview_terms=sum(len(a["preview"]["candidate_ids"]) for a in articles))
+    print(json.dumps(summary))
 
 
 if __name__ == "__main__":

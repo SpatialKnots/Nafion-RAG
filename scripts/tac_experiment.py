@@ -21,7 +21,7 @@ from app.evaluation.retrieval import _evaluate_extended_question, load_extended_
 from app.retrieval.cross_lingual import build_query_bundle
 from app.retrieval.search import SearchResponse, SearchResult, search_chunks
 
-RULE_VERSION = "tac_section_proposals_v0.6"
+RULE_VERSION = "tac_section_proposals_v0.7"
 ABSTRACT = re.compile(
     r"^\s*(?:abstract|a\s+b\s+s\s+t\s+r\s+a\s+c\s+t|аннотация|реферат|full\s+paper)(?=\s|[:.–-]|$)\s*[:.–-]?\s*", re.I,
 )
@@ -40,6 +40,7 @@ STOP = re.compile(
     r"data\s+availability(?:\s+.*)?|supporting\s+information|supplementary\s+(?:materials|information)|"
     r"keywords?\s*:.*|ключевые\s+слова\s*:.*)\s*(?:[.:]\s*.*)?$", re.I,
 )
+INLINE_STOP = re.compile(r"\s*(?:results|discussion|methods|introduction|experimental)\s*", re.I)
 TITLE_NOISE = re.compile(
     r"(?:https?://|www\.|doi\s*:|journal\s+homepage|contents\s+lists|copyright|all\s+rights\s+reserved|"
     r"received\s|accepted\s|published\s|research\s+article|full\s+paper|electrochimica\s+acta$|"
@@ -145,6 +146,44 @@ def abstract_layout_end(page: dict[str, Any], heading_start: int, begin: int) ->
     return int(end)
 
 
+def adjacent_row_fragments(prior: dict[str, Any], item: dict[str, Any]) -> bool:
+    """Contiguous source slices with matching regular typography on one row."""
+    size = item["font_size"]
+    return bool(size > 0 and not item["bold"] and not prior["bold"] and prior["end"] == item["start"]
+                and abs(size - prior["font_size"]) <= max(0.3, size * 0.03)
+                and abs(item["bbox"][1] - prior["bbox"][1]) <= size * 0.6
+                and -size * 0.5 <= item["bbox"][0] - prior["bbox"][2] <= size * 1.5)
+
+
+def inline_stop_fragment(page: dict[str, Any], start: int, end: int, items: list[dict[str, Any]]) -> bool:
+    """Reject a bare academic stop word proven to continue same-row prose.
+
+    Some PDFs encode each word as a separate text line. Unknown layout, bold
+    headings, numbered headings and the first word of a physical row retain
+    the conservative text-order boundary. Source text/offsets stay unchanged.
+    """
+    if not INLINE_STOP.fullmatch(page["text"][start:end]):
+        return False
+    ordered = sorted(items, key=lambda item: item["start"])
+    for index, item in enumerate(ordered):
+        if item["start"] != start or item["end"] != end or index == 0 or item["bold"]:
+            continue
+        prior = ordered[index - 1]
+        if not adjacent_row_fragments(prior, item) or not re.search(
+                r"[^\W\d_]", page["text"][prior["start"]:prior["end"]]):
+            return False
+        left, right = index - 1, index
+        while left > 0 and adjacent_row_fragments(ordered[left - 1], ordered[left]):
+            left -= 1
+        while right + 1 < len(ordered) and adjacent_row_fragments(ordered[right], ordered[right + 1]):
+            right += 1
+        # Matching view only: a fragmented, unbold Materials and Methods heading
+        # must still stop the section. Never normalize the saved evidence slice.
+        row = " ".join(page["text"][ordered[left]["start"]:ordered[right]["end"]].split())
+        return STOP.fullmatch(row) is None
+    return False
+
+
 def heading_spans(pages: list[dict[str, Any]], front_start: int = 1) -> tuple[list[TACSpan], list[str]]:
     """Conservative text-order proposals; no reconstruction of column reading order."""
     candidates: list[TACSpan] = []
@@ -152,11 +191,22 @@ def heading_spans(pages: list[dict[str, Any]], front_start: int = 1) -> tuple[li
     active: Literal["A", "C"] | None = None
     for page in pages:
         page_lines = lines(page)
+        geometry = None
         begin: int | None = 0 if active else None
         for start, end, line in page_lines:
             abstract = ABSTRACT.match(line) if front_start <= int(page["page"]) <= front_start + 1 else None
             conclusion = CONCLUSION.fullmatch(line)
             stop = STOP.fullmatch(line)
+            if stop and active == "C" and INLINE_STOP.fullmatch(line) and "layer_pdf_path" in page:
+                from scripts.tac_front_matter import layout_lines
+
+                if geometry is None:
+                    geometry = layout_lines(page)
+                if inline_stop_fragment(page, start, end, geometry):
+                    diagnostics.append(
+                        f"C: inline stop-word fragment at PDF page {page['page']} offset {start}; "
+                        "exact prose retained by same-row geometry")
+                    stop = None
             if abstract or conclusion or stop:
                 if active and begin is not None and start > begin and str(page["text"])[begin:start].strip():
                     candidates.append(span(page, active, begin, start, "explicit_heading_text_order"))

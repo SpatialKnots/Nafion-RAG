@@ -76,6 +76,66 @@ def test_mention_of_conclusions_is_not_a_heading():
     assert not sections
 
 
+@pytest.mark.parametrize("word", ["results", "discussion", "methods", "introduction", "experimental"])
+def test_fragmented_inline_stop_word_keeps_entire_conclusion(monkeypatch, word):
+    """Synthetic word-per-line PDF geometry, not independent scientific gold."""
+    text = f"Conclusions\nWe believe\n these\n {word}\n are ﬁnite.\nAcknowledgements\nThanks.\n"
+    source = page(text, layer_pdf_path="synthetic.pdf")
+    offset = text.index("We believe")
+    boxes = [(40, 100, 90, 110), (90, 100, 115, 110), (115, 100, 160, 110), (160, 100, 205, 110)]
+    geometry = []
+    for quote, box in zip(text[offset:text.index("Acknowledgements")].splitlines(keepends=True), boxes, strict=True):
+        geometry.append({"start": offset, "end": offset + len(quote), "bbox": box, "font_size": 10, "bold": False})
+        offset += len(quote)
+    monkeypatch.setattr("scripts.tac_front_matter.layout_lines", lambda _page: geometry)
+    sections, diagnostics = heading_spans([source])
+    assert [s.quote for s in sections] == [text[text.index("We believe"):text.index("Acknowledgements")]]
+    assert source["text"] == text
+    assert all(text[s.start:s.end] == s.quote for s in sections)
+    assert any("inline stop-word fragment" in d for d in diagnostics)
+
+
+@pytest.mark.parametrize("case", ["bold", "numbered", "different_row", "far_column", "style", "gap", "unknown"])
+def test_fragment_geometry_does_not_suppress_real_or_uncertain_stop(monkeypatch, case):
+    prefix = "2." if case == "numbered" else "Prior evidence."
+    text = f"Conclusions\n{prefix}\nResults\nOther section.\nReferences\nCitation.\n"
+    source = page(text, layer_pdf_path="synthetic.pdf")
+    start = text.index("Results")
+    prior = {"start": text.index(prefix), "end": start, "bbox": (40, 100, 90, 110), "font_size": 10, "bold": False}
+    item = {"start": start, "end": start + len("Results\n"), "bbox": (90, 100, 130, 110), "font_size": 10, "bold": False}
+    if case == "bold":
+        item["bold"] = True
+    elif case == "different_row":
+        item["bbox"] = (40, 125, 90, 135)
+    elif case == "far_column":
+        item["bbox"] = (280, 100, 330, 110)
+    elif case == "style":
+        item["font_size"] = 12
+    elif case == "gap":
+        prior["end"] -= 1
+    geometry = [] if case == "unknown" else [prior, item]
+    monkeypatch.setattr("scripts.tac_front_matter.layout_lines", lambda _page: geometry)
+    sections, _ = heading_spans([source])
+    assert [s.quote for s in sections] == [prefix + "\n"]
+
+
+@pytest.mark.parametrize("heading", ["Materials and Methods", "2. Materials and Methods"])
+def test_fragmented_unbold_composite_heading_remains_a_boundary(monkeypatch, heading):
+    text = "Conclusions\nMeasured result.\n" + "\n".join(heading.split()) + "\nUnrelated body.\n"
+    source = page(text, layer_pdf_path="synthetic.pdf")
+    offset = text.index(heading.split()[0])
+    geometry = []
+    for index, word in enumerate(heading.split()):
+        geometry.append({"start": offset, "end": offset + len(word) + 1,
+                         "bbox": (40 + index * 50, 100, 90 + index * 50, 110), "font_size": 10, "bold": False})
+        offset += len(word) + 1
+    monkeypatch.setattr("scripts.tac_front_matter.layout_lines", lambda _page: geometry)
+    sections, _ = heading_spans([source])
+    # The existing text-order contract stops at the matched Methods fragment;
+    # this patch must not extend into the unrelated body after that boundary.
+    assert [s.quote for s in sections] == [text[text.index("Measured"):text.index("Methods")]]
+
+
 def test_russian_implicit_abstract_preserves_source_and_excludes_keywords():
     text = "Принята к публикации 01.02.2021 г.\nТочный текст аннотации.\nКлючевые слова: пример\nВВЕДЕНИЕ\n"
     result = implicit_russian_abstract([page(text)])

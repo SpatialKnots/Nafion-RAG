@@ -12,6 +12,8 @@ from typing import Any
 from scripts.tac_boundary_review import KINDS, LABELS, review_counts, validate_review
 from scripts.tac_experiment import validate_profiles
 from scripts.tac_metadata import validate_metadata
+from scripts.tac_term_classification import validate_classification
+from scripts.tac_term_contexts import validate_contexts
 from scripts.tac_terms import validate_terms
 
 HEADERS = ("Title", "Authors", "Journal", "Year", "Abstract", "Conclusions", "Terms", "hyperlink to original file")
@@ -75,32 +77,153 @@ def metadata_cell(field: str, stored: dict[str, Any], url: str) -> str:
     )
 
 
-def terms_cell(record: dict[str, Any] | None, url: str) -> str:
+def classification_markup(assignments: list[dict[str, Any]], taxonomy: dict[str, Any]) -> str:
+    axis_labels = {"type": "Тип", "role": "Роль", "origin": "Происхождение"}
+    state_labels = {"proposed": "Предложено", "unclassified": "Не определено", "unresolved": "Конфликт"}
+    items = []
+    for assignment in assignments:
+        proposals = "".join(
+            f'<p>{esc(taxonomy["categories"][assignment["axis"]][p["category"]])}; {esc(p["producer"])}; '
+            f'{esc(p["declared_reviewer"] or "policy")}</p>' + "".join(
+                f'<p>{esc(b["rule_id"])}: [{b["start"]}, {b["end"]}); region {esc(b["source_region_id"])}.</p>'
+                f'<pre class="classification-quote">{esc(b["quote"])}</pre><p>{esc(b["rationale"])}</p>' for b in p["basis"])
+            for p in assignment["proposals"])
+        items.append(
+            f'<details class="classification" data-assignment-id="{esc(assignment["assignment_id"])}" '
+            f'data-use-id="{esc(assignment["use_id"])}" data-axis="{esc(assignment["axis"])}" data-state="{esc(assignment["state"])}">'
+            f'<summary>{axis_labels[assignment["axis"]]}: {state_labels[assignment["state"]]}</summary>'
+            f'{proposals}<p>{esc("; ".join(assignment["diagnostics"]))}</p></details>')
+    return ''.join(items)
+
+
+def context_cards(article: dict[str, Any], classification: dict[str, Any] | None = None,
+                  taxonomy: dict[str, Any] | None = None) -> dict[str, str]:
+    contexts = {c["context_id"]: c for c in article["contexts"]}
+    mentions = {m["mention_id"]: m["source"] for m in article["mentions"]}
+    uses = {u["use_id"]: u for u in article["uses"]}
+    terms = {t["term_id"]: t for t in article["terms"]}
+    assigned: dict[str, list[dict[str, Any]]] = {}
+    if classification is not None:
+        if taxonomy is None:
+            raise ValueError("Classification cards require taxonomy")
+        for item in classification["assignments"]:
+            assigned.setdefault(item["use_id"], []).append(item)
+    relations: dict[str, list[tuple[str, str, str]]] = {}
+    for r in article["containment"]:
+        outer, inner = uses[r["outer_use_id"]], uses[r["inner_use_id"]]
+        a, b = mentions[outer["mention_id"]], mentions[inner["mention_id"]]
+        description = (f"{terms[outer['term_id']]['label']} [{a['start']}, {a['end']}) ⊃ "
+                       f"{terms[inner['term_id']]['label']} [{b['start']}, {b['end']}); PDF page {a['page_number']}")
+        for u in (outer, inner):
+            relations.setdefault(u["use_id"], []).append((description, outer["use_id"], inner["use_id"]))
+    result = {}
+    for term in article["terms"]:
+        grouped: dict[str, list[str]] = {}
+        for identifier in term["use_ids"]:
+            u = uses[identifier]
+            source = mentions[u["mention_id"]]
+            links = "".join(
+                f'<li class="lexical-containment" data-outer-use-id="{esc(outer)}" data-inner-use-id="{esc(inner)}">{esc(s)}</li>'
+                for s, outer, inner in relations.get(identifier, []))
+            grouped.setdefault(u["context_id"], []).append(
+                f'<li class="term-use" data-use-id="{esc(identifier)}" data-mention-id="{esc(u["mention_id"])}">'
+                f'Упоминание [{source["start"]}, {source["end"]}): <q class="mention-quote">{esc(source["quote"])}</q>'
+                f'{classification_markup(assigned[identifier], taxonomy) if taxonomy is not None else ""}'
+                f'{"<details><summary>Лексические вложения этого упоминания</summary><ul>" + links + "</ul></details>" if links else ""}'
+                '</li>')
+        groups = []
+        for identifier, items in grouped.items():
+            c = contexts[identifier]
+            s = c["source"]
+            groups.append(
+                f'<details class="term-context" data-context-id="{esc(identifier)}">'
+                f'<summary>{esc(c["kind"])}: PDF page {s["page_number"]}, контекст [{s["start"]}, {s["end"]})</summary>'
+                f'<ul>{"".join(items)}</ul><div class="context-text"></div></details>')
+        result[term["term_id"]] = (
+            f'<details class="term-contexts"><summary>Упоминания: {len(term["use_ids"])}; контексты: {len(grouped)}</summary>'
+            '<p>Точные фрагменты TAC. Лексическое вложение не подтверждает синонимию или научную связь.</p>'
+            f'{"".join(groups)}</details>')
+    return result
+
+
+def term_item(term: dict[str, Any], url: str, decision: dict[str, Any] | None = None,
+              labels: dict[str, str] | None = None, context_html: str = "") -> str:
+    sources = "".join(
+        f'<p><a href="{esc(url)}#page={e["page"]}">{esc(e["kind"])}: PDF page {e["page"]}</a>, '
+        f'{esc(e["layer"])}, offsets [{e["start"]}, {e["end"]}), '
+        f'границы TAC: {esc(e["tac_boundary_status"])}.</p><pre class="term-quote">{esc(e["quote"])}</pre>'
+        for e in term["evidence"]
+    )
+    explanation = ""
+    if decision:
+        state = decision["state"]
+        if state == "nested_surface_suppressed":
+            against = "; ".join((labels or {})[identifier] for identifier in decision["against_candidate_ids"])
+            explanation = f"Вне превью: вложенная или включающая фраза относительно {against}. Это не установленная синонимия."
+        elif state == "preview_limit":
+            explanation = "Вне превью: достигнут лимит показа. Кандидат и все его цитаты сохранены."
+        else:
+            explanation = "Включён в превью."
+        f = term["rank_features"]
+        explanation += (f" Позиция полного списка: {term['rank']}. Компоненты ранга: "
+                        f"взвешенные повторы {f['weighted_capped_occurrences']}, токены {f['token_count']}, "
+                        f"совпадение со словарём {int(f['seed_match'])}.")
+    identifier = f' data-candidate-id="{esc(term["candidate_id"])}"' if "candidate_id" in term else ""
+    return (
+        f'<details class="term" data-term="{esc(term["term"])}"{identifier}><summary>{esc(term["label"])}</summary>'
+        f'<p>Предложение; методов: {esc(", ".join(term["methods"]))}. '
+        f'Ранг: {esc(term["score"])}; вхождений: {term["occurrences"]}.</p>'
+        f'<p>Совпадения со словарём: {esc(", ".join(term["seed_concepts"]) or "нет")}.</p>'
+        f'{"<p>" + esc(explanation) + "</p>" if explanation else ""}{sources}{context_html}</details>'
+    )
+
+
+def terms_cell(record: dict[str, Any] | None, url: str, contexts: dict[str, str] | None = None,
+               classification: dict[str, Any] | None = None) -> str:
     if record is None:
         return '<span class="missing">Извлечение Terms не реализовано</span>'
-    terms = record["terms"]
+    terms = record.get("inventory", record.get("terms", []))
     if not terms:
         return '<span class="missing">Кандидаты Terms не найдены в TAC</span>'
-    items = []
-    for term in terms:
-        sources = "".join(
-            f'<p><a href="{esc(url)}#page={e["page"]}">{esc(e["kind"])}: PDF page {e["page"]}</a>, '
-            f'{esc(e["layer"])}, offsets [{e["start"]}, {e["end"]}), '
-            f'границы TAC: {esc(e["tac_boundary_status"])}.</p><pre class="term-quote">{esc(e["quote"])}</pre>'
-            for e in term["evidence"]
+    items = "".join(term_item(term, url) for term in terms) if "inventory" not in record else ""
+    description = f"Кандидаты ({len(terms)})"
+    attributes = ""
+    preview_terms = terms
+    if "inventory" in record:
+        by_id = {t["candidate_id"]: t for t in terms}
+        labels = {identifier: t["label"] for identifier, t in by_id.items()}
+        decisions = {d["candidate_id"]: d for d in record["preview"]["decisions"]}
+        selected = set(record["preview"]["candidate_ids"])
+        preview_terms = [by_id[identifier] for identifier in record["preview"]["candidate_ids"]]
+        remaining = [t for t in terms if t["candidate_id"] not in selected]
+        def card(term: dict[str, Any]) -> str:
+            return term_item(term, url, decisions[term["candidate_id"]], labels, (contexts or {}).get(term["candidate_id"], ""))
+        items = "".join(card(t) for t in preview_terms)
+        pages = "".join(
+            f'<details class="terms-page"><summary>Остальные: {begin + 1}–{min(begin + 50, len(remaining))}</summary>'
+            f'<template>{"".join(card(t) for t in remaining[begin:begin + 50])}</template></details>'
+            for begin in range(0, len(remaining), 50)
         )
-        items.append(
-            f'<details class="term" data-term="{esc(term["term"])}"><summary>{esc(term["label"])}</summary>'
-            f'<p>Предложение; методов: {esc(", ".join(term["methods"]))}. '
-            f'Ранг: {esc(term["score"])}; вхождений: {term["occurrences"]}.</p>'
-            f'<p>Совпадения со словарём: {esc(", ".join(term["seed_concepts"]) or "нет")}.</p>{sources}</details>'
-        )
-    preview = "; ".join(t["label"] for t in terms[:5])
+        if remaining:
+            items += f'<details class="terms-more"><summary>Показать остальные ({len(remaining)})</summary>{pages}</details>'
+        description = f"Все кандидаты: {len(terms)}; превью: {len(preview_terms)}"
+        search_text = " ".join(t["label"] + " " + t["term"] for t in terms)
+        attributes = (f' data-search="{esc(search_text)}" data-inventory-count="{len(terms)}" '
+                      f'data-preview-count="{len(preview_terms)}"')
+    preview = "; ".join(t["label"] for t in preview_terms[:5])
+    subsets = ""
+    if classification is not None:
+        lines = "".join(f'<li data-axis="{esc(axis)}" data-category="{esc(g["category"])}" data-count="{g["count"]}">'
+                        f'{esc(g["label"])}: {g["count"]} уникальных Terms</li>'
+                        for axis, groups in classification["groups"].items() for g in groups)
+        subsets = ('<details class="classification-subsets"><summary>Пересекающиеся subsets по типу, роли и происхождению</summary>'
+                   '<p>Черновая таксономия; предложения и конфликты, без научной приёмки. '
+                   'Один term может входить в несколько групп по разным употреблениям.</p>' + f'<ul>{lines}</ul></details>')
     return (
-        f'<details class="terms"><summary>Кандидаты ({len(terms)}): {esc(preview)}</summary>'
+        f'<details class="terms"{attributes}><summary>{esc(description)}: {esc(preview)}</summary>'
         '<p>Автоматический набор из TAC; научное подтверждение не выполнено. '
         'Ранг — эвристика, не вероятность корректности. Переводы и раскрытия сокращений не добавляются.</p>'
-        f'{"".join(items)}<p>{esc("; ".join(record["diagnostics"]))}</p></details>'
+        f'{subsets}{items}<p>{esc("; ".join(record["diagnostics"]))}</p></details>'
     )
 
 
@@ -116,18 +239,52 @@ def render_table(
     boundary_review_sha256: str = "не указан",
     terms: dict[str, Any] | None = None,
     terms_sha256: str = "не указан",
+    term_contexts: dict[str, Any] | None = None,
+    term_contexts_sha256: str = "не указан",
+    classification: dict[str, Any] | None = None,
+    classification_sha256: str = "не указан",
 ) -> str:
     if terms is not None:
         validate_terms(snapshot, profiles, terms, profiles_sha256)
     term_records = {a["article_id"]: a for a in terms["articles"]} if terms else {}
+    context_records = {}
+    if term_contexts is not None:
+        if terms is None:
+            raise ValueError("Terms contexts require an inventory input")
+        context_records = validate_contexts(snapshot, profiles, terms, term_contexts, terms_sha256)
+    context_templates = []
+    classification_records = {}
+    if classification is not None:
+        if term_contexts is None:
+            raise ValueError("Terms classifications require source contexts")
+        classification_records = validate_classification(term_contexts, classification, term_contexts_sha256)
+    for record in context_records.values():
+        for context in record["contexts"]:
+            s = context["source"]
+            url = (source_root / s["original_pdf_path"]).resolve().as_uri()
+            context_templates.append(
+                f'<template id="context-{esc(context["context_id"])}"><p><a href="{esc(url)}#page={s["page_number"]}">'
+                f'Точный контекст: PDF page {s["page_number"]}</a>; {esc(s["text_layer"])}; '
+                f'границы TAC: {esc(context["boundary_status"])}.</p><pre class="context-quote">{esc(s["quote"])}</pre></template>')
     terms_description = (
         "Terms — автоматические кандидаты из TAC; раскрытие показывает весь список и исходные фрагменты."
         if terms else "Terms ещё не извлекаются."
     )
+    if terms and terms["schema"] == "tac_term_inventory_v0.1":
+        terms_description = ("Terms — полный выход текущего распознавателя по TAC, включая вложенные фразы. "
+                             "Превью ограничивает только показ; остальные кандидаты раскрываются группами по 50. "
+                             "Поиск охватывает весь инвентарь. Научная приёмка и научные связи не установлены.")
     terms_identity = (
         f'<p class="identity">Terms: {esc(terms["schema"])}. SHA-256: {esc(terms_sha256)}. '
         f'Словарь: {esc(terms["glossary_sha256"])}.</p>' if terms else ""
     )
+    if term_contexts:
+        terms_identity += (f'<p class="identity">Контексты: {esc(term_contexts["schema"])}. SHA-256: {esc(term_contexts_sha256)}. '
+                           'Страницы сохраняются отдельно; непрерывность текста не установлена.</p>')
+    if classification:
+        terms_identity += (f'<p class="identity">Классификация: {esc(classification["schema"])}. SHA-256: {esc(classification_sha256)}. '
+                           f'Taxonomy SHA-256: {esc(classification["taxonomy_sha256"])}. Черновая таксономия; '
+                           'состояния proposed / unclassified / unresolved. Научное подтверждение отсутствует.</p>')
     reviewed = validate_review(snapshot, profiles, boundary_review, profiles_sha256) if boundary_review is not None else {}
     audit_summary = ""
     if boundary_review is not None:
@@ -196,13 +353,16 @@ def render_table(
             for s in sections
         )
         warnings = "".join(f"<p>PDF page {w['page']}: {esc(w['messages'])}</p>" for w in profile.get("layout_warnings", []))
+        classified = classification_records.get(profile["article_id"])
+        cards = (context_cards(context_records[profile["article_id"]], classified,
+                               classification["taxonomy"] if classification else None) if context_records else None)
         rows.append(
             f'<tr data-id="{esc(profile["article_id"])}" data-problems="{str(problems).lower()}">'
             f'<td>{badges["T"]}{tags["T"]}<strong>{esc(title or UNDETECTED)}</strong></td>'
             f"<td>{metadata_cell('authors', stored, url)}</td><td>{metadata_cell('journal', stored, url)}</td>"
             f"<td>{metadata_cell('year', stored, url)}</td>"
             f"<td>{badges['A']}{tags['A']}{abstract_cell}</td><td>{badges['C']}{tags['C']}{conclusion_cell}</td>"
-            f'<td>{terms_cell(term_records.get(profile["article_id"]), url)}</td>'
+            f'<td>{terms_cell(term_records.get(profile["article_id"]), url, cards, classified)}</td>'
             f'<td><a class="original" href="{esc(url)}">Открыть оригинальный PDF</a>'
             '<details class="provenance"><summary>Источник и диагностика</summary>'
             f"<p>{esc(profile['metadata_title'])}</p><p>Article UUID: {esc(profile['article_id'])}</p>"
@@ -252,16 +412,27 @@ Metadata SHA-256: {esc(metadata_sha256)}. Источник: {esc(metadata.get("s
 <button id="expand">Раскрыть все тексты</button><span id="count">{count} / {count}</span></div>
 {'<p><button id="issues" aria-pressed="false">Только замечания</button></p>' if reviewed else ''}
 <div class="scroll"><table><thead><tr>{header}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>
+{"".join(context_templates)}
 <script>const total={count};let issuesOnly=false;function filterRows(){{
 const q=document.querySelector('#query').value.toLocaleLowerCase();let count=0;for(const row of document.querySelectorAll('tbody tr')){{
-row.hidden=!row.textContent.toLocaleLowerCase().includes(q)||(issuesOnly&&row.dataset.problems!=='true');if(!row.hidden)count++;}}
+const text=row.textContent+' '+(row.querySelector('.terms')?.dataset.search||'');
+row.hidden=!text.toLocaleLowerCase().includes(q)||(issuesOnly&&row.dataset.problems!=='true');if(!row.hidden)count++;}}
 document.querySelector('#count').textContent=count+' / '+total;}}
 document.querySelector('#query').addEventListener('input',filterRows);
 document.querySelector('#issues')?.addEventListener('click',e=>{{issuesOnly=!issuesOnly;
 e.target.setAttribute('aria-pressed',String(issuesOnly));
 e.target.textContent=issuesOnly?'Все документы':'Только замечания';filterRows();}});
 let expanded=false;
+function materialize(d){{const t=d.querySelector(':scope > template');if(t){{d.append(t.content.cloneNode(true));t.remove();}}}}
+function materializeContext(d){{const body=d.querySelector(':scope > .context-text');
+if(body&&!body.dataset.loaded){{const t=document.getElementById('context-'+d.dataset.contextId);
+if(t){{body.append(t.content.cloneNode(true));body.dataset.loaded='true';}}}}}}
+document.addEventListener('toggle',e=>{{if(e.target.open){{
+if(e.target.matches?.('.terms-page'))materialize(e.target);
+if(e.target.matches?.('.term-context'))materializeContext(e.target);}}}},true);
 document.querySelector('#expand').addEventListener('click',e=>{{expanded=!expanded;
+if(expanded)for(const d of document.querySelectorAll('.terms-page'))materialize(d);
+if(expanded)for(const d of document.querySelectorAll('.term-context'))materializeContext(d);
 for(const d of document.querySelectorAll('td:nth-child(5) details,td:nth-child(6) details,td:nth-child(7) details'))d.open=expanded;
 e.target.textContent=expanded?'Свернуть тексты':'Раскрыть все тексты';}});</script></body></html>"""
 
@@ -276,12 +447,16 @@ def main() -> None:
     parser.add_argument("--previous-profiles", type=Path)
     parser.add_argument("--boundary-review", type=Path, help="Optional source-bound assistant development audit; never corrects proposals")
     parser.add_argument("--terms", type=Path, help="Optional proposed article keyword sidecar")
+    parser.add_argument("--term-contexts", type=Path, help="Optional exact mention/context and lexical containment sidecar")
+    parser.add_argument("--classification", type=Path, help="Optional draft source-bound classifications and subsets")
     args = parser.parse_args()
     snapshot_raw, profiles_raw = args.snapshot.read_bytes(), args.profiles.read_bytes()
     snapshot, profiles = json.loads(snapshot_raw), json.loads(profiles_raw)
     validate_profiles(snapshot, profiles, hashlib.sha256(snapshot_raw).hexdigest())
     metadata_raw = args.metadata.read_bytes()
     terms_raw = args.terms.read_bytes() if args.terms else None
+    contexts_raw = args.term_contexts.read_bytes() if args.term_contexts else None
+    classification_raw = args.classification.read_bytes() if args.classification else None
     result = render_table(
         snapshot,
         profiles,
@@ -294,6 +469,10 @@ def main() -> None:
         hashlib.sha256(args.boundary_review.read_bytes()).hexdigest() if args.boundary_review else "не указан",
         json.loads(terms_raw) if terms_raw else None,
         hashlib.sha256(terms_raw).hexdigest() if terms_raw else "не указан",
+        json.loads(contexts_raw) if contexts_raw else None,
+        hashlib.sha256(contexts_raw).hexdigest() if contexts_raw else "не указан",
+        json.loads(classification_raw) if classification_raw else None,
+        hashlib.sha256(classification_raw).hexdigest() if classification_raw else "не указан",
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x", encoding="utf-8") as stream:

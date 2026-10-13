@@ -358,3 +358,22 @@ TAC как жёсткий gate не принят. Очередной огран�
 По запросу улучшить таблицу перед Terms завершён ограниченный [TAC stage 03](tac_stage03_report_2026-10-12.md): detector v0.4 объединяет продолжения заголовков, пропускает manuscript covers и предлагает unlabelled abstracts по byline/layout. T 33/33, A 30/33, C 27/33; изменены восемь T и одиннадцать A, метаданные сохранены. Это coverage proposals, не independent accuracy. Прежние 19 development boundaries совпали; 797 тестов прошли. Финальная таблица с метками изменений и прежним текстом: `output/tac_stage03_20261012/ARIADNE_TAC_stage03_final_2026-10-12.html`. App и PDF hashes совпали с baseline. Strict replay 44/46, с добором 45/46; losses supplement сохраняются. Обрезания Nagasubramanian/Mohammadi, remaining sections/metadata и human review остаются открытыми; далее продолжения Abstract между колонками и source gaps перед Terms/production admission.
 
 Следующий запрос выполнен как [TAC stage 04](tac_stage04_report_2026-10-12.md): detector v0.5 восстановил оба известных обрезания Abstract, добавил source-bound summary passages Besenhard/Welch и поддержку проверяемого продолжения между соседними колонками/страницами. Пустые/пропущенные страницы не склеиваются. Новое experimental поле `conclusion_kind` отличает явный раздел от итоговых фрагментов. T 33, A 30, explicit C 27; ещё три строки с summary passages, из них две относятся к одной работе Welch. 93/99 заполненных TAC ячеек включают расширение типа C evidence, не означают 94% independent accuracy. 813 тестов прошли, старые 19 development boundaries сохранены; PDF/app hashes и 91 metadata values совпадают с baseline. Replay pass totals 42/44/45 остаются прежними, effects ranking смешанные; hard TAC gate по-прежнему не принят. Финальная таблица: `output/tac_stage04_20261012/ARIADNE_TAC_stage04_final_v02_2026-10-12.html`. Human review, независимая разметка полноты, remaining source/metadata gaps, supplement links, safety channel и Terms остаются открытыми.
+
+Продолжение 13 октября: после аудита stage05, stop-heading repair stage06 и Terms
+sidecar stage07 завершён [TAC stage08](tac_stage08_inline_stop_2026-10-13.md).
+Detector v0.7 восстанавливает Conclusions Nagasubramanian по доказанной
+геометрии слова `results` внутри предложения. На неизменном snapshot только
+одно C поле расширено на 505 символов; другие T/A/C и metadata сохранены.
+865 тестов прошли; frozen replay полностью совпал со stage06. Финальная таблица:
+`output/tac_stage08_20261013/ARIADNE_TAC_stage08_final_v02_2026-10-13.html`.
+Terms реализованы как предложения, но scientific relevance/recall и human
+acceptance ещё не измерены. Следующий ограниченный цикл — отдельный review
+Terms; интеграция в production glossary/index и S03/S04/S06 acceptance остаются
+открытыми.
+
+Продолжение 13 октября: [Terms stage12](tac_stage12_review_2026-10-13.md)
+закрывает engineering этапа 4 отдельного Terms plan: постоянные решения,
+история/restore, source-bound review, очередь, конкурентные правки и backup.
+Все 33 TAC документа сохранены в отдельной восьмиколоночной HTML-таблице.
+Full pytest: 950 passed; финальные targeted: 16 passed. Независимая научная
+приёмка и production indexing Terms остаются открытыми.

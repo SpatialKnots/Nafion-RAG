@@ -68,11 +68,13 @@ from app.retrieval.index_lifecycle import (
 )
 from app.retrieval.search import SearchFilters, search_chunks, search_response_to_dict
 from app.retrieval.vector_index import VectorIndexUnavailableError
+from app.terms.review_ui import router as terms_review_router
 from app.ui import router as ui_router
 
 app = FastAPI(title="ARIADNE", version="0.1.0")
 app.include_router(ui_router)
 app.include_router(numeric_review_router)
+app.include_router(terms_review_router)
 SessionDep = Annotated[Session, Depends(get_session)]
 
 

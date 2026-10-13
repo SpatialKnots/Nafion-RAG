@@ -517,6 +517,7 @@ def _layout(title: str, body: str) -> HTMLResponse:
         ("Home", "/", {"Dashboard", "Articles", "Article", "Text Layers", "Answer"}),
         ("Facts", "/ui/facts", {"Structured Facts"}),
         ("Проверка фактов", "/ui/numeric-review", {"Проверка фактов"}),
+        ("Проверка Terms", "/ui/terms-review", {"Проверка Terms"}),
         (
             "Evidence",
             "/ui/reports/retrieval",

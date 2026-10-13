@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>ARIADNE · Terms Atlas</title>
+<style>@@STYLE@@</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-symbol">A</span><span>ARIADNE <span class="brand-sub">/ TERMS ATLAS</span></span></div>
+  <div class="toplinks">@@REVIEW@@<button id="provenance-toggle" aria-expanded="false" aria-controls="provenance">Снимок и версия</button></div>
+</header>
+<section id="provenance" hidden></section>
+<main>
+  <div class="heading"><div><p class="eyebrow">ЛОКАЛЬНАЯ КАРТА ИСТОЧНИКОВ</p><h1>От множества — к точному фрагменту.</h1><p class="intro">Статья → Title / Abstract / Conclusions → term → контекст → PDF.</p></div><p id="totals" class="totals"></p></div>
+  <nav class="breadcrumbs" aria-label="Область графа"><button id="home">Все статьи</button><span id="breadcrumb"></span></nav>
+  <div class="workspace">
+    <section class="map-panel" aria-labelledby="map-heading">
+      <div class="map-header"><div><h2 id="map-heading">Множества статей</h2><p id="map-caption">Площадь круга = число уникальных terms статьи.</p></div><div class="zoom-controls"><button id="zoom-out" aria-label="Уменьшить граф">−</button><button id="fit">Вписать</button><button id="zoom-in" aria-label="Увеличить граф">+</button></div></div>
+      <div class="view-controls"><label>Группировать <select id="mode"><option value="articles">Статьи</option><option value="TAC">Разделы TAC</option><option value="type">Тип — предложения</option><option value="role">Роль — предложения</option><option value="origin">Происхождение — предложения</option></select></label></div>
+      <div id="graph-wrap"><svg id="graph" role="group" aria-label="Интерактивный граф множеств terms"><title>Terms Atlas</title><desc>Выберите статью, затем группу и term. Размеры кругов отражают число уникальных локальных term IDs.</desc><g id="scene"></g></svg><div id="graph-tooltip" role="tooltip" hidden></div></div>
+      <div id="groups" class="group-controls" aria-label="Подмножества TAC"></div>
+      <p id="map-note" class="map-note">Terms — кандидаты. Научная приёмка не выполнена. Положение кругов не означает сходство.</p>
+    </section>
+    <section class="list-panel" aria-labelledby="list-heading">
+      <div class="panel-heading"><h2 id="list-heading">Выбрать статью</h2><span id="list-count"></span></div>
+      <label class="search-label" for="search">Поиск в текущем списке</label><input id="search" type="search" placeholder="Название статьи…" autocomplete="off">
+      <label class="sort-label" for="sort">Порядок <select id="sort"><option value="rank">Исходный ранг</option><option value="alphabetical">По алфавиту</option><option value="source">По источнику</option></select></label>
+      <button id="save-view" type="button">Экспорт текущего subset</button>
+      <div id="list" aria-label="Статьи или terms"></div><p id="list-status" role="status" aria-live="polite"></p>
+    </section>
+    <section class="detail-panel" aria-labelledby="detail-heading"><h2 id="detail-heading">Источник term</h2><div id="detail"><div class="empty-detail"><span class="empty-symbol">↗</span><p>Выберите статью на карте.<br>Затем нажмите term в списке.</p><p class="muted">Здесь появятся точный текст, страницы, текстовый слой и ссылки на исходный PDF.</p></div></div></section>
+  </div>
+</main>
+<footer>ARIADNE · Source-bound Terms · Полный inventory stage09 + exact contexts stage10. Данные сохранены локально.</footer>
+<script id="graph-data" type="application/json">@@DATA@@</script>
+<script>@@SCRIPT@@</script>
+</body></html>
