@@ -25,7 +25,7 @@ def main() -> None:
     infer.add_argument("--max-tokens", type=int, default=4096)
     infer.add_argument("--timeout-seconds", type=int, default=300)
     infer.add_argument("--seed", type=int, default=42)
-    infer.add_argument("--wire-format", choices=("full", "compact", "span_full", "span_compact"), default="full",
+    infer.add_argument("--wire-format", choices=("full", "compact", "span_full", "span_compact", "span_fixed"), default="full",
                        help="span_* selects token coordinates via OpenAI; compact formats request five fields from one region")
     evaluate = commands.add_parser("evaluate", help="Reparse raw responses against a fixed development reference")
     evaluate.add_argument("--reference", type=Path, required=True)

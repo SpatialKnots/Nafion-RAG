@@ -14,6 +14,7 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_ope
 
 from app.records.compact import CompactReply, build_compact_request, resolve_compact_reply
 from app.records.extraction import FullRecordReply, build_record_request, resolve_reply, write_json
+from app.records.fixed_links import FixedSpanReply, build_fixed_messages, parse_fixed_reply, resolve_fixed_reply
 from app.records.readiness import assess_readiness
 from app.records.runs import build_manifest
 from app.records.schema import CandidateBundle, text_hash
@@ -22,18 +23,23 @@ from app.records.spans import SpanCompactReply, SpanFullReply, build_span_messag
 ENDPOINT = "https://api.openai.com/v1/responses"
 FULL_VERSION = "records_openai_full_v0.1"
 COMPACT_VERSION = "records_openai_compact_v0.1"
-WireFormat = Literal["full", "compact", "span_full", "span_compact"]
+WireFormat = Literal["full", "compact", "span_full", "span_compact", "span_fixed"]
 FORMAT_VERSIONS: dict[WireFormat, str] = {
     "full": FULL_VERSION, "compact": COMPACT_VERSION,
     "span_full": "records_openai_span_full_v0.1", "span_compact": "records_openai_span_compact_v0.1",
+    "span_fixed": "records_openai_span_fixed_v0.1",
 }
 VERSIONS = set(FORMAT_VERSIONS.values())
 ReasoningEffort = Literal["low", "medium", "high", "xhigh", "max"]
 
 
-def wire_reply_type(wire_format: WireFormat) -> type[FullRecordReply] | type[CompactReply] | type[SpanFullReply] | type[SpanCompactReply]:
-    replies: dict[WireFormat, type[FullRecordReply] | type[CompactReply] | type[SpanFullReply] | type[SpanCompactReply]] = {
+Reply = FullRecordReply | CompactReply | SpanFullReply | SpanCompactReply | FixedSpanReply
+
+
+def wire_reply_type(wire_format: WireFormat) -> type[Reply]:
+    replies: dict[WireFormat, type[Reply]] = {
         "full": FullRecordReply, "compact": CompactReply, "span_full": SpanFullReply, "span_compact": SpanCompactReply,
+        "span_fixed": FixedSpanReply,
     }
     return replies[wire_format]
 
@@ -47,7 +53,9 @@ def build_openai_request(
     builder = build_compact_request if wire_format == "compact" else build_record_request
     base = builder(bundle, task, model, max_output_tokens, 42)
     schema = wire_reply_type(wire_format).model_json_schema()
-    if wire_format.startswith("span_"):
+    if wire_format == "span_fixed":
+        base["messages"] = build_fixed_messages(bundle, task)
+    elif wire_format.startswith("span_"):
         base["messages"] = build_span_messages(bundle, task, compact=wire_format == "span_compact")
     # Reuse source/task/prompt bytes, without the local endpoint's seed/temperature parameters.
     return {"model": model, "input": base["messages"], "max_output_tokens": max_output_tokens,
@@ -99,6 +107,9 @@ def openai_identity(request: dict[str, Any], wire_format: WireFormat) -> dict[st
 
 def resolve_openai_response(bundle: CandidateBundle, raw: bytes, wire_format: WireFormat) -> tuple[Any, CandidateBundle]:
     content = responses_content(raw)
+    if wire_format == "span_fixed":
+        fixed = parse_fixed_reply(content)
+        return fixed, resolve_fixed_reply(bundle, fixed)
     if wire_format == "compact":
         compact = CompactReply.model_validate_json(content)
         return compact, resolve_compact_reply(bundle, compact)
@@ -168,10 +179,12 @@ def run_openai_extraction(
             result.update(response_id=envelope.get("id"), returned_model=envelope.get("model"),
                           response_status=envelope.get("status"), usage=envelope.get("usage"), service_tier=envelope.get("service_tier"))
         content = responses_content(response)
-        reply = wire_reply_type(wire_format).model_validate_json(content)
+        reply = parse_fixed_reply(content) if wire_format == "span_fixed" else wire_reply_type(wire_format).model_validate_json(content)
         write_json(output_dir / "reply.json", reply.model_dump(mode="json"))
         stage = "evidence_integrity"
-        if isinstance(reply, (SpanFullReply, SpanCompactReply)):
+        if isinstance(reply, FixedSpanReply):
+            resolved = resolve_fixed_reply(bundle, reply)
+        elif isinstance(reply, (SpanFullReply, SpanCompactReply)):
             resolved = resolve_span_reply(bundle, reply)
         else:
             resolved = (resolve_compact_reply(bundle, reply) if isinstance(reply, CompactReply) else resolve_reply(bundle, reply))
