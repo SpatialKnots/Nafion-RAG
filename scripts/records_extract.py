@@ -25,8 +25,8 @@ def main() -> None:
     infer.add_argument("--max-tokens", type=int, default=4096)
     infer.add_argument("--timeout-seconds", type=int, default=300)
     infer.add_argument("--seed", type=int, default=42)
-    infer.add_argument("--wire-format", choices=("full", "compact"), default="full",
-                       help="compact v0.1 requests five literal fields from exactly one source region")
+    infer.add_argument("--wire-format", choices=("full", "compact", "span_full", "span_compact"), default="full",
+                       help="span_* selects token coordinates via OpenAI; compact formats request five fields from one region")
     evaluate = commands.add_parser("evaluate", help="Reparse raw responses against a fixed development reference")
     evaluate.add_argument("--reference", type=Path, required=True)
     evaluate.add_argument("--run", action="append", default=[], metavar="CASE=PATH")
@@ -51,6 +51,8 @@ def main() -> None:
                 reasoning_effort=args.reasoning_effort, max_output_tokens=args.max_tokens, timeout_seconds=args.timeout_seconds,
             )
         else:
+            if args.wire_format.startswith("span_"):
+                parser.error("Token span formats currently require --backend openai")
             if args.runtime_manifest is None:
                 parser.error("Local backend requires --runtime-manifest")
             result = run_extraction(

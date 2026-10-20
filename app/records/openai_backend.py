@@ -17,24 +17,38 @@ from app.records.extraction import FullRecordReply, build_record_request, resolv
 from app.records.readiness import assess_readiness
 from app.records.runs import build_manifest
 from app.records.schema import CandidateBundle, text_hash
+from app.records.spans import SpanCompactReply, SpanFullReply, build_span_messages, resolve_span_reply
 
 ENDPOINT = "https://api.openai.com/v1/responses"
 FULL_VERSION = "records_openai_full_v0.1"
 COMPACT_VERSION = "records_openai_compact_v0.1"
-VERSIONS = {FULL_VERSION, COMPACT_VERSION}
-WireFormat = Literal["full", "compact"]
+WireFormat = Literal["full", "compact", "span_full", "span_compact"]
+FORMAT_VERSIONS: dict[WireFormat, str] = {
+    "full": FULL_VERSION, "compact": COMPACT_VERSION,
+    "span_full": "records_openai_span_full_v0.1", "span_compact": "records_openai_span_compact_v0.1",
+}
+VERSIONS = set(FORMAT_VERSIONS.values())
 ReasoningEffort = Literal["low", "medium", "high", "xhigh", "max"]
+
+
+def wire_reply_type(wire_format: WireFormat) -> type[FullRecordReply] | type[CompactReply] | type[SpanFullReply] | type[SpanCompactReply]:
+    replies: dict[WireFormat, type[FullRecordReply] | type[CompactReply] | type[SpanFullReply] | type[SpanCompactReply]] = {
+        "full": FullRecordReply, "compact": CompactReply, "span_full": SpanFullReply, "span_compact": SpanCompactReply,
+    }
+    return replies[wire_format]
 
 
 def build_openai_request(
     bundle: CandidateBundle, task: str, model: str, max_output_tokens: int,
     wire_format: WireFormat, reasoning_effort: ReasoningEffort,
 ) -> dict[str, Any]:
-    if wire_format not in {"full", "compact"} or reasoning_effort not in {"low", "medium", "high", "xhigh", "max"}:
+    if wire_format not in FORMAT_VERSIONS or reasoning_effort not in {"low", "medium", "high", "xhigh", "max"}:
         raise ValueError("Unsupported OpenAI wire format or reasoning effort")
     builder = build_compact_request if wire_format == "compact" else build_record_request
     base = builder(bundle, task, model, max_output_tokens, 42)
-    schema = CompactReply.model_json_schema() if wire_format == "compact" else FullRecordReply.model_json_schema()
+    schema = wire_reply_type(wire_format).model_json_schema()
+    if wire_format.startswith("span_"):
+        base["messages"] = build_span_messages(bundle, task, compact=wire_format == "span_compact")
     # Reuse source/task/prompt bytes, without the local endpoint's seed/temperature parameters.
     return {"model": model, "input": base["messages"], "max_output_tokens": max_output_tokens,
             "reasoning": {"effort": reasoning_effort}, "store": False, "stream": False,
@@ -88,6 +102,11 @@ def resolve_openai_response(bundle: CandidateBundle, raw: bytes, wire_format: Wi
     if wire_format == "compact":
         compact = CompactReply.model_validate_json(content)
         return compact, resolve_compact_reply(bundle, compact)
+    if wire_format in {"span_full", "span_compact"}:
+        selection = wire_reply_type(wire_format).model_validate_json(content)
+        if not isinstance(selection, (SpanFullReply, SpanCompactReply)):
+            raise ValueError("Expected span reply")
+        return selection, resolve_span_reply(bundle, selection)
     if wire_format != "full":
         raise ValueError("Unsupported OpenAI wire format")
     reply = FullRecordReply.model_validate_json(content)
@@ -126,7 +145,7 @@ def run_openai_extraction(
     artifact = manifest["artifact"]
     if not isinstance(artifact, dict) or artifact["sha256"] != hashlib.sha256(raw_input).hexdigest():
         raise ValueError("Input changed during OpenAI request preparation")
-    manifest.update(extraction_version=COMPACT_VERSION if wire_format == "compact" else FULL_VERSION,
+    manifest.update(extraction_version=FORMAT_VERSIONS[wire_format],
                     task=task, task_sha256=text_hash(task), input_sha256=hashlib.sha256(raw_input).hexdigest(),
                     request_sha256=hashlib.sha256(payload).hexdigest(), runtime_identity_sha256=hashlib.sha256(identity_bytes).hexdigest(),
                     timeout_seconds=timeout_seconds, scientific_admission="not_evaluated",
@@ -149,10 +168,13 @@ def run_openai_extraction(
             result.update(response_id=envelope.get("id"), returned_model=envelope.get("model"),
                           response_status=envelope.get("status"), usage=envelope.get("usage"), service_tier=envelope.get("service_tier"))
         content = responses_content(response)
-        reply = CompactReply.model_validate_json(content) if wire_format == "compact" else FullRecordReply.model_validate_json(content)
+        reply = wire_reply_type(wire_format).model_validate_json(content)
         write_json(output_dir / "reply.json", reply.model_dump(mode="json"))
         stage = "evidence_integrity"
-        resolved = (resolve_compact_reply(bundle, reply) if isinstance(reply, CompactReply) else resolve_reply(bundle, reply))
+        if isinstance(reply, (SpanFullReply, SpanCompactReply)):
+            resolved = resolve_span_reply(bundle, reply)
+        else:
+            resolved = (resolve_compact_reply(bundle, reply) if isinstance(reply, CompactReply) else resolve_reply(bundle, reply))
         write_json(output_dir / "candidates.json", resolved.model_dump(mode="json"))
         result.update(status="integrity_valid", records=len(resolved.records), abstention=not resolved.records,
                       readiness=[assess_readiness(record).to_dict() for record in resolved.records])

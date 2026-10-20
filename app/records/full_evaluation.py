@@ -26,15 +26,14 @@ from app.records.extraction import (
     write_json,
 )
 from app.records.openai_backend import (
-    COMPACT_VERSION as OPENAI_COMPACT_VERSION,
-)
-from app.records.openai_backend import (
-    VERSIONS as OPENAI_VERSIONS,
-)
-from app.records.openai_backend import (
+    FORMAT_VERSIONS,
+    WireFormat,
     build_openai_request,
     openai_identity,
     resolve_openai_response,
+)
+from app.records.openai_backend import (
+    VERSIONS as OPENAI_VERSIONS,
 )
 from app.records.runs import build_manifest
 from app.records.schema import (
@@ -173,7 +172,7 @@ def inspect_extraction(case: FullRecordCase, directory: Path) -> dict[str, Any]:
         raise ValueError("Run manifest input/task/request binding mismatch")
     is_openai = version in OPENAI_VERSIONS
     if is_openai:
-        api_format: Literal["compact", "full"] = "compact" if version == OPENAI_COMPACT_VERSION else "full"
+        api_format: WireFormat = next(name for name, identifier in FORMAT_VERSIONS.items() if identifier == version)
         expected_request = build_openai_request(context, case.task, request["model"], request["max_output_tokens"],
                                                api_format, request["reasoning"]["effort"])
     else:
