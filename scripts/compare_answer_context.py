@@ -29,6 +29,8 @@ from app.evaluation.layout_groups import VERSION as LAYOUT_VERSION
 from app.evaluation.layout_groups import propose_layout_groups
 from app.evaluation.ruled_tables import VERSION as TABLE_VERSION
 from app.evaluation.ruled_tables import propose_ruled_tables, read_registered_rules
+from app.evaluation.source_gaps import VERSION as GAPS_VERSION
+from app.evaluation.source_gaps import bind_source_gaps, read_source_gaps
 from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.generation.providers import Evidence
 from app.retrieval.cross_lingual import glossary_terms_for_concepts
@@ -48,6 +50,54 @@ def details(title, value):
     return f"<details><summary>{escape(title)}</summary><pre>{escape(text)}</pre></details>"
 
 
+def write_source_gap_review(output, report, input_manifest):
+    rows = []
+    unique_pages = set()
+    counts = {"raster_occurrences": 0, "vector_entries": 0, "rasters_without_overlapping_registered_lines": 0,
+              "pages_with_unproven_text_geometry": 0}
+    for case in report["cases"]:
+        for entry in case["source_gaps"]:
+            source = entry["source"]
+            unique_pages.add((source["article_id"], source["page"], source["layer_id"]))
+            images = [a for a in source["assets"] if a["kind"] == "raster_image"]
+            drawings = [a for a in source["assets"] if a["kind"] == "vector_drawing"]
+            absent = sum(a["text_overlap"] == "none" for a in images)
+            counts["raster_occurrences"] += len(images)
+            counts["vector_entries"] += len(drawings)
+            counts["rasters_without_overlapping_registered_lines"] += absent
+            counts["pages_with_unproven_text_geometry"] += not source["text_geometry_proven"]
+            title = next(s["title"] for s in case["source_registry"] if s["article_id"] == source["article_id"])
+            link = Path(source["original_pdf_path"]).as_uri() + "#page=" + str(source["page"])
+            rows.append(f'<tr data-case="{escape(case["id"], quote=True)}"><td>{escape(case["question"])}</td>'
+                f'<td><a href="{escape(link, quote=True)}">{escape(title)} · p. {source["page"]}</a>'
+                f'{details("Original and selected PDF identity", {k: v for k, v in source.items() if "pdf" in k})}</td>'
+                f'<td>{len(images)} raster occurrences; {len(drawings)} vector entries; '
+                f'{absent} rasters without overlapping registered lines. Scientific role unknown.'
+                f'{details("Every source asset and exact text line", source)}</td>'
+                f'<td>{details("Selected citations, proposed caption relations and uncertainties", entry["selection"])}</td></tr>')
+    html = ('<!doctype html><html lang="en"><meta charset="utf-8"><title>ARIADNE source graphics review</title>'
+        '<style>body{font:15px system-ui;margin:24px}table{border-collapse:collapse;width:100%}'
+        'td,th{border:1px solid #bbb;padding:10px;vertical-align:top}td{max-width:35vw}'
+        'pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:55vh;overflow:auto}input{width:70%;padding:10px}</style>'
+        f'<h1>Stage12 · {GAPS_VERSION}</h1><p>All declared pages from four frozen stage07 cases. '
+        'Occurrence counts include repeats across questions; no size filtering or figure reconstruction. '
+        'Pixels/vector paths are absent from text-only messages. Text overlap does not prove complete OCR. '
+        'Scientific relevance and information loss not evaluated; unchanged stage11 selection, zero API calls.</p>'
+        f'{details("Frozen input/code manifest", input_manifest)}{details("Per-case registration counts", counts)}'
+        '<label>Search all source/diagnostic text <input id="q" type="search"></label>'
+        '<table><thead><tr><th>Question</th><th>Source/page</th><th>Unserialized graphics</th>'
+        '<th>Exact selected text binding</th></tr></thead><tbody>' + "".join(rows) + '</tbody></table>'
+        '<script>document.getElementById("q").addEventListener("input",e=>{const q=e.target.value.toLowerCase();'
+        'document.querySelectorAll("tr[data-case]").forEach(r=>r.hidden=!r.textContent.toLowerCase().includes(q));});</script></html>')
+    (output / "source_gap_review.html").write_text(html, encoding="utf-8")
+    parser = ReviewParser()
+    parser.feed(html)
+    if parser.rows != len(rows) or len(parser.links) != len(rows):
+        raise ValueError("Source-gap static HTML page/link coverage check failed")
+    return {**counts, "page_registrations": len(rows), "unique_pages": len(unique_pages),
+            "html_rows": parser.rows, "existing_pdf_links": len(parser.links), "visual_browser_check": "not_run"}
+
+
 class ReviewParser(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -62,13 +112,17 @@ class ReviewParser(HTMLParser):
             self.links.append(attrs.get("href", ""))
 
 
-def run(baseline, output, protocol, *, block_windows=False, layout_groups=False, ruled_tables=False):
+def run(baseline, output, protocol, *, block_windows=False, layout_groups=False, ruled_tables=False, source_gaps=False):
     if layout_groups and not block_windows:
         raise ValueError("Layout grouping requires the registered block-window path")
     if ruled_tables and not layout_groups:
         raise ValueError("Ruled tables require the registered layout-group path")
-    version = TABLE_VERSION if ruled_tables else LAYOUT_VERSION if layout_groups else WINDOW_VERSION if block_windows else VERSION
-    stage = "stage11" if ruled_tables else "stage10" if layout_groups else "stage09" if block_windows else "stage08"
+    if source_gaps and not ruled_tables:
+        raise ValueError("Source-gap audit requires the unchanged stage11 selection path")
+    version = (GAPS_VERSION if source_gaps else TABLE_VERSION if ruled_tables
+               else LAYOUT_VERSION if layout_groups else WINDOW_VERSION if block_windows else VERSION)
+    stage = ("stage12" if source_gaps else "stage11" if ruled_tables else "stage10" if layout_groups
+             else "stage09" if block_windows else "stage08")
     manifest_path = baseline / "pre_inference_manifest.json"
     manifest = json.loads(manifest_path.read_bytes())
     questions = json.loads((baseline / "questions.json").read_bytes())
@@ -120,6 +174,9 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False,
     if ruled_tables:
         path = Path("app/evaluation/ruled_tables.py")
         code[str(path.resolve())] = sha(path)
+    if source_gaps:
+        path = Path("app/evaluation/source_gaps.py")
+        code[str(path.resolve())] = sha(path)
     output.mkdir(parents=True, exist_ok=False)
     input_manifest = {"version": version, "inputs": inputs, "code": code,
                       "baseline_corpus_sha256": manifest["corpus_sha256"], "mode": "offline_no_inference"}
@@ -161,6 +218,8 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False,
         layout_registry = []
         rule_registry = []
         table_registry = []
+        gap_registry = []
+        groups_by_key = {}
         block_baseline = None
         layout_baseline = None
         anchor_terms = trace["metadata"]["answer_evidence_selection"]["distinctive_terms"]
@@ -181,6 +240,7 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False,
                 for key, mapping in unique_maps.items():
                     page = next(p for p in pages if (p.article_id, p.page, p.layer_id) == key)
                     protection = propose_layout_groups(page, mapping)
+                    groups_by_key[key] = list(protection.groups)
                     layout_registry.append({"article_id": page.article_id, "page": page.page,
                                             "layer_id": page.layer_id, **asdict(protection)})
                     protected[key] = [pair for group in protection.groups for pair in group.page_ranges]
@@ -193,12 +253,20 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False,
                     rules = read_registered_rules(page, mapping)
                     rule_registry.append(asdict(rules))
                     protection = propose_ruled_tables(page, mapping, rules)
+                    groups_by_key[key].extend(protection.groups)
                     table_registry.append({"article_id": page.article_id, "page": page.page,
                                            "layer_id": page.layer_id, **asdict(protection)})
                     protected[key].extend(pair for group in protection.groups for pair in group.page_ranges)
                 write(case_folder / "vector_rules_registry.json", rule_registry)
                 write(case_folder / "table_registry.json", table_registry)
             compacted = select_block_windows(prepass, pages, list(unique_maps.values()), anchor_terms, protected_ranges=protected)
+            if source_gaps:
+                for key, mapping in unique_maps.items():
+                    page = next(p for p in pages if (p.article_id, p.page, p.layer_id) == key)
+                    gaps = read_source_gaps(page, mapping)
+                    gap_registry.append({"source": asdict(gaps), "selection": bind_source_gaps(
+                        gaps, page, compacted.slices, groups_by_key[key])})
+                write(case_folder / "source_gap_registry.json", gap_registry)
         for fragment in compacted.slices:
             emitted = next(item for item in compacted.evidence if item.citation_id == fragment.citation_id)
             stored = by_chunk[fragment.chunk_id]
@@ -242,6 +310,8 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False,
                         rules_sha256=sha(case_folder / "vector_rules_registry.json"),
                         tables_sha256=sha(case_folder / "table_registry.json"), layout_baseline_result=asdict(layout_baseline),
                         layout_baseline_characters=sum(len(item.text) for item in layout_baseline.evidence))
+        if source_gaps:
+            case.update(source_gaps=gap_registry, source_gaps_sha256=sha(case_folder / "source_gap_registry.json"))
         write(case_folder / "comparison.json", case)
         if candidate is not None:
             write(case_folder / "candidate_request_not_sent.json", candidate)
@@ -258,6 +328,8 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False,
             after_details += details("Closed table proposals, notes, reference paragraphs and rule registry",
                                      {"proposals": table_registry, "rules": rule_registry})
             after_details += details("Stage10 layout-only baseline", asdict(layout_baseline))
+        if source_gaps:
+            after_details += details("Source graphics absent from text-only messages; relevance/completeness not evaluated", gap_registry)
         links = "".join(f'<p><a href="{escape(Path(source["pdf_path"]).as_uri(), quote=True)}">'
                         f'{escape(source["title"])} · pp. {source["page_start"]}–{source["page_end"]}</a></p>' for source in sources)
         rows.append(f'<tr data-case="{escape(question["id"], quote=True)}"><td>{escape(question["query"])}</td>'
@@ -295,6 +367,8 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False,
                                                  for q in questions):
         raise ValueError("Static HTML row/link check failed")
     report["html_qa"] = {"rows": parser.rows, "existing_pdf_links": len(parser.links), "visual_browser_check": "not_run"}
+    if source_gaps:
+        report["source_gap_qa"] = write_source_gap_review(output, report, input_manifest)
     write(output / "report.json", report)
     print(json.dumps({"version": version, "api_calls": 0, "html_qa": report["html_qa"], "cases": [
         {key: case[key] for key in ("id", "before_characters", "after_characters", "scope_guard_error")}
@@ -309,14 +383,18 @@ def main():
     mode.add_argument("--block-windows", action="store_true", help="Opt into source_block_windows_v0.1 (stage09)")
     mode.add_argument("--layout-groups", action="store_true", help="Opt into source_layout_groups_v0.1 (stage10)")
     mode.add_argument("--ruled-tables", action="store_true", help="Opt into source_ruled_tables_v0.2 (stage11)")
+    mode.add_argument("--source-gaps", action="store_true", help="Opt into source_visual_gaps_v0.1 diagnostics (stage12)")
     parser.add_argument("--protocol", type=Path)
     args = parser.parse_args()
-    protocol = args.protocol or Path("docs/records/ruled_tables_protocol_v0.2.md" if args.ruled_tables
+    protocol = args.protocol or Path("docs/records/source_gaps_protocol_v0.1.md" if args.source_gaps
+        else "docs/records/ruled_tables_protocol_v0.2.md" if args.ruled_tables
         else "docs/records/layout_groups_protocol_v0.1.md" if args.layout_groups
         else "docs/records/context_windows_protocol_v0.1.md" if args.block_windows
         else "docs/records/context_compaction_protocol_v0.1.md")
-    run(args.baseline, args.output, protocol, block_windows=args.block_windows or args.layout_groups or args.ruled_tables,
-        layout_groups=args.layout_groups or args.ruled_tables, ruled_tables=args.ruled_tables)
+    run(args.baseline, args.output, protocol,
+        block_windows=args.block_windows or args.layout_groups or args.ruled_tables or args.source_gaps,
+        layout_groups=args.layout_groups or args.ruled_tables or args.source_gaps,
+        ruled_tables=args.ruled_tables or args.source_gaps, source_gaps=args.source_gaps)
 
 
 if __name__ == "__main__":
