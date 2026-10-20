@@ -25,6 +25,8 @@
 
 ## Текущий экспериментальный статус
 
+**Блок 4, records stage02, 20 октября.** Добавлены bounded adapter и evaluator полной записи: 16 полей, representation, три linkage roles, точные source anchors, отдельный учёт пропусков/отказов и HTML трёх development-случаев. Прежние TAC/Terms и source-only stage01 сохранены коммитами. Финальный regression: 1 090 passed, Ruff/mypy прошли. Все три реальные попытки Qwen2.5-3B на 2 CPU threads завершились timeout по 300 s; успешное extraction и научная accuracy не установлены. Исходные PDF и frozen reference сохранены. Подробнее: [stage02](docs/records_stage02_bounded_extraction_2026-10-20.md), [протокол/команды](docs/records/bounded_record_protocol_v0.1.md).
+
 **Блок 4, records stage01: инициализация пилота Li-Nafion.** Исправлен состав source baseline: включены runtime JSON/JS/HTML/CSS. Новый read-only exporter сохраняет все 33 документа / 493 полные выбранные страницы, source hashes и отдельный лексический аудит. HTML содержит только источники, без предложений записей и аннотаций. Найдены шесть документов с Li-Nafion anchors; 10–15 научно пригодных публикаций и независимый эталон пока не установлены. Два экспорта воспроизвели source content; 1 054 tests, Ruff, mypy и offline browser QA прошли. Extractor и научная accuracy этим этапом не реализованы. Подробнее: [stage01](docs/records_stage01_initialization_2026-10-14.md), [протокол](docs/records/pilot_initialization_protocol_v0.1.md).
 
 Основной pipeline ingestion → retrieval → ответы присутствует в коде. Октябрьские циклы отдельно исследуют experimental records и TAC; их номера этапов относятся к разным экспериментам.

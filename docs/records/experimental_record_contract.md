@@ -1,6 +1,8 @@
 # Experimental Li-Nafion record contract v0.1
 
-Status: development proposal, 9 October 2026. This module is separate from production ingestion, retrieval, `structured_facts`, and numeric review. It does not provide extraction, scientific admission, a human decision store, or an interactive review UI. An offline review worksheet generator is available; it leaves decisions blank.
+Status: development proposal, 9 October 2026. This source-contract layer is separate from production ingestion, retrieval, `structured_facts`, and numeric review. It does not itself perform extraction, scientific admission, human decision storage, or interactive review. An offline worksheet generator leaves decisions blank.
+
+20 October extension: a separate [bounded full-record adapter and evaluator](bounded_record_protocol_v0.1.md) now propose zero or one measurement per fixed source task. They preserve this candidate schema and its unreviewed state. The original source-export/contract layer described below remains unchanged; whole-article extraction, independent scientific acceptance and persistent record decisions are still outside its scope.
 
 ## Scope and user decisions
 
@@ -67,4 +69,4 @@ The manifest identifies current code at capture time, not the code of an unrecor
 
 ## Next implementation boundaries
 
-Before scientific admission: identify samples and compositions in methods/results, review accepted representations and linkage rules, establish work grouping and independent gold, and add a separate human decision/revision model. Local model runs, table adapters, extractor, evaluation, export and review UI remain subsequent tasks.
+Before scientific admission: identify samples and compositions in methods/results, review accepted representations and linkage rules, establish work grouping and independent gold, and add a separate human decision/revision model. Local field smoke and bounded full-record inference/evaluation are separate development tools; they do not establish scientific acceptance. Whole-article/table adapters, scientific export and interactive record review remain subsequent tasks.
