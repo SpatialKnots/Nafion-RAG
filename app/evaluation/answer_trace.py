@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 
 from pydantic import BaseModel, ConfigDict, StrictBool
 
+from app.evaluation.context_compaction import SourcePage, require_no_complete_pages
 from app.generation.providers import (
     SCIENTIFIC_ANSWER_SYSTEM_PROMPT,
     AnswerLanguage,
@@ -56,11 +57,13 @@ class TraceResponsesProvider(OpenAIAnswerProvider):
     """Development-only Responses bridge; reuses production prompts, not global provider settings."""
 
     def __init__(self, *, model: str, api_key: str, max_output_tokens: int = 4096, timeout_seconds: int = 180,
-                 output: Path | None = None, expected_request: bytes | None = None) -> None:
+                 output: Path | None = None, expected_request: bytes | None = None,
+                 source_pages: list[SourcePage] | None = None) -> None:
         super().__init__(base_url="https://api.openai.com/v1", api_key=api_key, model=model,
                          timeout_seconds=timeout_seconds, max_tokens=max_output_tokens)
         self.output = output
         self.expected_request = expected_request
+        self.source_pages = None if source_pages is None else list(source_pages)
         self.prepared_request: bytes | None = None
         self.result: dict[str, Any] = {"provider": "openai_responses", "endpoint": ENDPOINT, "model": model,
                                       "scientific_admission": "not_evaluated"}
@@ -69,10 +72,12 @@ class TraceResponsesProvider(OpenAIAnswerProvider):
                 answer_language: AnswerLanguage = "auto") -> dict[str, Any]:
         if not question.strip() or not evidence:
             raise ValueError("Trace generation requires a nonempty question and selected evidence")
+        user_text = self._user_prompt(question, evidence, answer_style=answer_style, answer_language=answer_language)
+        if self.source_pages is not None:
+            require_no_complete_pages(user_text, self.source_pages)
         return {"model": self.model, "input": [
             {"role": "system", "content": SCIENTIFIC_ANSWER_SYSTEM_PROMPT},
-            {"role": "user", "content": self._user_prompt(question, evidence, answer_style=answer_style,
-                                                          answer_language=answer_language)}],
+            {"role": "user", "content": user_text}],
             "max_output_tokens": self.max_tokens, "reasoning": {"effort": "medium"}, "store": False,
             "stream": False, "truncation": "disabled", "service_tier": "default",
             "text": {"format": {"type": "json_schema", "name": "ariadne_answer_trace", "strict": True,
