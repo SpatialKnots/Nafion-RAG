@@ -25,6 +25,17 @@ from app.records.extraction import (
     resolve_reply,
     write_json,
 )
+from app.records.openai_backend import (
+    COMPACT_VERSION as OPENAI_COMPACT_VERSION,
+)
+from app.records.openai_backend import (
+    VERSIONS as OPENAI_VERSIONS,
+)
+from app.records.openai_backend import (
+    build_openai_request,
+    openai_identity,
+    resolve_openai_response,
+)
 from app.records.runs import build_manifest
 from app.records.schema import (
     CandidateBundle,
@@ -156,12 +167,19 @@ def inspect_extraction(case: FullRecordCase, directory: Path) -> dict[str, Any]:
     if context != case.context:
         raise ValueError("Run source context differs from reference")
     version = manifest.get("extraction_version")
-    if (version not in {VERSION, COMPACT_VERSION} or manifest.get("input_sha256") != case.input_sha256
+    if (version not in {VERSION, COMPACT_VERSION, *OPENAI_VERSIONS} or manifest.get("input_sha256") != case.input_sha256
             or manifest.get("task") != case.task or manifest.get("task_sha256") != text_hash(case.task)
             or manifest.get("request_sha256") != hashlib.sha256(request_raw).hexdigest()):
         raise ValueError("Run manifest input/task/request binding mismatch")
-    builder = build_compact_request if version == COMPACT_VERSION else build_record_request
-    if request != builder(context, case.task, request["model"], request["max_tokens"], request["seed"]):
+    is_openai = version in OPENAI_VERSIONS
+    if is_openai:
+        api_format: Literal["compact", "full"] = "compact" if version == OPENAI_COMPACT_VERSION else "full"
+        expected_request = build_openai_request(context, case.task, request["model"], request["max_output_tokens"],
+                                               api_format, request["reasoning"]["effort"])
+    else:
+        builder = build_compact_request if version == COMPACT_VERSION else build_record_request
+        expected_request = builder(context, case.task, request["model"], request["max_tokens"], request["seed"])
+    if request != expected_request:
         raise ValueError("Run request differs from the fixed bounded extraction contract")
     runtime_raw = (directory / "runtime_identity.json").read_bytes()
     if hashlib.sha256(runtime_raw).hexdigest() != manifest.get("runtime_identity_sha256"):
@@ -169,6 +187,8 @@ def inspect_extraction(case: FullRecordCase, directory: Path) -> dict[str, Any]:
     identity = json.loads(runtime_raw)
     if not isinstance(identity, dict) or identity.get("model_alias") != request["model"]:
         raise ValueError("Run model differs from declared runtime")
+    if is_openai and identity != openai_identity(request, api_format):
+        raise ValueError("OpenAI runtime declaration differs from fixed backend settings")
     response_path = directory / "response.json"
     if not response_path.is_file():
         row["diagnostic"] = "Raw response unavailable; transport/missing run remains in denominator"
@@ -176,8 +196,11 @@ def inspect_extraction(case: FullRecordCase, directory: Path) -> dict[str, Any]:
         return row
     try:
         raw_response = response_path.read_bytes()
-        prediction = (resolve_compact_reply(context, parse_compact_completion(raw_response)) if version == COMPACT_VERSION
-                      else resolve_reply(context, parse_completion(raw_response)))
+        if is_openai:
+            _, prediction = resolve_openai_response(context, raw_response, api_format)
+        else:
+            prediction = (resolve_compact_reply(context, parse_compact_completion(raw_response)) if version == COMPACT_VERSION
+                          else resolve_reply(context, parse_completion(raw_response)))
     except ValueError as exc:
         row.update(status="invalid", diagnostic=str(exc), dimensions=unavailable_dimensions(case, "unavailable"))
         return row
