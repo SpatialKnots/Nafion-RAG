@@ -22,6 +22,8 @@ def main() -> None:
     infer.add_argument("--max-tokens", type=int, default=4096)
     infer.add_argument("--timeout-seconds", type=int, default=300)
     infer.add_argument("--seed", type=int, default=42)
+    infer.add_argument("--wire-format", choices=("full", "compact"), default="full",
+                       help="compact v0.1 requests five literal fields from exactly one source region")
     evaluate = commands.add_parser("evaluate", help="Reparse raw responses against a fixed development reference")
     evaluate.add_argument("--reference", type=Path, required=True)
     evaluate.add_argument("--run", action="append", default=[], metavar="CASE=PATH")
@@ -34,6 +36,7 @@ def main() -> None:
             args.input, args.output_dir, task=args.task_file.read_text(encoding="utf-8"),
             endpoint=args.endpoint, model=args.model, runtime_manifest=args.runtime_manifest,
             source_root=args.source_root, max_tokens=args.max_tokens, timeout_seconds=args.timeout_seconds, seed=args.seed,
+            wire_format=args.wire_format,
         )
         print(json.dumps(result, ensure_ascii=False))
         if result["status"] != "integrity_valid":

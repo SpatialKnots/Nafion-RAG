@@ -149,7 +149,7 @@ def build_record_request(bundle: CandidateBundle, task: str, model: str, max_tok
     }
 
 
-def parse_completion(raw: bytes) -> FullRecordReply:
+def completion_content(raw: bytes) -> str:
     envelope = json.loads(raw)
     choices = envelope.get("choices") if isinstance(envelope, dict) else None
     if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
@@ -160,7 +160,11 @@ def parse_completion(raw: bytes) -> FullRecordReply:
     message = choice.get("message")
     if not isinstance(message, dict) or not isinstance(message.get("content"), str):
         raise ValueError("Completion content must be text")
-    return FullRecordReply.model_validate_json(message["content"])
+    return str(message["content"])
+
+
+def parse_completion(raw: bytes) -> FullRecordReply:
+    return FullRecordReply.model_validate_json(completion_content(raw))
 
 
 def write_json(path: Path, value: object) -> None:
@@ -171,7 +175,13 @@ def write_json(path: Path, value: object) -> None:
 def run_extraction(
     input_path: Path, output_dir: Path, *, task: str, endpoint: str, model: str,
     runtime_manifest: Path, source_root: Path, max_tokens: int = 4096, timeout_seconds: int = 300, seed: int = 42,
+    wire_format: Literal["full", "compact"] = "full",
 ) -> dict[str, object]:
+    from app.records.compact import VERSION as COMPACT_VERSION
+    from app.records.compact import build_compact_request, parse_compact_completion, resolve_compact_reply
+
+    if wire_format not in {"full", "compact"}:
+        raise ValueError("Unsupported record wire format")
     check_local_endpoint(endpoint)
     if timeout_seconds < 1:
         raise ValueError("Positive timeout required")
@@ -180,9 +190,11 @@ def run_extraction(
     identity = json.loads(identity_bytes)
     if not isinstance(identity, dict) or identity.get("model_alias") != model or identity.get("endpoint") != endpoint:
         raise ValueError("Runtime declaration must match model alias and endpoint")
-    payload = json.dumps(build_record_request(bundle, task, model, max_tokens, seed), ensure_ascii=False).encode("utf-8")
+    builder = build_compact_request if wire_format == "compact" else build_record_request
+    payload = json.dumps(builder(bundle, task, model, max_tokens, seed), ensure_ascii=False).encode("utf-8")
     manifest = build_manifest(input_path, operation="context_export", source_root=source_root)
-    manifest.update(extraction_version=VERSION, task=task, task_sha256=hashlib.sha256(task.encode()).hexdigest(),
+    manifest.update(extraction_version=COMPACT_VERSION if wire_format == "compact" else VERSION,
+                    task=task, task_sha256=hashlib.sha256(task.encode()).hexdigest(),
                     input_sha256=hashlib.sha256(raw_input).hexdigest(), request_sha256=hashlib.sha256(payload).hexdigest(),
                     runtime_identity_sha256=hashlib.sha256(identity_bytes).hexdigest(), timeout_seconds=timeout_seconds,
                     scientific_admission="not_evaluated", runtime_status="caller_declared_not_independently_verified")
@@ -198,12 +210,19 @@ def run_extraction(
         response = send_local_request(endpoint, payload, timeout_seconds)
         (output_dir / "response.json").write_bytes(response)
         stage = "completion_contract"
-        reply = parse_completion(response)
-        stage = "evidence_integrity"
-        resolved = resolve_reply(bundle, reply)
-        write_json(output_dir / "reply.json", reply.model_dump(mode="json"))
+        if wire_format == "compact":
+            compact_reply = parse_compact_completion(response)
+            stage = "evidence_integrity"
+            resolved = resolve_compact_reply(bundle, compact_reply)
+            reply_data, diagnostic = compact_reply.model_dump(mode="json"), compact_reply.diagnostic
+        else:
+            reply = parse_completion(response)
+            stage = "evidence_integrity"
+            resolved = resolve_reply(bundle, reply)
+            reply_data, diagnostic = reply.model_dump(mode="json"), reply.diagnostic
+        write_json(output_dir / "reply.json", reply_data)
         write_json(output_dir / "candidates.json", resolved.model_dump(mode="json"))
-        result.update(status="integrity_valid", records=len(resolved.records), diagnostic=reply.diagnostic,
+        result.update(status="integrity_valid", records=len(resolved.records), diagnostic=diagnostic,
                       abstention=not resolved.records, readiness=[assess_readiness(record).to_dict() for record in resolved.records])
     except (HTTPError, URLError, TimeoutError, ValueError) as exc:
         # Persist expected transport/validation failures; never turn them into successful abstentions.

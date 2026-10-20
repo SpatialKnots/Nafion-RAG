@@ -13,6 +13,8 @@ from uuid import UUID
 
 from pydantic import Field, model_validator
 
+from app.records.compact import VERSION as COMPACT_VERSION
+from app.records.compact import build_compact_request, parse_compact_completion, resolve_compact_reply
 from app.records.extraction import (
     FIELDS,
     LINK_ROLES,
@@ -153,11 +155,13 @@ def inspect_extraction(case: FullRecordCase, directory: Path) -> dict[str, Any]:
     context = CandidateBundle.model_validate_json(raw_input)
     if context != case.context:
         raise ValueError("Run source context differs from reference")
-    if (manifest.get("extraction_version") != VERSION or manifest.get("input_sha256") != case.input_sha256
+    version = manifest.get("extraction_version")
+    if (version not in {VERSION, COMPACT_VERSION} or manifest.get("input_sha256") != case.input_sha256
             or manifest.get("task") != case.task or manifest.get("task_sha256") != text_hash(case.task)
             or manifest.get("request_sha256") != hashlib.sha256(request_raw).hexdigest()):
         raise ValueError("Run manifest input/task/request binding mismatch")
-    if request != build_record_request(context, case.task, request["model"], request["max_tokens"], request["seed"]):
+    builder = build_compact_request if version == COMPACT_VERSION else build_record_request
+    if request != builder(context, case.task, request["model"], request["max_tokens"], request["seed"]):
         raise ValueError("Run request differs from the fixed bounded extraction contract")
     runtime_raw = (directory / "runtime_identity.json").read_bytes()
     if hashlib.sha256(runtime_raw).hexdigest() != manifest.get("runtime_identity_sha256"):
@@ -171,7 +175,9 @@ def inspect_extraction(case: FullRecordCase, directory: Path) -> dict[str, Any]:
         row["dimensions"] = unavailable_dimensions(case, "unavailable")
         return row
     try:
-        prediction = resolve_reply(context, parse_completion(response_path.read_bytes()))
+        raw_response = response_path.read_bytes()
+        prediction = (resolve_compact_reply(context, parse_compact_completion(raw_response)) if version == COMPACT_VERSION
+                      else resolve_reply(context, parse_completion(raw_response)))
     except ValueError as exc:
         row.update(status="invalid", diagnostic=str(exc), dimensions=unavailable_dimensions(case, "unavailable"))
         return row
