@@ -27,6 +27,8 @@ from app.evaluation.context_windows import VERSION as WINDOW_VERSION
 from app.evaluation.context_windows import read_registered_blocks, select_block_windows
 from app.evaluation.layout_groups import VERSION as LAYOUT_VERSION
 from app.evaluation.layout_groups import propose_layout_groups
+from app.evaluation.ruled_tables import VERSION as TABLE_VERSION
+from app.evaluation.ruled_tables import propose_ruled_tables, read_registered_rules
 from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.generation.providers import Evidence
 from app.retrieval.cross_lingual import glossary_terms_for_concepts
@@ -60,11 +62,13 @@ class ReviewParser(HTMLParser):
             self.links.append(attrs.get("href", ""))
 
 
-def run(baseline, output, protocol, *, block_windows=False, layout_groups=False):
+def run(baseline, output, protocol, *, block_windows=False, layout_groups=False, ruled_tables=False):
     if layout_groups and not block_windows:
         raise ValueError("Layout grouping requires the registered block-window path")
-    version = LAYOUT_VERSION if layout_groups else WINDOW_VERSION if block_windows else VERSION
-    stage = "stage10" if layout_groups else "stage09" if block_windows else "stage08"
+    if ruled_tables and not layout_groups:
+        raise ValueError("Ruled tables require the registered layout-group path")
+    version = TABLE_VERSION if ruled_tables else LAYOUT_VERSION if layout_groups else WINDOW_VERSION if block_windows else VERSION
+    stage = "stage11" if ruled_tables else "stage10" if layout_groups else "stage09" if block_windows else "stage08"
     manifest_path = baseline / "pre_inference_manifest.json"
     manifest = json.loads(manifest_path.read_bytes())
     questions = json.loads((baseline / "questions.json").read_bytes())
@@ -113,6 +117,9 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False)
     if layout_groups:
         path = Path("app/evaluation/layout_groups.py")
         code[str(path.resolve())] = sha(path)
+    if ruled_tables:
+        path = Path("app/evaluation/ruled_tables.py")
+        code[str(path.resolve())] = sha(path)
     output.mkdir(parents=True, exist_ok=False)
     input_manifest = {"version": version, "inputs": inputs, "code": code,
                       "baseline_corpus_sha256": manifest["corpus_sha256"], "mode": "offline_no_inference"}
@@ -152,7 +159,10 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False)
         case_folder.mkdir()
         block_registry = []
         layout_registry = []
+        rule_registry = []
+        table_registry = []
         block_baseline = None
+        layout_baseline = None
         anchor_terms = trace["metadata"]["answer_evidence_selection"]["distinctive_terms"]
         if block_windows:
             unique_maps = {}
@@ -176,6 +186,18 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False)
                     protected[key] = [pair for group in protection.groups for pair in group.page_ranges]
                 write(case_folder / "layout_registry.json", layout_registry)
                 block_baseline = select_block_windows(prepass, pages, list(unique_maps.values()), anchor_terms)
+            if ruled_tables:
+                layout_baseline = select_block_windows(prepass, pages, list(unique_maps.values()), anchor_terms, protected_ranges=protected)
+                for key, mapping in unique_maps.items():
+                    page = next(p for p in pages if (p.article_id, p.page, p.layer_id) == key)
+                    rules = read_registered_rules(page, mapping)
+                    rule_registry.append(asdict(rules))
+                    protection = propose_ruled_tables(page, mapping, rules)
+                    table_registry.append({"article_id": page.article_id, "page": page.page,
+                                           "layer_id": page.layer_id, **asdict(protection)})
+                    protected[key].extend(pair for group in protection.groups for pair in group.page_ranges)
+                write(case_folder / "vector_rules_registry.json", rule_registry)
+                write(case_folder / "table_registry.json", table_registry)
             compacted = select_block_windows(prepass, pages, list(unique_maps.values()), anchor_terms, protected_ranges=protected)
         for fragment in compacted.slices:
             emitted = next(item for item in compacted.evidence if item.citation_id == fragment.citation_id)
@@ -215,6 +237,11 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False)
             case.update(layout_protection=layout_registry, layout_sha256=sha(case_folder / "layout_registry.json"),
                         block_baseline_result=asdict(block_baseline),
                         block_baseline_characters=sum(len(item.text) for item in block_baseline.evidence))
+        if ruled_tables:
+            case.update(vector_rules=rule_registry, table_protection=table_registry,
+                        rules_sha256=sha(case_folder / "vector_rules_registry.json"),
+                        tables_sha256=sha(case_folder / "table_registry.json"), layout_baseline_result=asdict(layout_baseline),
+                        layout_baseline_characters=sum(len(item.text) for item in layout_baseline.evidence))
         write(case_folder / "comparison.json", case)
         if candidate is not None:
             write(case_folder / "candidate_request_not_sent.json", candidate)
@@ -227,6 +254,10 @@ def run(baseline, output, protocol, *, block_windows=False, layout_groups=False)
         if layout_groups:
             after_details += details("Protected layout proposals and unresolved boundaries", layout_registry)
             after_details += details("Stage09 block-only baseline", asdict(block_baseline))
+        if ruled_tables:
+            after_details += details("Closed table proposals, notes, reference paragraphs and rule registry",
+                                     {"proposals": table_registry, "rules": rule_registry})
+            after_details += details("Stage10 layout-only baseline", asdict(layout_baseline))
         links = "".join(f'<p><a href="{escape(Path(source["pdf_path"]).as_uri(), quote=True)}">'
                         f'{escape(source["title"])} · pp. {source["page_start"]}–{source["page_end"]}</a></p>' for source in sources)
         rows.append(f'<tr data-case="{escape(question["id"], quote=True)}"><td>{escape(question["query"])}</td>'
@@ -277,12 +308,15 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--block-windows", action="store_true", help="Opt into source_block_windows_v0.1 (stage09)")
     mode.add_argument("--layout-groups", action="store_true", help="Opt into source_layout_groups_v0.1 (stage10)")
+    mode.add_argument("--ruled-tables", action="store_true", help="Opt into source_ruled_tables_v0.2 (stage11)")
     parser.add_argument("--protocol", type=Path)
     args = parser.parse_args()
-    protocol = args.protocol or Path("docs/records/layout_groups_protocol_v0.1.md" if args.layout_groups
+    protocol = args.protocol or Path("docs/records/ruled_tables_protocol_v0.2.md" if args.ruled_tables
+        else "docs/records/layout_groups_protocol_v0.1.md" if args.layout_groups
         else "docs/records/context_windows_protocol_v0.1.md" if args.block_windows
         else "docs/records/context_compaction_protocol_v0.1.md")
-    run(args.baseline, args.output, protocol, block_windows=args.block_windows or args.layout_groups, layout_groups=args.layout_groups)
+    run(args.baseline, args.output, protocol, block_windows=args.block_windows or args.layout_groups or args.ruled_tables,
+        layout_groups=args.layout_groups or args.ruled_tables, ruled_tables=args.ruled_tables)
 
 
 if __name__ == "__main__":
