@@ -110,7 +110,8 @@ def _structural_risks(text: str) -> list[str]:
 
 
 def select_block_windows(prepass: CompactionResult, pages: list[SourcePage], maps: list[RegisteredBlocks],
-                         anchor_terms: list[str]) -> WindowResult:
+                         anchor_terms: list[str], *,
+                         protected_ranges: dict[tuple[str, int, str], list[tuple[int, int]]] | None = None) -> WindowResult:
     """Select exact complete blocks plus condition blocks and immediate neighbors.
 
     This is an experimental lexical selector. Unknown layout retains the full
@@ -137,6 +138,21 @@ def select_block_windows(prepass: CompactionResult, pages: list[SourcePage], map
         mapping_matches = [] if source is None else [m for m in maps if m.article_id == source.article_id
                                                      and m.page == source.page and m.layer_id == source.layer_id]
         mapping = mapping_matches[0] if len(mapping_matches) == 1 else None
+        protected: list[tuple[int, int]] = []
+        if protected_ranges is not None and proven_span and source is not None and mapping is not None and span is not None:
+            proposed = protected_ranges.get((source.article_id, source.page, source.layer_id), [])
+            block_ranges = {(block.page_start, block.page_end) for block in mapping.blocks}
+            if any(start < 0 or start >= end or end > len(source.text) or (start, end) not in block_ranges for start, end in proposed):
+                reasons.append("protected_layout_range_not_an_exact_block")
+            else:
+                protected = proposed
+                # Risk analysis only: outgoing source text is never masked or repaired.
+                shadow = list(item.text)
+                for start, end in protected:
+                    first, last = max(start, span.page_start) - span.page_start, min(end, span.page_end) - span.page_start
+                    if first < last:
+                        shadow[first:last] = [" "] * (last - first)
+                reasons = _structural_risks("".join(shadow))
         if (not proven_span or source is None or mapping is None or mapping.diagnostic is not None
                 or mapping.text_sha256 != _sha(source.text)):
             reasons.append("source_geometry_not_proven" if mapping is None or mapping.diagnostic is None else mapping.diagnostic)
@@ -170,14 +186,17 @@ def select_block_windows(prepass: CompactionResult, pages: list[SourcePage], map
         assert source is not None and span is not None
         hits: dict[int, list[str]] = {}
         conditions: set[int] = set()
+        layout: set[int] = set()
         for index, (start, end, _) in enumerate(units):
             normalized = source.text[start:end].lower().translate(LIGATURES)
             hits[index] = sorted({term for term in anchor_terms if term.strip()
                                   and term_matches_text(term.lower().translate(LIGATURES), normalized)})
             if _CONDITION.search(source.text[start:end]):
                 conditions.add(index)
+            if any(left <= start and end <= right for left, right in protected):
+                layout.add(index)
         anchors = sorted((index for index in hits if hits[index]), key=lambda index: (-len(hits[index]), index))[:MAX_ANCHOR_BLOCKS]
-        seeds = set(anchors) | conditions
+        seeds = set(anchors) | conditions | layout
         selected = {index for seed in seeds for index in range(max(0, seed - NEIGHBOR_BLOCKS),
                                                                min(len(units), seed + NEIGHBOR_BLOCKS + 1))}
         for index, (start, end, block) in enumerate(units):
@@ -186,6 +205,8 @@ def select_block_windows(prepass: CompactionResult, pages: list[SourcePage], map
                 why.append("ranked_query_anchor")
             if index in conditions:
                 why.append("measurement_or_condition_heuristic")
+            if index in layout:
+                why.append("protected_layout_group")
             if index in selected and index not in seeds:
                 why.append("adjacent_block")
             diagnostics.append({"prepass_citation_id": item.citation_id, "action": "retain_block" if index in selected else "omit_block",

@@ -25,6 +25,8 @@ from app.evaluation.context_compaction import (
 )
 from app.evaluation.context_windows import VERSION as WINDOW_VERSION
 from app.evaluation.context_windows import read_registered_blocks, select_block_windows
+from app.evaluation.layout_groups import VERSION as LAYOUT_VERSION
+from app.evaluation.layout_groups import propose_layout_groups
 from app.generation.evidence_adequacy import assess_evidence_adequacy
 from app.generation.providers import Evidence
 from app.retrieval.cross_lingual import glossary_terms_for_concepts
@@ -58,9 +60,11 @@ class ReviewParser(HTMLParser):
             self.links.append(attrs.get("href", ""))
 
 
-def run(baseline, output, protocol, *, block_windows=False):
-    version = WINDOW_VERSION if block_windows else VERSION
-    stage = "stage09" if block_windows else "stage08"
+def run(baseline, output, protocol, *, block_windows=False, layout_groups=False):
+    if layout_groups and not block_windows:
+        raise ValueError("Layout grouping requires the registered block-window path")
+    version = LAYOUT_VERSION if layout_groups else WINDOW_VERSION if block_windows else VERSION
+    stage = "stage10" if layout_groups else "stage09" if block_windows else "stage08"
     manifest_path = baseline / "pre_inference_manifest.json"
     manifest = json.loads(manifest_path.read_bytes())
     questions = json.loads((baseline / "questions.json").read_bytes())
@@ -106,6 +110,9 @@ def run(baseline, output, protocol, *, block_windows=False):
     if block_windows:
         path = Path("app/evaluation/context_windows.py")
         code[str(path.resolve())] = sha(path)
+    if layout_groups:
+        path = Path("app/evaluation/layout_groups.py")
+        code[str(path.resolve())] = sha(path)
     output.mkdir(parents=True, exist_ok=False)
     input_manifest = {"version": version, "inputs": inputs, "code": code,
                       "baseline_corpus_sha256": manifest["corpus_sha256"], "mode": "offline_no_inference"}
@@ -144,6 +151,8 @@ def run(baseline, output, protocol, *, block_windows=False):
         case_folder = output / question["id"]
         case_folder.mkdir()
         block_registry = []
+        layout_registry = []
+        block_baseline = None
         anchor_terms = trace["metadata"]["answer_evidence_selection"]["distinctive_terms"]
         if block_windows:
             unique_maps = {}
@@ -156,7 +165,18 @@ def run(baseline, output, protocol, *, block_windows=False):
                         unique_maps[key] = read_registered_blocks(page, path, selected_pdfs[str(path)])
             block_registry = [asdict(mapping) for mapping in unique_maps.values()]
             write(case_folder / "geometry_registry.json", block_registry)
-            compacted = select_block_windows(prepass, pages, list(unique_maps.values()), anchor_terms)
+            protected = None
+            if layout_groups:
+                protected = {}
+                for key, mapping in unique_maps.items():
+                    page = next(p for p in pages if (p.article_id, p.page, p.layer_id) == key)
+                    protection = propose_layout_groups(page, mapping)
+                    layout_registry.append({"article_id": page.article_id, "page": page.page,
+                                            "layer_id": page.layer_id, **asdict(protection)})
+                    protected[key] = [pair for group in protection.groups for pair in group.page_ranges]
+                write(case_folder / "layout_registry.json", layout_registry)
+                block_baseline = select_block_windows(prepass, pages, list(unique_maps.values()), anchor_terms)
+            compacted = select_block_windows(prepass, pages, list(unique_maps.values()), anchor_terms, protected_ranges=protected)
         for fragment in compacted.slices:
             emitted = next(item for item in compacted.evidence if item.citation_id == fragment.citation_id)
             stored = by_chunk[fragment.chunk_id]
@@ -191,6 +211,10 @@ def run(baseline, output, protocol, *, block_windows=False):
             case.update(prepass_result=asdict(prepass), block_registry=block_registry, anchor_terms=anchor_terms,
                         geometry_sha256=sha(case_folder / "geometry_registry.json"),
                         prepass_characters=sum(len(item.text) for item in prepass.evidence))
+        if layout_groups:
+            case.update(layout_protection=layout_registry, layout_sha256=sha(case_folder / "layout_registry.json"),
+                        block_baseline_result=asdict(block_baseline),
+                        block_baseline_characters=sum(len(item.text) for item in block_baseline.evidence))
         write(case_folder / "comparison.json", case)
         if candidate is not None:
             write(case_folder / "candidate_request_not_sent.json", candidate)
@@ -200,6 +224,9 @@ def run(baseline, output, protocol, *, block_windows=False):
         if block_windows:
             after_details += details("Prepass text and diagnostics", asdict(prepass))
             after_details += details("Verified PDF block registry and query terms", {"blocks": block_registry, "terms": anchor_terms})
+        if layout_groups:
+            after_details += details("Protected layout proposals and unresolved boundaries", layout_registry)
+            after_details += details("Stage09 block-only baseline", asdict(block_baseline))
         links = "".join(f'<p><a href="{escape(Path(source["pdf_path"]).as_uri(), quote=True)}">'
                         f'{escape(source["title"])} · pp. {source["page_start"]}–{source["page_end"]}</a></p>' for source in sources)
         rows.append(f'<tr data-case="{escape(question["id"], quote=True)}"><td>{escape(question["query"])}</td>'
@@ -247,12 +274,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path, help="Fresh output directory; existing output is never overwritten")
-    parser.add_argument("--block-windows", action="store_true", help="Opt into source_block_windows_v0.1 (stage09)")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--block-windows", action="store_true", help="Opt into source_block_windows_v0.1 (stage09)")
+    mode.add_argument("--layout-groups", action="store_true", help="Opt into source_layout_groups_v0.1 (stage10)")
     parser.add_argument("--protocol", type=Path)
     args = parser.parse_args()
-    protocol = args.protocol or Path("docs/records/context_windows_protocol_v0.1.md" if args.block_windows
-                                     else "docs/records/context_compaction_protocol_v0.1.md")
-    run(args.baseline, args.output, protocol, block_windows=args.block_windows)
+    protocol = args.protocol or Path("docs/records/layout_groups_protocol_v0.1.md" if args.layout_groups
+        else "docs/records/context_windows_protocol_v0.1.md" if args.block_windows
+        else "docs/records/context_compaction_protocol_v0.1.md")
+    run(args.baseline, args.output, protocol, block_windows=args.block_windows or args.layout_groups, layout_groups=args.layout_groups)
 
 
 if __name__ == "__main__":
