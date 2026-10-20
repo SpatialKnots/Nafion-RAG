@@ -17,11 +17,13 @@ from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
+from app.terms.phrases import FULL_PATTERNS
 from scripts.tac_boundary_review import validate_review
 from scripts.tac_experiment import digest, validate_profiles, write_new
 
 VERSION = "tac_term_candidates_v0.3"
 INVENTORY_VERSION = "tac_term_inventory_v0.1"
+ENRICHED_VERSION = "tac_term_inventory_v0.2"
 PREVIEW_POLICY = "legacy_greedy_surface_v0.3"
 WEIGHTS = {"T": 3, "A": 2, "C": 1}
 LIGATURES = {"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl"}
@@ -284,8 +286,29 @@ def preview_record(ranked: list[dict[str, Any]], limit: int) -> dict[str, Any]:
 
 
 def propose_inventory(profile: dict[str, Any], seeds: list[dict[str, str]], preview_limit: int,
-                      assessments: dict[str, Any] | None = None) -> dict[str, Any]:
+                      assessments: dict[str, Any] | None = None, *, full_phrases: bool = False) -> dict[str, Any]:
     ranked = generate_candidates(profile, seeds, assessments)
+    if full_phrases:
+        by_name = {t['term']: t for t in ranked}
+        for section in profile['sections']:
+            view, offsets = normalized_view(section['quote'])
+            for pattern in FULL_PATTERNS.values():
+                for match in re.finditer(r'(?<!\w)(?:' + pattern + r')(?!\w)', view):
+                    name = match.group()
+                    item = by_name.setdefault(name, dict(term=name, status='proposed', methods=[], seed_concepts=[], evidence=[]))
+                    if 'TAC_full_phrase_v0.1' not in item['methods']:
+                        item['methods'].append('TAC_full_phrase_v0.1')
+                    source = evidence(section, offsets[match.start()], offsets[match.end()-1]+1,
+                                      assessments[section['kind']]['status'] if assessments else 'unreviewed')
+                    if source not in item['evidence']:
+                        item['evidence'].append(source)
+                    item['label'] = display_label(item['evidence'][0]['quote'])
+                    item['occurrences'] = len(item['evidence'])
+                    item['language'] = 'ru' if re.search(r'[а-яё]', name) else 'en_or_symbol'
+                    features = rank_features(item)
+                    item['score'] = features['weighted_capped_occurrences'] * features['token_count'] + features['seed_match']
+                    item['methods'].sort()
+        ranked = sorted(by_name.values(), key=lambda t: (-t['score'], -len(t['term']), t['term']))
     for index, term in enumerate(ranked, 1):
         term.update(candidate_id=candidate_id(profile["article_id"], term["term"]),
                     rank=index, rank_features=rank_features(term))
@@ -301,9 +324,11 @@ def propose_inventory(profile: dict[str, Any], seeds: list[dict[str, str]], prev
 
 
 def validate_terms(snapshot: dict[str, Any], profiles: dict[str, Any], terms: dict[str, Any], profiles_sha256: str) -> None:
-    if terms.get("schema") not in {VERSION, INVENTORY_VERSION} or terms.get("profiles_sha256") != profiles_sha256:
+    if terms.get("schema") not in {VERSION, INVENTORY_VERSION, ENRICHED_VERSION} or terms.get("profiles_sha256") != profiles_sha256:
         raise ValueError("Terms schema/profile hash mismatch")
-    inventory_mode = terms["schema"] == INVENTORY_VERSION
+    inventory_mode = terms["schema"] in {INVENTORY_VERSION, ENRICHED_VERSION}
+    if terms['schema'] == ENRICHED_VERSION and terms.get('settings', {}).get('full_phrase_policy') != FULL_PATTERNS:
+        raise ValueError('Full phrase inventory policy mismatch')
     validate_profiles(snapshot, profiles, terms.get("snapshot_sha256", ""))
     if terms.get("state") != "proposed_for_article_review":
         raise ValueError("Terms must remain proposals")
@@ -328,8 +353,13 @@ def validate_terms(snapshot: dict[str, Any], profiles: dict[str, Any], terms: di
         for term in candidates:
             if term["status"] != "proposed" or not term["term"] or term["term"] in seen or not term["evidence"]:
                 raise ValueError("Term state/duplicate/evidence invalid")
-            if not term["methods"] or not set(term["methods"]) <= {"existing_glossary_match", "TAC_lexical_phrase"}:
+            methods = {"existing_glossary_match", "TAC_lexical_phrase"}
+            if terms['schema'] == ENRICHED_VERSION:
+                methods.add('TAC_full_phrase_v0.1')
+            if not term["methods"] or not set(term["methods"]) <= methods:
                 raise ValueError("Term proposal method invalid")
+            if 'TAC_full_phrase_v0.1' in term['methods'] and not any(re.fullmatch(p, term['term']) for p in FULL_PATTERNS.values()):
+                raise ValueError('Full phrase inventory rule/source mismatch')
             if (term.get("occurrences") != len(term["evidence"]) or not isinstance(term.get("score"), (int, float))
                     or isinstance(term["score"], bool) or not math.isfinite(term["score"]) or term["score"] < 0):
                 raise ValueError("Term score/occurrence count invalid")
@@ -376,14 +406,14 @@ def main() -> None:
     parser.add_argument("--profiles", type=Path, required=True)
     parser.add_argument("--glossary", type=Path, default=Path("docs/cross_lingual_glossary.yaml"))
     parser.add_argument("--boundary-review", type=Path)
-    parser.add_argument("--format", choices=("legacy-v0.3", "inventory"), default="legacy-v0.3",
+    parser.add_argument("--format", choices=("legacy-v0.3", "inventory", "inventory-v0.2"), default="legacy-v0.3",
                         help="Explicit new complete inventory, or backward-compatible selected-only v0.3 (default)")
     limits = parser.add_mutually_exclusive_group()
     limits.add_argument("--max-terms", type=int, help="Legacy stored-list limit; only with --format legacy-v0.3")
     limits.add_argument("--preview-limit", type=int, help="Preview only; requires --format inventory; default 12")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    inventory_mode = args.format == "inventory"
+    inventory_mode = args.format in {"inventory", "inventory-v0.2"}
     if (inventory_mode and args.max_terms is not None) or (not inventory_mode and args.preview_limit is not None):
         parser.error("Use --preview-limit with --format inventory; --max-terms applies only to legacy-v0.3")
     limit = args.preview_limit if inventory_mode else args.max_terms
@@ -397,9 +427,10 @@ def main() -> None:
     reviewed = validate_review(snapshot, profiles, json.loads(review_raw), digest(profiles_raw)) if review_raw else {}
     seeds = load_seeds(args.glossary)
     proposer = propose_inventory if inventory_mode else propose_article
-    articles = [proposer(p, seeds, limit, reviewed.get(p["article_id"], {}).get("assessments"))
+    articles = [proposer(p, seeds, limit, reviewed.get(p["article_id"], {}).get("assessments"),
+                        **({'full_phrases': True} if args.format == 'inventory-v0.2' else {}))
                 for p in profiles["profiles"]]
-    result = {"schema": INVENTORY_VERSION if inventory_mode else VERSION,
+    result = {"schema": ENRICHED_VERSION if args.format == 'inventory-v0.2' else INVENTORY_VERSION if inventory_mode else VERSION,
               "created_at": datetime.now(UTC).isoformat(), "state": "proposed_for_article_review",
               "snapshot_sha256": digest(snapshot_raw), "profiles_sha256": digest(profiles_raw),
               "glossary_sha256": digest(seed_raw), "review_sha256": digest(review_raw) if review_raw else None,
@@ -411,6 +442,9 @@ def main() -> None:
                            }, "articles": articles}
     result["settings"].update({"preview_limit": limit, "preview_policy": PREVIEW_POLICY, "nested_surface_preview_only": True}
                               if inventory_mode else {"max_terms": limit, "nested_surface_suppression": True})
+    if args.format == 'inventory-v0.2':
+        result['settings']['full_phrase_policy'] = FULL_PATTERNS
+        result['phrase_code_sha256'] = digest((Path(__file__).resolve().parents[1] / 'app/terms/phrases.py').read_bytes())
     validate_terms(snapshot, profiles, result, digest(profiles_raw))
     write_new(args.output, result)
     field = "inventory" if inventory_mode else "terms"

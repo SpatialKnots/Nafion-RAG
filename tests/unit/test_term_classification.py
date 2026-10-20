@@ -9,7 +9,7 @@ from app.terms.classification import ManualProposal, Taxonomy, classify_article,
 from app.terms.contexts import build_article
 from scripts.tac_experiment import digest, span
 from scripts.tac_review_html import render_table
-from scripts.tac_term_classification import DEFAULT_TAXONOMY, build_classification, validate_classification
+from scripts.tac_term_classification import DEFAULT_TAXONOMY, LEGACY_TAXONOMY, build_classification, validate_classification
 from scripts.tac_terms import propose_inventory
 from scripts.tac_terms_graph import attach_classification, project_graph
 from tests.unit.test_term_contexts import inputs, sidecar
@@ -26,7 +26,7 @@ def fixture(tmp_path, text="Nafion membranes. We measured ionic conductivity. Te
 
 
 def policy():
-    return Taxonomy.model_validate(json.loads(DEFAULT_TAXONOMY.read_bytes()))
+    return Taxonomy.model_validate(json.loads(LEGACY_TAXONOMY.read_bytes()))
 
 
 def assigned(row, result, term, axis):

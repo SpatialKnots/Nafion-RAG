@@ -7,16 +7,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from app.terms.classification import VERSION, ManualInput, Taxonomy, classify_article
+from app.terms.classification import AUTOMATIC_VERSION, CONTEXT_VERSION, PHRASE_VERSION, VERSION, ManualInput, Taxonomy, classify_article
 from scripts.tac_experiment import digest, validate_profiles, write_new
 from scripts.tac_term_contexts import validate_contexts, verify_pdfs
 
-DEFAULT_TAXONOMY = Path(__file__).resolve().parents[1] / "app/terms/taxonomy_v01.json"
+LEGACY_TAXONOMY = Path(__file__).resolve().parents[1] / "app/terms/taxonomy_v01.json"
+DEFAULT_TAXONOMY = Path(__file__).resolve().parents[1] / "app/terms/taxonomy_v04.json"
 
 
 def build_classification(contexts: dict[str, Any], taxonomy: dict[str, Any], contexts_hash: str,
                          taxonomy_hash: str, manual_data: dict[str, Any] | None = None) -> dict[str, Any]:
     policy = Taxonomy.model_validate(taxonomy)
+    automatic = policy.schema_version != "tac_terms_taxonomy_v0.1"
+    if automatic and manual_data is not None:
+        raise ValueError("Automatic Terms classification does not accept manual input")
     manual = ManualInput.model_validate(manual_data) if manual_data is not None else None
     if manual and (manual.contexts_sha256 != contexts_hash or manual.taxonomy_sha256 != taxonomy_hash):
         raise ValueError("Manual classification frozen input mismatch")
@@ -28,7 +32,11 @@ def build_classification(contexts: dict[str, Any], taxonomy: dict[str, Any], con
     views = [{"view_id": f"{axis}:{category}", "filters": {axis: category}, "sort": "rank", "taxonomy_sha256": taxonomy_hash,
               "contexts_sha256": contexts_hash, "review_revision_cutoff": 0, "state": "frozen_proposals_only"}
              for axis, categories in policy.categories.items() for category in categories]
-    return {"schema": VERSION, "state": "proposed_not_scientifically_accepted", "contexts_sha256": contexts_hash,
+    version = CONTEXT_VERSION if policy.schema_version == "tac_terms_taxonomy_v0.3" else AUTOMATIC_VERSION if automatic else VERSION
+    if policy.schema_version == 'tac_terms_taxonomy_v0.4':
+        version = PHRASE_VERSION
+    return {"schema": version,
+            "state": "proposed_not_scientifically_accepted", "contexts_sha256": contexts_hash,
             "taxonomy_sha256": taxonomy_hash, "taxonomy": taxonomy, "manual_input": manual_data,
             "manual_sha256": digest(json.dumps(manual_data, sort_keys=True, ensure_ascii=False).encode()),
             "saved_views": views, "articles": rows}
@@ -36,7 +44,8 @@ def build_classification(contexts: dict[str, Any], taxonomy: dict[str, Any], con
 
 def validate_classification(contexts: dict[str, Any], data: dict[str, Any], contexts_hash: str) -> dict[str, dict[str, Any]]:
     # Embedded taxonomy has a file-byte hash binding plus a canonical content binding.
-    if data.get("schema") != VERSION or data.get("state") != "proposed_not_scientifically_accepted":
+    if (data.get("schema") not in {VERSION, AUTOMATIC_VERSION, CONTEXT_VERSION, PHRASE_VERSION}
+            or data.get("state") != "proposed_not_scientifically_accepted"):
         raise ValueError("Classification schema/state mismatch")
     if digest(json.dumps(data["taxonomy"], sort_keys=True, ensure_ascii=False).encode()) != data.get("taxonomy_content_sha256"):
         raise ValueError("Classification taxonomy content mismatch")
@@ -51,7 +60,7 @@ def main() -> None:
     for name in ("snapshot", "profiles", "inventory", "contexts", "output"):
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--taxonomy", type=Path, default=DEFAULT_TAXONOMY)
-    parser.add_argument("--manual", type=Path)
+    parser.add_argument("--manual", type=Path, help="Legacy v0.1 replay only; disabled for automatic taxonomies")
     parser.add_argument("--source-root", type=Path, default=Path("."))
     args = parser.parse_args()
     if args.output.exists():

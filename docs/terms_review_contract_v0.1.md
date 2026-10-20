@@ -1,5 +1,10 @@
 # Terms persistent review contract v0.1
 
+Historical contract. Since 2026-10-14, the user-facing manual workflow is disabled
+by request: [automatic contract v0.2](terms_automatic_contract_v0.2.md). The ledger
+and archival helpers below remain for preserving/replaying old work; they do not
+drive current automatic subsets or expose a writable Terms form.
+
 Status: local development workflow, 2026-10-13. Independent scientific acceptance
 is pending. This contract supplements the inventory, context and classification
 contracts; it does not change their outputs or the production retrieval schema.

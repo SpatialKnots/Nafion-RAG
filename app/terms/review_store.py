@@ -50,7 +50,9 @@ def canonical(data: Any) -> bytes:
 def code_hashes() -> dict[str, str]:
     base = Path(__file__).resolve().parent
     return {name: sha((base / name).read_bytes()) for name in
-            ("schema.py", "contexts.py", "classification.py", "taxonomy_v01.json", "review_store.py", "review_projection.py")}
+            ("schema.py", "contexts.py", "classification.py", "phrases.py", "taxonomy_v01.json", "taxonomy_v02.json",
+             "taxonomy_v03.json", "taxonomy_v04.json",
+             "review_store.py", "review_projection.py")}
 
 
 @contextmanager
@@ -168,6 +170,16 @@ def freshness(root: Path, sid: str, snapshot: dict[str, Any]) -> list[str]:
         problems.append("Snapshot is historical; current input changed. Decisions are not transferred automatically.")
     if snapshot["policy_code_sha256"] != code_hashes():
         problems.append("Terms source/policy/review engine changed; prepare a new snapshot.")
+    relations = snapshot["graph"].get("relation_pilot")
+    if relations and relations["input_sha256"]["algorithm"] != sha((Path(__file__).parent / "relations.py").read_bytes()):
+        problems.append("Relation pilot algorithm changed; frozen relation proposals remain historical.")
+    status_file = root/'pipeline_status.json'
+    if status_file.exists():
+        status = json.loads(status_file.read_bytes())
+        if status.get('schema') != 'tac_terms_pipeline_v0.1':
+            raise ValueError('Unsupported Terms pipeline status schema')
+        if status.get('state') == 'failed_previous_snapshot_retained':
+            problems.append('Automatic Terms rebuild failed; previous snapshot retained: '+status['error'])
     return problems
 
 

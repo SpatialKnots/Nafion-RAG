@@ -32,6 +32,23 @@ def graph_view(root: Path, sid: str, mode: str = "effective", cutoff: int | None
     return snapshot, graph
 
 
+def automatic_graph_view(root: Path, sid: str, online: bool = False) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Display algorithm assignments only; legacy decisions are archival data."""
+    snapshot, graph = graph_view(root, sid, mode="proposals", cutoff=0, online=online)
+    if (graph["taxonomy"]["schema"] not in {"tac_terms_taxonomy_v0.2", "tac_terms_taxonomy_v0.3", "tac_terms_taxonomy_v0.4"}
+            or any(p["producer"] != "policy" for a in graph["articles"] for row in a["assignments"] for p in row["proposals"])):
+        raise ValueError("Terms snapshot requires automatic classification without manual input; prepare a new snapshot.")
+    graph["state"] = "automatic_source_classification"
+    graph["review"].update(workflow_mode="automatic", manual_decisions_enabled=False, historical_decisions_applied=False)
+    legacy_groups = {"review_rejected", "unreviewed", "term_rejected"}
+    for axis, categories in graph["taxonomy"]["categories"].items():
+        for name in legacy_groups:
+            categories.pop(name, None)
+        for article in graph["articles"]:
+            article["category_groups"][axis] = [g for g in article["category_groups"][axis] if g["category"] not in legacy_groups]
+    return snapshot, graph
+
+
 def asset_url(sid: str, asset: str) -> str:
     return "/ui/terms-review/asset?" + urlencode({"snapshot": sid, "asset": asset})
 
@@ -53,6 +70,13 @@ def render_table(snapshot: dict[str, Any], sid: str, decisions: dict[str, dict[s
     result: str = snapshot["table_html"]
     summary = (f'<p class="identity">Terms review v0.1 · Snapshot {sid} · event cutoff {cutoff}. '
                'Заявленные локальные решения; независимая научная приёмка не установлена.</p>')
+    automatic = snapshot["graph"]["taxonomy"]["schema"] in {
+        "tac_terms_taxonomy_v0.2", "tac_terms_taxonomy_v0.3", "tac_terms_taxonomy_v0.4"}
+    if automatic and not decisions:
+        version = snapshot["graph"]["taxonomy"]["schema"].removeprefix("tac_terms_taxonomy_")
+        summary = (f'<p class="identity">Automatic Terms {version} · Snapshot {sid}. '
+                   'Распределение по subsets выполняется алгоритмом; ручное разрешение отключено. '
+                   'Неизвестные/неоднозначные случаи сохраняются с диагностикой.</p>')
     for event in decisions.values():
         text = (f'Review rev {event["revision"]}: {event["action"]}; categories {", ".join(event["categories"]) or "—"}; '
                 f'{event["reviewer_kind"]}:{event["reviewer"]}; {event["reason"]}')

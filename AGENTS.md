@@ -38,6 +38,13 @@ Implementation rules:
 - Do not hide ingestion, OCR, database, migration, retrieval, or evaluation failures with broad `try/except`.
 - Do not remove diagnostics just to make output cleaner.
 
+Terms workflow:
+- Classify Terms and interpret their context automatically; form subsets from versioned algorithm outputs.
+- Do not require per-Term user resolution, manual category/relevance decisions, or writable Terms review forms.
+- Retain unknown, ambiguous, and unsupported cases with exact source evidence and diagnostics; do not force categories or claim human confirmation.
+- Preserve historical manual ledgers/snapshots as archives without applying them to current automatic subsets.
+- Independent quality annotation/evaluation is separate from the user workflow and must not become a compulsory per-case resolution task.
+
 TAC review workflow:
 - At the end of each completed TAC development stage, generate a local HTML review table for the user. Do not generate XLSX unless the user explicitly requests it.
 - Preserve the agreed main columns: Title, Authors, Journal, Year, Abstract, Conclusions, Terms, hyperlink to original file.

@@ -1,5 +1,10 @@
 # Terms annotation guide v0.1: draft for domain review
 
+Historical annotation guidance, not a current per-Term user task. Since
+2026-10-14, [automatic workflow v0.2](terms_automatic_contract_v0.2.md) performs
+classification/subset formation; manual UI decisions are disabled. Independent
+quality annotation remains a separate evaluation activity.
+
 This guide accompanies TAC stage11. It defines review questions, not a validated
 ontology. Source integrity, term relevance, type, role, origin and scientific
 relations require separate decisions. UI decisions are not yet persisted.

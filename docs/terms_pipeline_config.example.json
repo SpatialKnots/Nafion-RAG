@@ -1,0 +1,8 @@
+{
+  "snapshot": "data/experiments/tac/20261012_v01/corpus.json",
+  "profiles": "data/experiments/tac/20261013_stage08/profiles_final_v02.json",
+  "metadata": "data/experiments/tac/20261013_stage08/metadata_final_v02.json",
+  "boundary_review": "data/experiments/tac/20261013_stage08/boundary_review_final_v02.json",
+  "glossary": "docs/cross_lingual_glossary.yaml",
+  "review_root": "data/reviews/terms"
+}

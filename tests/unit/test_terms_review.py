@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.terms.review_bundle import backup, graph_view, render_table, restore
+from app.terms.review_bundle import automatic_graph_view, backup, graph_view, render_table, restore
 from app.terms.review_projection import project_review, review_queue
 from app.terms.review_store import (
     SCHEMA,
@@ -170,29 +170,43 @@ def test_tampered_backup_is_rejected_before_writing(tmp_path):
     assert not destination.exists()
 
 
-def test_http_csrf_history_source_delivery_and_escaped_static_review(tmp_path):
+def test_http_manual_decisions_disabled_and_archive_does_not_change_automatic_subsets(tmp_path):
     root, sid, data, target = prepared(tmp_path)
     client = TestClient(create_app(root), base_url="http://127.0.0.1", client=("127.0.0.1", 50000))
     response = client.get("/ui/terms-review")
     assert response.status_code == 200
-    token = client.cookies.get("terms_review_csrf")
+    assert client.cookies.get("terms_review_csrf") is None
+    assert 'id: "terms-auto-bar"' in response.text
+    assert 'id:"review-save"' not in response.text
     body = request(sid, target, reason='<script>alert("unsafe")</script>').model_dump(mode="json")
-    assert client.post("/ui/terms-review/decision", json=body).status_code == 403
-    headers = {"Origin": "http://127.0.0.1", "X-Terms-CSRF": token}
-    assert client.post("/ui/terms-review/decision", headers=headers | {"Origin": "http://evil.invalid"}, json=body).status_code == 403
+    for action in ("confirm", "correct", "reject", "uncertain", "restore"):
+        assert client.post("/ui/terms-review/decision", json=body | {"action": action}).status_code == 410
+    assert history(root, sid) == []
+    # Existing archival fixtures remain readable, but never drive the live subsets.
+    saved = save_decision(root, request(sid, target, action="correct", categories=["process"], reason=body["reason"]))
+    prior_history = history(root, sid)
     remote = TestClient(create_app(root), base_url="http://127.0.0.1", client=("192.0.2.1", 50000))
-    remote.cookies.set("terms_review_csrf", token)
-    assert remote.post("/ui/terms-review/decision", headers=headers, json=body).status_code == 403
-    saved = client.post("/ui/terms-review/decision", headers=headers, json=body)
-    assert saved.status_code == 200
-    assert client.post("/ui/terms-review/decision", headers=headers, json=body).status_code == 409
+    assert remote.post("/ui/terms-review/decision", json=body).status_code == 410
+    assert client.post("/ui/terms-review/decision", content=b"invalid JSON").status_code == 410
+    state = client.get(f"/ui/terms-review/state?snapshot={sid}").json()
+    assert state["workflow_mode"] == "automatic" and state["manual_decisions_enabled"] is False
+    assert state["decisions"] == {} and state["events"] == [] and state["revision_cutoff"] == 0
+    automatic = automatic_graph_view(root, sid)[1]
+    changed = next(a for a in automatic["articles"][0]["assignments"] if a["assignment_id"] == target["assignment_id"])
+    assert changed["review_decision"] is None
+    term = next(t for t in automatic["articles"][0]["terms"] if t["term_id"] == target["term_id"])
+    assert "process" not in term["memberships"]["type"]
     exported = client.get(f"/ui/terms-review/export?snapshot={sid}").json()
     assert exported["events"][0]["reviewer_kind"] == "assistant" and exported["independent_acceptance"] is False
     table = client.get(f"/ui/terms-review/table?snapshot={sid}")
-    assert table.text.count("<th>") == 8 and "&lt;script&gt;" in table.text
+    assert table.status_code == 200 and table.text.count("<th>") == 8
+    assert 'class="review-event"' not in table.text
     assert '<script>alert("unsafe")</script>' not in table.text
+    assert client.get(f"/ui/terms-review/table?snapshot={sid}&cutoff={saved['event_id']}").status_code == 422
     asset = next(iter(data["assets"]))
     assert client.get(f"/ui/terms-review/asset?snapshot={sid}&asset={asset}").status_code == 200
     assert client.get(f"/ui/terms-review/asset?snapshot={sid}&asset=../../secret").status_code == 409
     assert render_table(data, sid, latest(root, sid), 1).count('<p class="review-event">') == 1
+    assert "&lt;script&gt;" in render_table(data, sid, latest(root, sid), 1)
+    assert history(root, sid) == prior_history
     assert review_queue(data["graph"], latest(root, sid), state="all")

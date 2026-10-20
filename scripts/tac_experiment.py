@@ -21,18 +21,19 @@ from app.evaluation.retrieval import _evaluate_extended_question, load_extended_
 from app.retrieval.cross_lingual import build_query_bundle
 from app.retrieval.search import SearchResponse, SearchResult, search_chunks
 
-RULE_VERSION = "tac_section_proposals_v0.7"
+RULE_VERSION = "tac_section_proposals_v0.9"
 ABSTRACT = re.compile(
     r"^\s*(?:abstract|a\s+b\s+s\s+t\s+r\s+a\s+c\s+t|аннотация|реферат|full\s+paper)(?=\s|[:.–-]|$)\s*[:.–-]?\s*", re.I,
 )
 CONCLUSION = re.compile(
     r"^\s*(?:\d+(?:\.\d+)*[.)]?\s*)?(?:conclusions?(?:\s+and\s+(?:perspectives|outlook|summary))?|"
-    r"concluding\s+remarks|summary\s+and\s+conclusions?|заключение|выводы|основные\s+выводы)\s*[.:]?\s*$", re.I,
+    r"concluding\s+remarks|summary\s+and\s+conclusions?|discussion\s+and\s+conclusions?|"
+    r"обсуждение\s+и\s+(?:выводы|заключение)|заключение|выводы|основные\s+выводы)\s*[.:]?\s*$", re.I,
 )
 STOP = re.compile(
     r"^\s*(?:\d+(?:\.\d+)*[.)]?\s*)?(?:introduction|введение|experimental(?:\s+.*)?|materials\s+and\s+methods|"
     r"results(?:\s+and\s+discussion)?|discussion|references(?:\s+and\s+notes)?|literature\s+cited|"
-    r"литература|список\s+литературы|благодарности|"
+    r"литература|список\s+литературы(?:\s*/\s*references)?|благодарност(?:ь|и)|"
     r"acknowledg(?:e)?ments?|author\s+contributions|funding|con(?:fl|ﬂ)icts?\s+of\s+interest|methods|"
     r"финансирование\s+работы|конфликт\s+интересов|registry\s+no|"
     r"associated\s+content|additional\s+information|online\s+content|оглавление|место\s+выполнения\s+работы|"
@@ -195,6 +196,9 @@ def heading_spans(pages: list[dict[str, Any]], front_start: int = 1) -> tuple[li
         begin: int | None = 0 if active else None
         for start, end, line in page_lines:
             abstract = ABSTRACT.match(line) if front_start <= int(page["page"]) <= front_start + 1 else None
+            if abstract and any(item.kind == 'A' for item in candidates):
+                diagnostics.append(f'A: secondary abstract heading on PDF page {page["page"]} excluded; first supported abstract retained')
+                abstract = None
             conclusion = CONCLUSION.fullmatch(line)
             stop = STOP.fullmatch(line)
             if stop and active == "C" and INLINE_STOP.fullmatch(line) and "layer_pdf_path" in page:
@@ -406,6 +410,7 @@ def validate_profiles(snapshot: dict[str, Any], profiles_doc: dict[str, Any], sn
 
 def extract(snapshot_path: Path, output: Path) -> None:
     from scripts.tac_front_matter import COVER, geometry_abstract
+    from scripts.tac_section_cleanup import clean_conclusions, title_without_footnote
     from scripts.tac_section_flow import continuation, summary_passages
     if output.exists():
         raise FileExistsError(output)
@@ -474,10 +479,18 @@ def extract(snapshot_path: Path, output: Path) -> None:
             if passages:
                 sections.extend(TACSpan(**s) for s in passages)
                 conclusion_kind = 'summary_passages'
+        cleaned, cleanup_diagnostics = clean_conclusions(pages, [asdict(s) for s in sections])
+        if not any(s['kind'] == 'C' for s in cleaned):
+            conclusion_kind = 'not_detected'
+        sections = [TACSpan(**s) for s in cleaned]
+        diagnostics.extend(cleanup_diagnostics)
         for proposed in sections:
             if proposed.kind == "A" and not re.search(r"[.!?][\s\"'’”)]*$", proposed.quote):
                 diagnostics.append(f"A: PDF page {proposed.page} proposal has no terminal sentence boundary; continuation review required")
         if title:
+            trimmed, title_diagnostics = title_without_footnote(front, asdict(title))
+            title = TACSpan(**trimmed)
+            diagnostics.extend(title_diagnostics)
             sections.insert(0, title)
         else:
             diagnostics.append("T: no unique exact layout block; metadata title is not a verified PDF title")
@@ -497,7 +510,8 @@ def extract(snapshot_path: Path, output: Path) -> None:
                                              for page in pages if page["layout_warnings"]]})
     write_new(output, {"schema": RULE_VERSION, "created_at": datetime.now(UTC).isoformat(),
                        "component_sha256": {name: digest(Path(name).read_bytes()) for name in
-                                            ("scripts/tac_front_matter.py", "scripts/tac_section_flow.py", "scripts/tac_metadata.py")},
+                                            ("scripts/tac_front_matter.py", "scripts/tac_section_flow.py", "scripts/tac_metadata.py",
+                                             "scripts/tac_section_cleanup.py")},
                        "snapshot_sha256": digest(raw), "code_sha256": digest(Path(__file__).read_bytes()), "profiles": profiles})
     print(json.dumps({"output": str(output), "documents": len(profiles),
                       "with_sections": {kind: sum(any(s["kind"] == kind for s in p["sections"]) for p in profiles)

@@ -32,7 +32,8 @@ dev = [
 include = ["app*"]
 
 [tool.setuptools.package-data]
-app = ["static/brand/*.png", "static/terms_review.js", "retrieval/cross_lingual_glossary.yaml", "terms/taxonomy_v01.json"]
+app = ["static/brand/*.png", "static/terms_review.js", "retrieval/cross_lingual_glossary.yaml",
+       "terms/taxonomy_v01.json", "terms/taxonomy_v02.json", "terms/taxonomy_v03.json", "terms/taxonomy_v04.json"]
 
 [tool.ruff]
 line-length = 140

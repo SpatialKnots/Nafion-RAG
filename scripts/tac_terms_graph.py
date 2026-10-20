@@ -83,7 +83,8 @@ def render_graph(data: dict[str, Any], review_href: str | None = None) -> str:
 def attach_classification(data: dict[str, Any], contexts: dict[str, Any], classification: dict[str, Any], contexts_hash: str) -> None:
     records = validate_classification(contexts, classification, contexts_hash)
     data.update(schema=CLASSIFIED_VERSION, state="draft_classification_proposals",
-                taxonomy=classification["taxonomy"], saved_views=classification["saved_views"])
+                taxonomy=classification["taxonomy"], saved_views=classification["saved_views"],
+                classification_schema=classification["schema"])
     for article in data["articles"]:
         record = records[article["article_id"]]
         article["assignments"] = record["assignments"]

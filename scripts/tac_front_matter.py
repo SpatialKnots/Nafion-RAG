@@ -15,6 +15,7 @@ FRONT_NOISE = re.compile(
     r"department|university|institute|faculty|school|laboratory|correspond(?:ing)?\s+author|e-?mail|@|https?://|www\.|"
     r"copyright|all rights|licen[cs]|article history|keywords?|key words|"
     r"институт|университет|кафедра|поступила|после доработки|принята|ключевые слова|doi\s*[:/]|"
+    r"^\s*©\s*\d{4}\b|^\s*manuscript\s+(?:submitted|received)|"
     r"^\s*(?:received|accepted|published)(?:\s*:|\s+(?:online|on|by|\d))",
     re.I | re.M,
 )
@@ -111,7 +112,7 @@ def join_lines(page: dict[str, Any], items: list[dict[str, Any]], *, title: bool
             gap = item["bbox"][1] - previous["last_bbox"][3]
             overlap = min(previous["bbox"][2], item["bbox"][2]) - max(previous["bbox"][0], item["bbox"][0])
             same_font = abs(previous["font_size"] - item["font_size"]) <= max(0.3, previous["font_size"] * 0.03)
-            align = overlap > 0 if title else abs(previous["bbox"][0] - item["bbox"][0]) <= 12
+            align = overlap > 0 if title else abs(previous["bbox"][0] - item["bbox"][0]) <= max(12, 2 * item["font_size"])
             same_row = (
                 abs(previous["last_bbox"][1] - item["bbox"][1]) <= item["font_size"] * 0.6
                 and -item["font_size"] * 0.5 <= item["bbox"][0] - previous["last_bbox"][2] <= item["font_size"] * 1.5
@@ -152,6 +153,9 @@ def geometry_title(page: dict[str, Any], noise: re.Pattern, abstract: re.Pattern
         if b["bbox"][1] < page.get("height", 842) * 0.7
         and b["font_size"] >= 8
         and not noise.search(b["quote"])
+        and not re.search(r"\b(?:19|20)\d{2}\s*[.,]?\s*(?:т\.|vol\.?)\s*\d+|^\s*УДК\b", b["quote"], re.I)
+        and not (re.search(r'\b[A-ZА-ЯЁ]\.\s*[A-ZА-ЯЁ]\.', b['quote']) and
+                 len(parse_names(re.sub(r'(?<=[a-zа-яё])[A-ZА-ЯЁ](?=\s*(?:,|$))', '', b['quote'])) or []) >= 2)
         and re.search(r"[A-Za-zА-Яа-яЁё]", b["quote"])
     ]
     candidates = [
@@ -196,6 +200,15 @@ def geometry_abstract(page: dict[str, Any], title: dict[str, Any], stop: re.Patt
     # Reuse the separately tested byline parser; import at call time to keep module initialization acyclic.
     from scripts.tac_metadata import author_blocks, parse_names
 
+    def tac_anchor_names(block):
+        parsed = parse_names(block['cleaned']) or parse_names(block['cleaned'].title())
+        if parsed or not block.get('affiliation_boundary'):
+            return parsed
+        # Matching view only; preserve the original byline/source and metadata.
+        cleaned = re.sub(r'(?m)(?<=,)\s*[a-z]\s*$', '', block['cleaned'])
+        cleaned = re.sub(r'(?<=[a-zà-öø-ÿ])-(?=[A-Z]\.)', ' ', cleaned)
+        return parse_names(cleaned)
+
     items = layout_lines(page)
     title_lines = [b for b in items if title["start"] <= b["start"] < title["end"]]
     if not title_lines:
@@ -205,7 +218,7 @@ def geometry_abstract(page: dict[str, Any], title: dict[str, Any], stop: re.Patt
         b
         for b in author_blocks(page)
         if title_end <= b["bbox"][1] <= title_end + 100
-        and (parse_names(b["cleaned"]) is not None or parse_names(b["cleaned"].title()) is not None)
+        and tac_anchor_names(b) is not None
         and min(b["bbox"][2], max(t["bbox"][2] for t in title_lines)) > max(b["bbox"][0], min(t["bbox"][0] for t in title_lines))
     ]
     if not bylines:

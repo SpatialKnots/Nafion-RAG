@@ -1,0 +1,659 @@
+{
+  "schema": "tac_terms_taxonomy_v0.4",
+  "state": "automatic_context_policy",
+  "categories": {
+    "type": {
+      "material_substance": "Материал / вещество",
+      "object": "Объект",
+      "property": "Свойство",
+      "process": "Процесс",
+      "method": "Метод",
+      "condition": "Условие",
+      "unclassified": "Неклассифицированное",
+      "unresolved": "Конфликт типов"
+    },
+    "role": {
+      "study_object": "Исследуемый объект",
+      "composition_component": "Компонент состава",
+      "comparison": "Сравнение / контроль",
+      "method": "Метод в контексте",
+      "background": "Фоновое упоминание",
+      "unclassified": "Роль не определена",
+      "unresolved": "Конфликт ролей"
+    },
+    "origin": {
+      "own_report": "Авторское сообщение",
+      "cited_work": "Цитируемая работа",
+      "hypothesis": "Предположение",
+      "unclassified": "Происхождение не определено",
+      "unresolved": "Конфликт происхождения"
+    }
+  },
+  "rules": [
+    {
+      "rule_id": "type_material_exact_v01",
+      "axis": "type",
+      "category": "material_substance",
+      "match": "exact_phrase",
+      "phrases": [
+        "nafion",
+        "nafion-117",
+        "nafion 117",
+        "li-nafion",
+        "commercial nafion",
+        "pfsa",
+        "polymer",
+        "polymers",
+        "electrolyte",
+        "electrolytes",
+        "polymer electrolyte",
+        "water",
+        "lithium",
+        "methanol",
+        "ethanol",
+        "solvent",
+        "solvents",
+        "ethylene carbonate",
+        "propylene carbonate",
+        "dimethyl carbonate",
+        "lipf6",
+        "sulfuric acid",
+        "нафион",
+        "вода",
+        "литий",
+        "электролит",
+        "электролиты",
+        "полимер",
+        "полимеры"
+      ],
+      "pattern": "",
+      "require_type": [],
+      "rationale": "Exact normalized phrase in draft material/substance lexicon. This is a policy proposal, not concept equivalence."
+    },
+    {
+      "rule_id": "type_object_exact_v01",
+      "axis": "type",
+      "category": "object",
+      "match": "exact_phrase",
+      "phrases": [
+        "membrane",
+        "membranes",
+        "nafion membrane",
+        "nafion membranes",
+        "nafion-117 membrane",
+        "film",
+        "films",
+        "electrode",
+        "electrodes",
+        "anode",
+        "cathode",
+        "cell",
+        "cells",
+        "pouch cells",
+        "battery",
+        "batteries",
+        "lithium-ion batteries",
+        "мембрана",
+        "мембраны",
+        "электрод",
+        "электроды",
+        "анод",
+        "катод",
+        "аккумулятор",
+        "аккумуляторы"
+      ],
+      "pattern": "",
+      "require_type": [],
+      "rationale": "Exact phrase in draft object lexicon; composition and study role require separate evidence."
+    },
+    {
+      "rule_id": "type_property_exact_v01",
+      "axis": "type",
+      "category": "property",
+      "match": "exact_phrase",
+      "phrases": [
+        "conductivity",
+        "conductivities",
+        "ionic conductivity",
+        "ionic conductivities",
+        "proton conductivity",
+        "electronic conductivity",
+        "electrolytic conductivity",
+        "lithium conductivity",
+        "single-ion lithium conductivity",
+        "capacity",
+        "energy density",
+        "density",
+        "densities",
+        "viscosity",
+        "stability",
+        "oxidative stability",
+        "mechanical properties",
+        "electrochemical properties",
+        "efficiency",
+        "morphology",
+        "glass transition temperature",
+        "temperature",
+        "temperatures",
+        "concentration",
+        "проводимость",
+        "ионная проводимость",
+        "протонная проводимость",
+        "емкость",
+        "ёмкость",
+        "плотность",
+        "вязкость",
+        "температура",
+        "концентрация",
+        "charge carrier concentration",
+        "critical gelation concentration",
+        "mobility",
+        "mobilities"
+      ],
+      "pattern": "",
+      "require_type": [],
+      "rationale": "Exact property-name policy. Generic quantities retain alternatives unless an explicit context rule applies."
+    },
+    {
+      "rule_id": "type_process_exact_v01",
+      "axis": "type",
+      "category": "process",
+      "match": "exact_phrase",
+      "phrases": [
+        "casting",
+        "decomposition",
+        "fluorination",
+        "swelling",
+        "annealing",
+        "polymerization",
+        "synthesis",
+        "набухание",
+        "синтез",
+        "разложение",
+        "отжиг"
+      ],
+      "pattern": "",
+      "require_type": [],
+      "rationale": "Exact phrase in draft process lexicon; no actor/sample linkage is inferred."
+    },
+    {
+      "rule_id": "type_method_exact_v01",
+      "axis": "type",
+      "category": "method",
+      "match": "exact_phrase",
+      "phrases": [
+        "differential scanning calorimetry",
+        "electrochemical impedance spectroscopy",
+        "impedance spectroscopy",
+        "infrared spectroscopy",
+        "nuclear magnetic resonance spectroscopy",
+        "дифференциальная сканирующая калориметрия",
+        "импедансная спектроскопия"
+      ],
+      "pattern": "",
+      "require_type": [],
+      "rationale": "Exact full method name; ambiguous abbreviations are not automatically expanded or classified."
+    },
+    {
+      "rule_id": "type_condition_exact_v01",
+      "axis": "type",
+      "category": "condition",
+      "match": "exact_phrase",
+      "phrases": [
+        "room temperature",
+        "ambient temperature",
+        "annealing temperature",
+        "mixing temperature",
+        "temperature",
+        "temperatures",
+        "concentration",
+        "комнатная температура",
+        "температура",
+        "концентрация"
+      ],
+      "pattern": "",
+      "require_type": [],
+      "rationale": "Exact condition-name policy. Generic quantities retain alternatives when automatic context rules are inconclusive."
+    },
+    {
+      "rule_id": "role_method_adjacent_v01",
+      "axis": "role",
+      "category": "method",
+      "match": "preceding_cue",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:using|measured\\s+by|characterized\\s+by)\\s+$",
+      "require_type": [
+        "method"
+      ],
+      "rationale": "Explicit adjacent method cue plus exact method-name type proposal. Does not prove attachment to a specific sample/result."
+    },
+    {
+      "rule_id": "role_comparison_adjacent_v01",
+      "axis": "role",
+      "category": "comparison",
+      "match": "preceding_cue",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:compared\\s+(?:with|to)|versus)\\s+$",
+      "require_type": [
+        "material_substance",
+        "object"
+      ],
+      "rationale": "Explicit adjacent comparison cue. No scientific equivalence or comparability is asserted."
+    },
+    {
+      "rule_id": "role_study_object_adjacent_v01",
+      "axis": "role",
+      "category": "study_object",
+      "match": "preceding_cue",
+      "phrases": [],
+      "pattern": "(?i)(?:^|[.!?]\\s+)(?:we\\s+(?:investigated|studied)|this\\s+work\\s+investigates)\\s+$",
+      "require_type": [
+        "material_substance",
+        "object"
+      ],
+      "rationale": "Explicit sentence-initial author study cue immediately before the selected mention."
+    },
+    {
+      "rule_id": "origin_author_adjacent_v01",
+      "axis": "origin",
+      "category": "own_report",
+      "match": "preceding_cue",
+      "phrases": [],
+      "pattern": "(?i)(?:^|[.!?]\\s+)(?:we\\s+(?:measured|observed|found)|our\\s+measurements\\s+of)\\s+$",
+      "require_type": [],
+      "rationale": "Explicit author voice directly before this mention; proposed attribution only, no result validation."
+    },
+    {
+      "rule_id": "origin_hypothesis_adjacent_v01",
+      "axis": "origin",
+      "category": "hypothesis",
+      "match": "preceding_cue",
+      "phrases": [],
+      "pattern": "(?i)(?:^|[.!?]\\s+)we\\s+(?:hypothesize|assume)\\s+that\\s+$",
+      "require_type": [],
+      "rationale": "Explicit author hypothesis cue adjacent to the selected mention. Cited-work origin has no automated rule in v0.1."
+    },
+    {
+      "rule_id": "temperature_glass_transition_v02",
+      "axis": "type",
+      "category": "property",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bglass\\s+transition\\s+(?P<term>temperature)\\b",
+      "require_type": [],
+      "priority": 10,
+      "rationale": "The selected exact mention is the head of glass transition temperature, a reported characteristic."
+    },
+    {
+      "rule_id": "temperature_negative_transition_v02",
+      "axis": "type",
+      "category": "property",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bglass\\s+transition\\s+temperature\\s+of\\s+(?:the\\s+)?\\w+\\s+from\\s+[-+−]?\\d+(?:\\.\\d+)?\\s*[^.!?]{0,30}\\bto\\s+negative\\s+(?P<term>temperatures)\\b",
+      "require_type": [],
+      "priority": 10,
+      "rationale": "The selected plural mention is an explicit continuation of the same glass-transition-temperature clause."
+    },
+    {
+      "rule_id": "temperature_decomposition_onset_ru_v02",
+      "axis": "type",
+      "category": "property",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\b(?P<term>температура)\\s+начала\\s+разложения\\b",
+      "require_type": [],
+      "priority": 10,
+      "rationale": "The selected source phrase names decomposition onset rather than an imposed process temperature."
+    },
+    {
+      "rule_id": "temperature_gas_onset_v02",
+      "axis": "type",
+      "category": "property",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bonset\\s+of\\s+gas\\s+generation\\b[^.!?]{0,180}\\b(?:higher|lower)\\s+(?P<term>temperature)\\b",
+      "require_type": [],
+      "priority": 10,
+      "rationale": "The explicit onset-of-gas-generation clause names a shifted onset characteristic, not an imposed test setting."
+    },
+    {
+      "rule_id": "concentration_charge_carrier_v02",
+      "axis": "type",
+      "category": "property",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bcharge\\s+carrier\\s+(?P<term>concentration)\\b",
+      "require_type": [],
+      "priority": 10,
+      "rationale": "The selected mention is part of the complete charge-carrier-concentration phrase."
+    },
+    {
+      "rule_id": "concentration_critical_gelation_v02",
+      "axis": "type",
+      "category": "property",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bcritical\\s+gelation\\s+(?P<term>concentration)\\b",
+      "require_type": [],
+      "priority": 10,
+      "rationale": "The selected mention is part of a gelation threshold phrase, not generic electrolyte composition."
+    },
+    {
+      "rule_id": "temperature_preparation_modifier_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:annealing|an-\\s*nealing|mixing|dispersing|casting|room|ambient)\\s+(?P<term>temperature)\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "An explicit preparation or ambient modifier qualifies this exact temperature mention."
+    },
+    {
+      "rule_id": "temperature_at_or_using_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:at|using)\\s+(?:a\\s+)?(?:high|higher|low|lower)\\s+(?P<term>temperatures?)\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "The exact mention is governed by at/using and a thermal-setting adjective; more specific property contexts take precedence."
+    },
+    {
+      "rule_id": "temperature_range_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:within|in)\\s+the\\s+(?P<term>temperature)\\s+range\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "The source explicitly introduces an observation/measurement temperature range."
+    },
+    {
+      "rule_id": "temperature_dependence_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bthe\\s+(?P<term>temperature)\\s+dependences\\s+of\\s+ionic\\s+conductivity\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "Temperature is the independent variable of the stated conductivity dependence, not a material transition temperature."
+    },
+    {
+      "rule_id": "temperature_saturation_below_melting_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bwhen\\s+the\\s+(?P<term>temperature)\\s+was\\s+below\\s+the\\s+melting\\s+point\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "The selected temperature is the conditional setting; the distinct melting-point quantity is not relabeled."
+    },
+    {
+      "rule_id": "temperature_performance_setting_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\blow\\s+and\\s+high\\s+(?P<term>temperature)\\s+performance\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "The adjective phrase qualifies performance conditions; it does not establish a completed result or origin."
+    },
+    {
+      "rule_id": "temperature_solvent_formation_setting_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bformation\\s+of\\s+[^.!?]{1,100}\\bis\\s+strongly\\s+in(?:fluenced|ﬂuenced)\\s+by\\s+both\\s+(?P<term>temperature)\\s+and\\s+solvent\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "A bounded explicit membrane-formation clause names temperature and solvent as preparation variables."
+    },
+    {
+      "rule_id": "temperature_below_setting_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bat\\s+(?P<term>temperatures)\\s+below\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "The selected plural temperature mention is an explicit condition of the solubility statement."
+    },
+    {
+      "rule_id": "concentration_strategy_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bincreasing\\s+salt\\s+(?P<term>concentration)(?=,)",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "A named salt-concentration strategy/approach is a composition setting; no sample, measured value or origin is inferred."
+    },
+    {
+      "rule_id": "concentration_approach_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bhigh\\s+salt\\s+(?P<term>concentration)\\s+approach\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "The selected concentration mention belongs to a named composition strategy, not an analytical measurement method."
+    },
+    {
+      "rule_id": "temperature_prepared_membrane_comparison_v02",
+      "axis": "type",
+      "category": "condition",
+      "match": "context_phrase",
+      "phrases": [],
+      "pattern": "(?i)\\bAt\\s+higher\\s+temperature\\b[^.!?]{0,200}\\bmembranes\\s+prepared\\b[^.!?]{0,160}\\blower\\s+(?P<term>temperature)\\b",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "The same bounded comparison clause explicitly discusses membranes prepared under higher/lower thermal settings."
+    },
+    {
+      "rule_id": "role_study_active_v03",
+      "axis": "role",
+      "category": "study_object",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:we\\s+(?:have\\s+)?(?:studied|investigated|prepared|synthesized|characterized)|this\\s+(?:work|study)\\s+investigates)\\s+(?:the\\s+)?(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [
+        "material_substance",
+        "object"
+      ],
+      "priority": 0,
+      "rationale": "Explicit author action directly governs this exact material/object mention. No sample equivalence is asserted."
+    },
+    {
+      "rule_id": "role_study_passive_v03",
+      "axis": "role",
+      "category": "study_object",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)(?:^|[.!?]\\s+)(?:the\\s+)?(?<!\\w)__TERM__(?!\\w)\\s+(?:was|were|is|are)\\s+(?:pre(?:-\\s*)?pared|synthesized|studied|investigated|characteri[sz]ed|fabricated)\\b",
+      "require_type": [
+        "material_substance",
+        "object"
+      ],
+      "priority": 0,
+      "rationale": "The exact material/object mention is the grammatical subject of a preparation/study predicate; ownership remains a separate axis."
+    },
+    {
+      "rule_id": "role_component_containing_v03",
+      "axis": "role",
+      "category": "composition_component",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:containing|composed\\s+of|blended\\s+with|by\\s+adding)\\s+(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [
+        "material_substance"
+      ],
+      "priority": 0,
+      "rationale": "Explicit composition/addition cue immediately binds this exact material mention. Does not imply quantitative composition."
+    },
+    {
+      "rule_id": "role_component_function_v03",
+      "axis": "role",
+      "category": "composition_component",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)(?<!\\w)__TERM__(?!\\w)\\s+(?:was|were)\\s+(?:used|added)\\s+as\\s+(?:an?\\s+)?(?:solvent|additive|plasticizer|binder|component)\\b",
+      "require_type": [
+        "material_substance"
+      ],
+      "priority": 0,
+      "rationale": "The source explicitly describes this material as a formulation component; no sample identity is inferred."
+    },
+    {
+      "rule_id": "role_comparison_determiner_v03",
+      "axis": "role",
+      "category": "comparison",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:com(?:-\\s*)?pared\\s+(?:with|to)|versus)\\s+(?:the\\s+|commercial\\s+)?(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [
+        "material_substance",
+        "object"
+      ],
+      "priority": 0,
+      "rationale": "Explicit comparison cue binds this exact reference mention; comparative scientific validity is not asserted."
+    },
+    {
+      "rule_id": "role_method_via_v03",
+      "axis": "role",
+      "category": "method",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:using|via|measured\\s+(?:by|using)|characterized\\s+(?:by|using))\\s+(?:the\\s+)?(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [
+        "method"
+      ],
+      "priority": 0,
+      "rationale": "Explicit adjacent use cue and unique method type; no property-method relation is inferred by this role."
+    },
+    {
+      "rule_id": "origin_own_author_clause_v03",
+      "axis": "origin",
+      "category": "own_report",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)(?:^|[.!?]\\s+|\\n\\s*)we\\s+(?:have\\s+)?(?:measured|observed|found|prepared|synthesized|studied|investigated|demonstrated|showed|characterized)\\b[^.!?;,]{0,180}?(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "Explicit author voice within one bounded clause. Attribution proposal, not validation of the result. Negated/future/citation cues abstain."
+    },
+    {
+      "rule_id": "origin_own_this_work_v03",
+      "axis": "origin",
+      "category": "own_report",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)\\bin\\s+(?:this|the\\s+present)\\s+(?:work|study)\\b[^.!?;,]{0,180}?(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "Explicit current-study marker in the same bounded clause; not inherited across paragraphs or TAC contexts."
+    },
+    {
+      "rule_id": "origin_hypothesis_explicit_v03",
+      "axis": "origin",
+      "category": "hypothesis",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:we\\s+(?:hypothesize|assume)\\s+that|it\\s+is\\s+hypothesized\\s+that)\\s+[^.!?;,]{0,100}?(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "Explicit hypothesis wording in a bounded clause. Generic may/could is insufficient."
+    },
+    {
+      "rule_id": "origin_cited_et_al_v03",
+      "axis": "origin",
+      "category": "cited_work",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)\\b[A-Z][\\w-]+\\s+et\\s+al\\.\\s+(?:have\\s+)?(?:reported|showed|demonstrated|found|observed)\\b[^.!?;,]{0,160}?(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "Explicit named et-al attribution and report predicate within one clause. Does not resolve bibliography identity."
+    },
+    {
+      "rule_id": "origin_cited_previous_v03",
+      "axis": "origin",
+      "category": "cited_work",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)\\b(?:previous|earlier)\\s+(?:studies|work)\\s+(?:have\\s+)?(?:reported|showed|demonstrated|found)\\b[^.!?;,]{0,160}?(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "Explicit previous-work attribution within one clause; no cross-sentence inheritance."
+    },
+    {
+      "rule_id": "type_full_method_v04",
+      "axis": "type",
+      "category": "method",
+      "match": "surface_pattern",
+      "phrases": [],
+      "pattern": "(?:electrochemical\\s+)?impedance\\s+spectroscopy|differential\\s+scanning\\s+calorimetry|(?:small|wide)[ -]angle\\s+(?:x[ -]ray|neutron)\\s+scattering|(?:small|wide)[ -]angle\\s+x[ -]ray\\s+diffraction|x[ -]ray\\s+diffraction|(?:\\d+\\s*[a-z]+\\s+)?nmr(?:\\s+(?:spectroscopy|analysis))?|(?:\\d+\\s*[a-z]+\\s+)?nuclear\\s+magnetic\\s+resonance(?:\\s+spectroscopy)?|(?:raman|fourier\\s+transform\\s+infrared)\\s+spectroscopy|scanning\\s+electron\\s+microscopy|thermogravimetric\\s+analysis|interface\\s+modeling|sans\\s+modeling",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "Bounded complete source-name grammar; coarse type proposal, no concept/sample equivalence."
+    },
+    {
+      "rule_id": "type_full_object_v04",
+      "axis": "type",
+      "category": "object",
+      "match": "surface_pattern",
+      "phrases": [],
+      "pattern": "(?:(?:li-)?nafion(?:-\\d+)?\\s+(?:(?:water|commercial|blend|recast|swollen|thin|polymer|composite)\\s+){0,3}(?:membranes?|films?)|(?:solution[ -]cast|dispersion[ -]cast|cast|recast|blend|swollen|polymer|composite)\\s+(?:nafion(?:-\\d+)?\\s+)?(?:membranes?|films?|electrodes?)|lithium[ -]ion\\s+batter(?:y|ies)|scanning\\s+electron\\s+microscope)",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "Bounded complete source-name grammar; coarse type proposal, no concept/sample equivalence."
+    },
+    {
+      "rule_id": "type_full_material_substance_v04",
+      "axis": "type",
+      "category": "material_substance",
+      "match": "surface_pattern",
+      "phrases": [],
+      "pattern": "(?:li-)?nafion(?:-\\d+)?\\s+(?:(?:water|commercial|polymer)\\s+){0,3}(?:dispersions?|solutions?)|(?:(?:partially\\s+)?fluorinated|organic|aprotic|carbonate|binary|ternary)\\s+(?:solvents?|electrolytes?|mixtures?)",
+      "require_type": [],
+      "priority": 0,
+      "rationale": "Bounded complete source-name grammar; coarse type proposal, no concept/sample equivalence."
+    },
+    {
+      "rule_id": "role_object_preparation_v04",
+      "axis": "role",
+      "category": "study_object",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)(?<!\\w)__TERM__(?!\\w)\\s+(?:(?:was|were|is|are)\\s+)?(?:pre(?:-\\s*)?pared|fabricated|studied|characteri[sz]ed)\\b",
+      "require_type": [
+        "object"
+      ],
+      "priority": 0,
+      "rationale": "Explicit preparation or method-use grammar with a unique compatible full endpoint type; ownership remains separate."
+    },
+    {
+      "rule_id": "role_method_second_conjunct_v04",
+      "axis": "role",
+      "category": "method",
+      "match": "anchored_context",
+      "phrases": [],
+      "pattern": "(?i)\\busing\\s+[^.!?;]{1,90}?\\s+and\\s+(?<!\\w)__TERM__(?!\\w)",
+      "require_type": [
+        "method"
+      ],
+      "priority": 0,
+      "rationale": "Explicit preparation or method-use grammar with a unique compatible full endpoint type; ownership remains separate."
+    }
+  ]
+}

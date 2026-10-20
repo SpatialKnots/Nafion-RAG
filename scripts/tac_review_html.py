@@ -270,7 +270,7 @@ def render_table(
         "Terms — автоматические кандидаты из TAC; раскрытие показывает весь список и исходные фрагменты."
         if terms else "Terms ещё не извлекаются."
     )
-    if terms and terms["schema"] == "tac_term_inventory_v0.1":
+    if terms and terms["schema"] in {"tac_term_inventory_v0.1", "tac_term_inventory_v0.2"}:
         terms_description = ("Terms — полный выход текущего распознавателя по TAC, включая вложенные фразы. "
                              "Превью ограничивает только показ; остальные кандидаты раскрываются группами по 50. "
                              "Поиск охватывает весь инвентарь. Научная приёмка и научные связи не установлены.")
@@ -409,7 +409,9 @@ Metadata SHA-256: {esc(metadata_sha256)}. Источник: {esc(metadata.get("s
 <p>Нажмите на Abstract или Conclusions для полного текста. Исходные переносы сохранены.
 Управляющие символы отображаются как ⟦U+XXXX⟧. PDF-ссылки рассчитаны на этот компьютер.</p>
 <div class="toolbar"><input id="query" aria-label="Поиск по таблице" placeholder="Поиск по полному тексту таблицы">
-<button id="expand">Раскрыть все тексты</button><span id="count">{count} / {count}</span></div>
+<button id="expand">Раскрыть тексты видимых строк</button><span id="count">{count} / {count}</span></div>
+<p>Кнопка раскрывает Abstract, Conclusions и список Terms в видимых строках.
+Подробные цитаты и остальные Terms загружаются отдельно при раскрытии соответствующего пункта.</p>
 {'<p><button id="issues" aria-pressed="false">Только замечания</button></p>' if reviewed else ''}
 <div class="scroll"><table><thead><tr>{header}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>
 {"".join(context_templates)}
@@ -430,11 +432,18 @@ if(t){{body.append(t.content.cloneNode(true));body.dataset.loaded='true';}}}}}}
 document.addEventListener('toggle',e=>{{if(e.target.open){{
 if(e.target.matches?.('.terms-page'))materialize(e.target);
 if(e.target.matches?.('.term-context'))materializeContext(e.target);}}}},true);
-document.querySelector('#expand').addEventListener('click',e=>{{expanded=!expanded;
-if(expanded)for(const d of document.querySelectorAll('.terms-page'))materialize(d);
-if(expanded)for(const d of document.querySelectorAll('.term-context'))materializeContext(d);
-for(const d of document.querySelectorAll('td:nth-child(5) details,td:nth-child(6) details,td:nth-child(7) details'))d.open=expanded;
-e.target.textContent=expanded?'Свернуть тексты':'Раскрыть все тексты';}});</script></body></html>"""
+document.querySelector('#expand').addEventListener('click',async e=>{{expanded=!expanded;
+const button=e.target;button.disabled=true;
+const rows=[...document.querySelectorAll('tbody tr')].filter(row=>!row.hidden);
+const cells='td:nth-child(5) > details:not(.boundary-review),'+
+'td:nth-child(6) > details:not(.boundary-review),td:nth-child(7) > details.terms';
+for(let i=0;i<rows.length;i++){{
+if(!rows[i].hidden)for(const d of rows[i].querySelectorAll(cells))d.open=expanded;
+button.textContent='Обработка строк: '+(i+1)+' / '+rows.length;
+await new Promise(resolve=>setTimeout(resolve,0));
+}}
+button.textContent=expanded?'Свернуть тексты видимых строк':'Раскрыть тексты видимых строк';
+button.disabled=false;}});</script></body></html>"""
 
 
 def main() -> None:

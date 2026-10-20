@@ -14,6 +14,9 @@ from app.terms.schema import ArticleContexts, NonEmpty, Sha256, TermModel
 Axis = Literal["type", "role", "origin"]
 Sort = Literal["rank", "alphabetical", "source"]
 VERSION = "tac_term_classification_v0.1"
+AUTOMATIC_VERSION = "tac_term_classification_v0.2"
+CONTEXT_VERSION = "tac_term_classification_v0.3"
+PHRASE_VERSION = "tac_term_classification_v0.4"
 MANUAL_VERSION = "tac_manual_classification_proposals_v0.1"
 
 
@@ -21,21 +24,27 @@ class Rule(TermModel):
     rule_id: NonEmpty
     axis: Axis
     category: NonEmpty
-    match: Literal["exact_phrase", "preceding_cue"]
+    match: Literal["exact_phrase", "preceding_cue", "context_phrase", "anchored_context", "surface_pattern"]
     phrases: list[NonEmpty]
     pattern: str
     require_type: list[NonEmpty]
     rationale: NonEmpty
+    priority: int = Field(default=0, ge=0)
 
 
 class Taxonomy(TermModel):
-    schema_version: Literal["tac_terms_taxonomy_v0.1"] = Field(alias="schema")
-    state: Literal["draft_requires_domain_review"]
+    schema_version: Literal[
+        "tac_terms_taxonomy_v0.1", "tac_terms_taxonomy_v0.2", "tac_terms_taxonomy_v0.3", "tac_terms_taxonomy_v0.4"
+    ] = Field(alias="schema")
+    state: Literal["draft_requires_domain_review", "automatic_context_policy"]
     categories: dict[Axis, dict[str, str]]
     rules: list[Rule]
 
     @model_validator(mode="after")
     def check_policy(self) -> Taxonomy:
+        automatic = self.schema_version != "tac_terms_taxonomy_v0.1"
+        if automatic != (self.state == "automatic_context_policy"):
+            raise ValueError("Classification taxonomy version/state mismatch")
         if set(self.categories) != {"type", "role", "origin"}:
             raise ValueError("Classification axes incomplete")
         if any("unclassified" not in categories or "unresolved" not in categories for categories in self.categories.values()):
@@ -45,7 +54,28 @@ class Taxonomy(TermModel):
         for rule in self.rules:
             if rule.category not in self.categories[rule.axis] or rule.category in {"unclassified", "unresolved"}:
                 raise ValueError("Classification rule category invalid")
-            if rule.match == "exact_phrase":
+            if rule.match == "surface_pattern":
+                if (self.schema_version != 'tac_terms_taxonomy_v0.4' or rule.axis != 'type'
+                        or rule.phrases or rule.require_type or rule.priority or not rule.pattern):
+                    raise ValueError('Classification surface-pattern rule invalid')
+                re.compile(rule.pattern)
+            elif rule.match == "anchored_context":
+                if (self.schema_version not in {"tac_terms_taxonomy_v0.3", "tac_terms_taxonomy_v0.4"} or rule.axis == "type" or rule.phrases
+                        or rule.priority or rule.pattern.count("__TERM__") != 1
+                        or any(c not in self.categories["type"] for c in rule.require_type)):
+                    raise ValueError("Classification anchored-context rule invalid")
+                compiled = re.compile(rule.pattern.replace("__TERM__", "(?P<term>x)"))
+                if set(compiled.groupindex) != {"term"}:
+                    raise ValueError("Classification anchored context requires only the generated term capture")
+            elif rule.match == "context_phrase":
+                if not automatic or rule.axis != "type" or rule.phrases or rule.require_type:
+                    raise ValueError("Classification context-phrase rule invalid")
+                compiled = re.compile(rule.pattern)
+                if "term" not in compiled.groupindex:
+                    raise ValueError("Classification context rule requires an exact named term span")
+            elif rule.priority:
+                raise ValueError("Classification priority is only supported for context-phrase rules")
+            elif rule.match == "exact_phrase":
                 if rule.axis != "type" or not rule.phrases or rule.pattern or rule.require_type:
                     raise ValueError("Classification exact-phrase rule invalid")
                 if any(p != normalize(p) for p in rule.phrases):
@@ -114,6 +144,15 @@ def normalize(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+def clause_end(text: str, end: int) -> int:
+    """Extend evidence to the next sentence/semicolon boundary, preserving exact text."""
+    return end + len(re.split(r"[.!?;]", text[end:], maxsplit=1)[0])
+
+
+def unsupported_clause(quote: str) -> bool:
+    return bool(re.search(r"(?i)\b(?:not|never|no|will|would|planned|expected)\b|n['’]t|\[\s*\d", quote))
+
+
 def category_members(assignment: dict[str, Any]) -> set[str]:
     categories = {p["category"] for p in assignment["proposals"]}
     if assignment["state"] != "proposed":
@@ -123,6 +162,9 @@ def category_members(assignment: dict[str, Any]) -> set[str]:
 
 def classify_article(row: dict[str, Any], taxonomy: Taxonomy, taxonomy_hash: str,
                      manual: list[ManualProposal] | None = None) -> dict[str, Any]:
+    automatic = taxonomy.schema_version != "tac_terms_taxonomy_v0.1"
+    if automatic and manual:
+        raise ValueError("Automatic Terms classification does not accept manual proposals")
     article = ArticleContexts.model_validate(row)
     contexts = {c.context_id: c for c in article.contexts}
     mentions = {m.mention_id: m for m in article.mentions}
@@ -142,28 +184,77 @@ def classify_article(row: dict[str, Any], taxonomy: Taxonomy, taxonomy_hash: str
         source = mentions[use.mention_id].source
         context = contexts[use.context_id]
         prefix = context.source.quote[:source.start - context.source.start]
-        type_candidates = {r.category for r in taxonomy.rules if r.axis == "type" and normalize(source.quote) in r.phrases}
+        contextual: list[tuple[Rule, re.Match[str]]] = []
+        for rule in taxonomy.rules:
+            if rule.match != "context_phrase":
+                continue
+            for context_match in re.finditer(rule.pattern, context.source.quote):
+                lo, hi = context_match.span("term")
+                if (context.source.start + lo, context.source.start + hi) == (source.start, source.end):
+                    contextual.append((rule, context_match))
+        if contextual:
+            priority = max(rule.priority for rule, _ in contextual)
+            contextual = [(rule, match) for rule, match in contextual if rule.priority == priority]
+        type_candidates = {r.category for r in taxonomy.rules if r.axis == "type" and (
+            normalize(source.quote) in r.phrases or (r.match == 'surface_pattern' and re.fullmatch(r.pattern, normalize(source.quote))))}
+        if contextual:
+            type_candidates = {rule.category for rule, _ in contextual}
         type_candidates.update(p.category for p in manual_map.get((use.use_id, "type"), []))
         for axis in ("type", "role", "origin"):
             proposals = []
             for rule in taxonomy.rules:
                 if rule.axis != axis:
                     continue
-                if rule.match == "exact_phrase":
-                    if normalize(source.quote) not in rule.phrases:
+                if rule.match == "context_phrase" or (axis == "type" and contextual):
+                    continue
+                if rule.match == "anchored_context":
+                    # One exact existing mention, never an invented/nested endpoint.
+                    if rule.require_type and not (len(type_candidates) == 1 and type_candidates <= set(rule.require_type)):
+                        continue
+                    pattern = rule.pattern.replace("__TERM__", "(?P<term>" + re.escape(source.quote) + ")")
+                    candidates = [m for m in re.finditer(pattern, context.source.quote)
+                                  if (context.source.start + m.start("term"), context.source.start + m.end("term"))
+                                  == (source.start, source.end)]
+                    for cue in candidates:
+                        end = clause_end(context.source.quote, cue.end())
+                        quote = context.source.quote[cue.start():end]
+                        if unsupported_clause(quote):
+                            continue
+                        basis = Basis(rule_id=rule.rule_id, source_region_id=context.source.region_id,
+                                      start=context.source.start + cue.start(), end=context.source.start + end,
+                                      quote=quote, quote_sha256=text_hash(quote), rationale=rule.rationale)
+                        proposals.append(Proposal(category=rule.category, basis=[basis], producer="policy"))
+                    continue
+                if rule.match in {"exact_phrase", "surface_pattern"}:
+                    if (normalize(source.quote) not in rule.phrases
+                            and not (rule.match == 'surface_pattern' and re.fullmatch(rule.pattern, normalize(source.quote)))):
                         continue
                     region, start, end, quote = source.region_id, source.start, source.end, source.quote
                 else:
                     if rule.require_type and not (type_candidates & set(rule.require_type)):
                         continue
+                    if (taxonomy.schema_version in {"tac_terms_taxonomy_v0.3", "tac_terms_taxonomy_v0.4"} and rule.require_type
+                            and not (len(type_candidates) == 1 and type_candidates <= set(rule.require_type))):
+                        continue
                     match = re.search(rule.pattern, prefix)
                     if match is None:
                         continue
                     region, start, end = context.source.region_id, context.source.start + match.start(), source.end
-                    quote = context.source.quote[match.start():source.end - context.source.start]
+                    if taxonomy.schema_version in {"tac_terms_taxonomy_v0.3", "tac_terms_taxonomy_v0.4"}:
+                        end = context.source.start + clause_end(context.source.quote, end - context.source.start)
+                        if unsupported_clause(context.source.quote[match.start():end - context.source.start]):
+                            continue
+                    quote = context.source.quote[match.start():end - context.source.start]
                 basis = Basis(rule_id=rule.rule_id, source_region_id=region, start=start, end=end, quote=quote,
                               quote_sha256=text_hash(quote), rationale=rule.rationale)
                 proposals.append(Proposal(category=rule.category, basis=[basis], producer="policy"))
+            if axis == "type":
+                for rule, context_match in contextual:
+                    quote = context_match.group()
+                    basis = Basis(rule_id=rule.rule_id, source_region_id=context.source.region_id,
+                                  start=context.source.start + context_match.start(), end=context.source.start + context_match.end(),
+                                  quote=quote, quote_sha256=text_hash(quote), rationale=rule.rationale)
+                    proposals.append(Proposal(category=rule.category, basis=[basis], producer="policy"))
             for p in manual_map.get((use.use_id, axis), []):
                 basis = Basis(rule_id="manual_source_context", source_region_id=context.source.region_id,
                               start=context.source.start, end=context.source.end, quote=context.source.quote,
@@ -177,6 +268,12 @@ def classify_article(row: dict[str, Any], taxonomy: Taxonomy, taxonomy_hash: str
             diagnostics = ["No supported policy cue or manual proposal; unknown retained."] if count == 0 else [
                 "Conflicting candidate categories retained; review required." if count > 1 else
                 "Policy/manual proposal only; scientific acceptance not performed."]
+            if automatic:
+                diagnostics = ["No supported automatic rule; unknown retained."] if count == 0 else [
+                    "Automatic rules remain ambiguous; alternatives retained without a user resolution task." if count > 1 else
+                    "Automatic source-bound classification; no human confirmation is implied."]
+                if contextual:
+                    diagnostics.append("Explicit type context rules take precedence over generic exact-name rules.")
             if context.boundary_status != "pass":
                 diagnostics.append(f"Source TAC boundary status: {context.boundary_status}; classification does not repair it.")
             payload = json.dumps([p.model_dump(mode="json") for p in proposals], sort_keys=True, ensure_ascii=False, separators=(",", ":"))

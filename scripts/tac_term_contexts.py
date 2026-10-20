@@ -10,7 +10,7 @@ from typing import Any
 from app.records.sources import file_hash
 from app.terms.contexts import build_article, validate_article
 from scripts.tac_experiment import digest, validate_profiles, write_new
-from scripts.tac_terms import INVENTORY_VERSION, validate_terms
+from scripts.tac_terms import ENRICHED_VERSION, INVENTORY_VERSION, validate_terms
 
 VERSION = "tac_term_contexts_v0.1"
 COMPONENTS = ("app/terms/schema.py", "app/terms/contexts.py", "app/records/schema.py")
@@ -23,7 +23,7 @@ def validate_contexts(snapshot: dict[str, Any], profiles: dict[str, Any], invent
             or data.get("snapshot_sha256") != inventory["snapshot_sha256"]
             or data.get("state") != "unclassified_source_bound_terms"):
         raise ValueError("Terms context schema/input/state mismatch")
-    if inventory.get("schema") != INVENTORY_VERSION:
+    if inventory.get("schema") not in {INVENTORY_VERSION, ENRICHED_VERSION}:
         raise ValueError("Terms contexts require complete inventory v0.1")
     validate_terms(snapshot, profiles, inventory, inventory["profiles_sha256"])
     articles = {a["article_id"]: a for a in snapshot["articles"]}
@@ -69,7 +69,7 @@ def main() -> None:
     snapshot, profiles, inventory = [json.loads(r) for r in raw]
     validate_profiles(snapshot, profiles, digest(raw[0]))
     validate_terms(snapshot, profiles, inventory, digest(raw[1]))
-    if inventory["schema"] != INVENTORY_VERSION:
+    if inventory["schema"] not in {INVENTORY_VERSION, ENRICHED_VERSION}:
         raise ValueError("Terms contexts require complete inventory v0.1")
     pdfs = verify_pdfs(snapshot, args.source_root)
     predicted = {p["article_id"]: p for p in profiles["profiles"]}

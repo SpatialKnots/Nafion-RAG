@@ -1,4 +1,4 @@
-"""Run just the local Terms workbench; no PostgreSQL or ingestion startup required."""
+"""Run the read-only automatic Terms Atlas; no PostgreSQL or ingestion startup required."""
 from __future__ import annotations
 
 import argparse
@@ -11,7 +11,7 @@ from app.terms.review_ui import review_root, router
 
 
 def create_app(root: Path) -> FastAPI:
-    app = FastAPI(title="ARIADNE Terms review")
+    app = FastAPI(title="ARIADNE automatic Terms Atlas")
     app.include_router(router)
     app.dependency_overrides[review_root] = lambda: root.resolve()
     return app

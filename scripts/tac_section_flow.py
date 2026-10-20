@@ -10,8 +10,9 @@ import re
 from typing import Any
 
 from scripts.tac_front_matter import FRONT_NOISE, exact_span, join_lines, layout_lines, layout_stop
+from scripts.tac_section_cleanup import ADMIN
 
-SUMMARY = re.compile(r"^\s*(?:In\s+summary|In\s+conclusion|To\s+summari[sz]e|В\s+заключение)\s*[,.:]", re.I)
+SUMMARY = re.compile(r"^\s*(?:In\s+summary|In\s+conclusion|To\s+summari[sz]e|В\s+заключение|Таким\s+образом)\s*[,.:]", re.I)
 TERMINAL = re.compile(r"[.!?][\s\"'’”)]*$")
 
 
@@ -119,7 +120,7 @@ def summary_passages(pages: list[dict[str, Any]], stop: re.Pattern) -> tuple[lis
             end = block["end"]
             position = block["start"]
             for line in raw.splitlines(keepends=True):
-                if position > block["start"] and layout_stop(line.strip().lstrip("■•▪ "), stop):
+                if position > block["start"] and (layout_stop(line.strip().lstrip("■•▪ "), stop) or ADMIN.match(line)):
                     end = position
                     break
                 position += len(line)
