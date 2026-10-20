@@ -14,6 +14,7 @@ data/processed/grobid/*
 data/processed/tables/*
 data/processed/thumbnails/*
 data/processed/vector_indexes/*
+data/processed/model_cache/
 data/exports/*
 data/backups/*
 data/uploads/*

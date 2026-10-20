@@ -1273,3 +1273,75 @@ def _evidence(text: str) -> Evidence:
         method_scores={},
         method_ranks={},
     )
+
+
+def test_trace_observer_runs_before_provider_and_receives_isolated_copies(monkeypatch):
+    events = []
+    original = SearchResponse(query="How was conductivity measured?", results=[_search_result()])
+    monkeypatch.setattr("app.generation.service.search_chunks", lambda *a, **kw: original)
+
+    def observer(retrieval, evidence, metadata):
+        events.append("trace")
+        assert evidence[0].text == "Conductivity was measured by impedance spectroscopy."
+        retrieval.results.clear()
+        evidence.clear()
+        metadata.clear()
+
+    class ObservedProvider:
+        def generate(self, question, evidence, **kwargs):
+            assert events == ["trace"] and len(evidence) == 1
+            events.append("provider")
+            return ProviderResult(True, [GeneratedClaim("Reported method.", ["E1"])], "synthetic", "synthetic")
+
+    response = answer_question(object(), _settings(), "How was conductivity measured?",
+                               provider=ObservedProvider(), trace_observer=observer)
+    assert response.status == "answered" and events == ["trace", "provider"]
+    assert len(original.results) == 1 and "evidence_adequacy" in response.metadata
+
+
+def test_trace_observer_captures_gate_rejection_without_model_call(monkeypatch):
+    from app.evaluation.answer_trace import TraceCollector
+
+    monkeypatch.setattr("app.generation.service.search_chunks", lambda *a, **kw: SearchResponse(query="missing", results=[]))
+
+    class ForbiddenProvider:
+        def generate(self, *args, **kwargs):
+            pytest.fail("Gate rejection must not call model")
+
+    collector = TraceCollector()
+    response = answer_question(object(), _settings(), "Missing conductivity evidence",
+                               provider=ForbiddenProvider(), trace_observer=collector)
+    assert response.status == "insufficient_evidence" and collector.trace["evidence"] == []
+    assert collector.trace["metadata"]["evidence_adequacy"]["reason"] == "no_evidence"
+
+
+def test_live_trace_mismatch_stops_before_provider(monkeypatch):
+    from app.evaluation.answer_trace import TraceCollector
+
+    monkeypatch.setattr("app.generation.service.search_chunks",
+                        lambda *a, **kw: SearchResponse(query="changed", results=[_search_result()]))
+    with pytest.raises(ValueError, match="differs from frozen"):
+        answer_question(object(), _settings(), "How was conductivity measured?",
+                        trace_observer=TraceCollector(expected=b"different frozen trace"))
+
+
+def test_native_trace_unknown_citations_fail_existing_service_validation(tmp_path, monkeypatch):
+    import json
+
+    from app.evaluation import answer_trace as trace
+
+    monkeypatch.setattr("app.generation.service.search_chunks",
+                        lambda *a, **kw: SearchResponse(query="conductivity", results=[_search_result()]))
+    prepared = trace.TraceResponsesProvider(model="synthetic", api_key="synthetic-key")
+    with pytest.raises(trace.PreparationComplete):
+        answer_question(object(), _settings(), "How was conductivity measured?", provider=prepared)
+    payload = {"status": "completed", "output": [{"type": "message", "role": "assistant", "status": "completed", "content": [{
+        "type": "output_text", "text": json.dumps({"answerable": True,
+            "claims": [{"text": "Invented citation.", "citation_ids": ["E999"]}]})}]}]}
+    monkeypatch.setattr(trace, "send_openai_request", lambda *a: (json.dumps(payload).encode(), "synthetic-request-id"))
+    run = tmp_path / "native"
+    provider = trace.TraceResponsesProvider(model="synthetic", api_key="synthetic-key", output=run,
+                                            expected_request=prepared.prepared_request)
+    with pytest.raises(GenerationOutputError, match="unknown citations"):
+        answer_question(object(), _settings(), "How was conductivity measured?", provider=provider)
+    assert (run / "response.json").is_file() and provider.result["status"] == "provider_valid"

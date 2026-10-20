@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import asdict, dataclass, replace
 from decimal import Decimal, InvalidOperation
 from typing import Any, cast
@@ -159,6 +161,7 @@ def answer_question(
     answer_language: str = "auto",
     library_source_id: UUID | str | None = None,
     provider: AnswerProvider | None = None,
+    trace_observer: Callable[[SearchResponse, list[Evidence], dict[str, object]], None] | None = None,
 ) -> AnswerResponse:
     normalized_question = question.strip()
     if not normalized_question:
@@ -226,6 +229,8 @@ def answer_question(
         base_metadata["derived_evidence"] = derived_metadata
     if query_assistance is not None:
         base_metadata["query_assistance"] = query_assistance_to_dict(query_assistance)
+    if trace_observer is not None:
+        trace_observer(deepcopy(retrieval), deepcopy(evidence), deepcopy(base_metadata))
     if not adequacy.adequate:
         return AnswerResponse(
             query=normalized_question,
