@@ -23,9 +23,9 @@ from packaging.utils import canonicalize_name
 
 ROOT_FILES = ("AGENTS.md", "README.md", "pyproject.toml", "alembic.ini", ".env.example", ".gitignore", "Makefile")
 TREE_RULES = {
-    "app": {".py", ".png", ".yaml"},
+    "app": {".py", ".png", ".yaml", ".json", ".js", ".css", ".html"},
     "tests": {".py"},
-    "scripts": {".py", ".ps1", ".cmd"},
+    "scripts": {".py", ".ps1", ".cmd", ".js", ".css", ".html", ".json"},
     "alembic": {".py", ".mako"},
     "docs": {".md", ".yaml", ".json"},
 }
