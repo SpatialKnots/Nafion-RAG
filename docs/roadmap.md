@@ -1,5 +1,88 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-21: [records stage26](records_stage26_condition_transfer_2026-10-21.md)
+заморозил полный transfer scope других task-групп: 52 страницы / 851 блок,
+два primary tasks и три PDF, включая proposed supplement. Неизменённые правила
+дали 851 no_literal_cue и 2252 unclassified events; отдельный контроль Каюмова
+воспроизвёл пять событий точно. Перенос cue recognition не продемонстрирован;
+условия в статьях не объявлены отсутствующими. 1791 tests, Ruff/mypy, hashes
+и два byte-identical exports прошли. Новых измерений/model calls нет.
+Далее — отдельная multilingual-версия scope policy с явной negation/reported-work
+диагностикой и новым frozen comparison; независимая научная оценка открыта.
+
+Обновление 2026-10-21: [records stage25](records_stage25_condition_scope_2026-10-21.md)
+разделил source scope подготовки, кондиционирования и измерения поверх прежних
+кандидатов: 101 scoped proposals, четыре unassigned и 43 исходных пропуска.
+31 conditioning selection относится к режиму охлаждения при измерении;
+атмосфера подготовки не стала средой измерения. Пять исходных фрагментов,
+unsupported clause и incomplete tail сохранены. 1753 tests, Ruff/mypy, frozen
+hashes и два byte-identical final exports прошли; новых model calls нет.
+Далее — отдельно замороженная проверка переноса на контексты других статей;
+independent gold, scientific accuracy и per-result applicability остаются открытыми.
+
+Обновление 2026-10-21: [records stage24](records_stage24_material_roles_2026-10-21.md)
+добавил отдельную versioned-модель пяти ролей по точным source occurrences:
+37 предложений компонентов, 31 — состава пластификатора, 37 — basis; состав
+мембраны и среда измерения unknown у всех 37 версий. Все 42 позиции, прежние
+поля, шесть пропусков и старые diagnostics сохранены. Новых model calls нет.
+1700 tests, Ruff/mypy, frozen hashes и два byte-identical exports прошли.
+Далее — source-supported различение preparation/conditioning/measurement
+conditions с сохранением ambiguous scope; независимые научные метрики,
+method applicability и научное принятие остаются открытыми.
+
+Обновление 2026-10-21: [records stage23](records_stage23_table_relations_2026-10-21.md)
+выполнил offline relation audit всех 37 версий / 42 source-позиций. 13 native
+batches replayed exactly; состав строки, basis, literal method cue и endpoints
+проверены по координатам. Три boundary differences относятся к ширине того же
+group heading, а не автоматически к научным ошибкам; revisit сохраняет пять
+различающихся полей. Новых model calls нет. 1663 tests, Ruff/mypy, source hashes и
+два byte-identical exports прошли. Далее — явная versioned-модель ролей plasticiser
+composition / measurement environment и отдельная независимая оценка качества;
+научное принятие и method applicability не установлены.
+
+Обновление 2026-10-21: [records stage22](records_stage22_table_remaining_2026-10-21.md)
+выполнил восемь frozen calls для 23 оставшихся числовых позиций: 23 новых
+кандидата, пропущенных целей нет. По ledger покрыты 36/36 числовых позиций;
+четыре shared-позиции unresolved, два тире сохранены. Старые поля/кандидаты не
+перезаписаны. 1632 tests, Ruff/mypy, двойной native replay и source hashes прошли.
+Научные метрики/принятие не установлены. Далее — независимая оценка качества и
+source-supported аудит связей sample/composition/method; учёт позиций не заменяет
+научную проверку и не означает полностатейное извлечение.
+
+Обновление 2026-10-21: [records stage21](records_stage21_table_continuation_2026-10-21.md)
+добавил source-cell ledger и четыре frozen continuation calls: 9 новых кандидатов,
+1 deliberate revisit; 13 из 36 числовых позиций покрыты, 23 остаются.
+Все 42 позиции сохранены, включая 2 тире и 4 unresolved shared-cell slots.
+Method evidence связан по точным same-article R2 coordinates; это предложение
+связи, не научное принятие. 1593 tests, Ruff/mypy, native replay и source hashes
+прошли. Далее — оставшиеся 23 числовые позиции с новым frozen budget и отдельная
+независимая оценка качества; table-wide/article-wide completeness не установлена.
+
+Обновление 2026-10-21: [records stage20](records_stage20_multi_record_2026-10-21.md)
+реализовал отдельный multi-record reply и четыре реальных frozen model calls:
+восемь exact-source-valid кандидатов, все incomplete/unreviewed. Partial table
+scope и sample/condition gaps сохранены; независимых научных метрик нет.
+1559 tests, Ruff/mypy и offline raw replay прошли. Далее — bounded table
+continuation/decomposition и source-supported evidence joining; массовый прогон
+352 контекстов не объявлен ни выполненным, ни научно принятым.
+
+Обновление 2026-10-21: [records stage19](records_stage19_article_windows_2026-10-21.md)
+учёл полный scope 62 страниц / 1112 блоков и сохранил 352 bounded-контекста.
+34 страницы и один full-page context остаются deferred с исходным текстом и
+диагностикой. Это offline входы, не извлечённые измерения; scientific recall и
+независимый пилот открыты. 1530 tests, Ruff/mypy прошли. Далее — отдельный
+multi-record contract, offline validation и затем frozen model run.
+
+Обновление 2026-10-21: [records stage18](records_stage18_article_scope_2026-10-21.md)
+подготовил три development задачи полного stored-page scope статей и отдельный
+предложенный supplement: четыре PDF / 62 страницы. Все 33 документа и 493 текста
+страниц сохранены в HTML, 27 screening cases остаются unresolved. Это источник
+для следующего bounded article extraction, не научный gold или выполненный
+независимый пилот. Stages14–17 добавили checks/export, revisions/UI, evaluator
+и same-machine review-store recovery. Актуальная сводка S00–S17 — в
+[плане разработки](ariadne_development_plan_2026-10-09.md); исторические записи
+ниже не задают новый compulsory manual workflow Terms.
+
 Обновление 2026-10-13: [TAC stage12](tac_stage12_review_2026-10-13.md)
 реализует engineering этапа 4 Terms: отдельная SQLite-история решений, review по
 употреблению/оси и релевантности term, восстановление ревизий, очереди, контроль
