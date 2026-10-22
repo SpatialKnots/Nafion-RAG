@@ -33,7 +33,10 @@ from app.documents.service import (
 from app.facts.review_ui import router as numeric_review_router
 from app.facts.schemas import StructuredFactResponse, StructuredFactsResponse
 from app.facts.service import list_structured_facts, structured_fact_summary, structured_fact_to_response
+from app.generation.block_routes import router as block_preparation_router
+from app.generation.preparation_routes import router as preparation_router
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
+from app.generation.risk_routes import router as risk_preparation_router
 from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import enqueue_upload, job_to_response
 from app.ingestion.schemas import IngestionJobResponse, JobsResponse, UploadItemResponse, UploadItemStatus, UploadResponse
@@ -60,6 +63,7 @@ from app.library.service import (
     scan_and_queue_library_source,
     update_library_source,
 )
+from app.metadata.routes import router as metadata_router
 from app.retrieval.index_lifecycle import (
     get_vector_index_state_by_collection_name,
     list_vector_index_states,
@@ -75,6 +79,10 @@ app = FastAPI(title="ARIADNE", version="0.1.0")
 app.include_router(ui_router)
 app.include_router(numeric_review_router)
 app.include_router(terms_review_router)
+app.include_router(preparation_router)
+app.include_router(block_preparation_router)
+app.include_router(risk_preparation_router)
+app.include_router(metadata_router)
 SessionDep = Annotated[Session, Depends(get_session)]
 
 

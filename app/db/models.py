@@ -3,8 +3,22 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, Text, UniqueConstraint, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Index,
+    Integer,
+    Numeric,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -189,6 +203,22 @@ class ArticleTag(Base):
     tag_value: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float | None] = mapped_column(Numeric)
     source: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ArticleMetadataExtraction(Base):
+    """Append-only algorithm proposals and field projection provenance."""
+
+    __tablename__ = "article_metadata_extractions"
+    __table_args__ = (Index("ix_article_metadata_extractions_article_created", "article_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    sequence_no: Mapped[int] = mapped_column(BigInteger, Identity(always=True), unique=True, nullable=False)
+    article_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("articles.id", ondelete="CASCADE"), nullable=False)
+    input_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    code_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    payload_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -712,6 +712,7 @@ def dashboard(session: SessionDep) -> HTMLResponse:
         <img class="start-logo" src="{_brand_asset_url('ariadne-logo-horizontal.png')}" alt="ARIADNE">
         <h1 id="start-title">ARIADNE Research Workbench</h1>
         <p class="page-kicker">Ask a literature question and trace the answer to source fragments and the original PDF.</p>
+        <p><a href="/ui/answer/prepare">Проверить источники без генерации ответа</a></p>
         <form class="start-search" method="post" action="/ui/answer" data-async-result="/ui/answer/result" data-library-scoped>
           <div class="start-search-row">
             <input name="question" value="" placeholder="Ask for a literature review" aria-label="Question" autofocus>
@@ -1140,6 +1141,7 @@ def _answer_body(
     return f"""
     <h1>Search the literature</h1>
     <p class="page-kicker">Every claim should lead back to a source fragment.</p>
+    <p><a href="/ui/answer/prepare">Проверить источники без генерации ответа</a></p>
     <form method="post" action="/ui/answer" data-async-result="/ui/answer/result" data-library-scoped>
       <input type="hidden" name="library_source_id" value="{_html(library_source_id or '')}">
       <div class="answer-search">

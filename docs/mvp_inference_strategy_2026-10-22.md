@@ -95,6 +95,95 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапа 35](records_stage35_bibliography_bridge_2026-10-22.md):
+прежний локальный TAC metadata extractor соединён с ingestion и provenance API/UI.
+Миграция 0006 хранит source-bound предложения и историю, существующие значения
+сохраняются, автоматическая проекция имеет явную ownership-проверку. В 10 статьях
+заполнены 26 пустых полей; authors/year 9/10, journal 8/10 — coverage, не accuracy.
+Другие 23 статьи и данные вне метаданных неизменны. 2158 tests и Ruff/mypy прошли,
+API generation/retrieval не запускались. Повторно писать extractor не потребовалось.
+Следующий шаг — independent quality evaluation с сохранением unknown/ambiguous;
+архитектура local evidence + replaceable API и текущий provider не меняются.
+
+Обновление после [этапа 34](records_stage34_risk_preparation_2026-10-22.md): аудит
+подключён к явному API/UI подготовки с точным текстом, PDF-ссылками, поиском и
+полным прежним результатом. На четырёх финальных read-only запросах preparation
+совпадает со stage32, audit — со stage33; выбор и scientific admission неизменны,
+0/4 network-ready. 2134 tests, Ruff/mypy прошли; generative API calls нет.
+Следующий bounded шаг — source-supported author/year diagnostics из начала статьи
+с exact provenance и сохранением unknown/ambiguous, без guesses из references.
+Текущий provider и архитектура local evidence + replaceable API не менялись.
+
+Обновление после [этапа 33](records_stage33_context_risks_2026-10-22.md): offline
+аудит локализует наблюдаемые layout/visual признаки в whole-block/protected
+окружении, сохраняя исходные stage32 результаты. 527 диагностических окон,
+1549 asset occurrences, 90 trigger records; 29 страниц-вхождений сохраняют
+нелокализованную диагностику. Удалённый bbox не доказывает нерелевантность;
+22 page occurrences целиком покрываются объединениями диагностических окон.
+Это не candidate packet: выбор, qualifiers, byte limits и исходные запреты
+сохранены. Retrieval/API calls нет. Далее — показать аудит в UI подготовки без
+изменения допуска. Scientific exclusion и качество ответов требуют отдельной
+проверки; текущий API-провайдер и архитектурное решение остаются прежними.
+
+Обновление после [этапа 32](records_stage32_block_context_2026-10-22.md): режим
+целых PDF-блоков подключён явно к API/UI и сохраняет весь baseline. Реальный
+scope — 19 evidence, 35 page occurrences / 863 block occurrences; 30 страниц-
+вхождений отложены, 105 предложений относятся к уже отклонённому вопросу, 0/4
+technical passes. Перекрывающиеся окна вместе покрывали три полные страницы;
+новый union guard блокирует это даже при отсутствии literal matches. Генерации
+нет, улучшение научных ответов/экономия не измерены. Далее — versioned локальная
+привязка layout/visual risks к блокам и protected context, новый frozen comparison
+с сохранением неизвестных/невыбранных источников. Не обходить guard обрезкой,
+удалением диагностик или повышением ceiling. Ниже — история решений.
+
+Обновление после [этапа 31](records_stage31_answer_preparation_2026-10-22.md): явный
+режим подготовки подключён к API и UI (`/answer/prepare`, `/ui/answer/prepare`).
+Он показывает qualifier/source diagnostics и весь выбранный текст без генерации;
+старый `/answer` не менялся. На четырёх реальных read-only запросах все прежние
+19 evidence сохранены, все контексты блокируются полными страницами. Necessary
+qualifiers допускают один; это не scientific acceptance. Следующий шаг — исходные
+block contexts с сохранёнными условиями, отрицаниями и unresolved boundaries,
+затем новое frozen comparison. Не обходить guard обрезкой старого контекста.
+Ниже — история решений; прежние missing metadata задним числом не заполняются.
+
+В live smoke stage31 у выбранных статей отсутствуют авторы/год в записанных
+метаданных БД. Режим сохраняет unknown. Source-supported автоматическое заполнение
+метаданных — отдельная задача; положительная проверка имени покрыта constructed
+tests, а не реально заполненной bibliographic записью в этом прогоне.
+
+Обновление после [этапа 30](records_stage30_query_qualifiers_2026-10-22.md): отдельная
+versioned necessary-mention проверка и injectable provider guard реализованы.
+Явные material phrases, автор/год и finite method/property mentions должны быть
+в одной статье; missing metadata остаётся unknown. На четырёх сохранённых контекстах
+допуск 3 → 1, все 19 evidence сохранены. 24/24 constructed agreements не являются
+независимой scientific accuracy. Production default и thresholds не менялись;
+никаких новых API/retrieval calls. Следующий шаг — явный режим подготовки ответа
+с диагностикой новой проверки, отдельно оцениваемые дополнительные вопросы и
+сохранение отдельного complete-page guard. Наличие mentions не доказывает научный
+вывод; stage29 packets по-прежнему 0/4 network eligible. Ниже — история решений.
+
+Обновление после [этапа 29](records_stage29_query_packet_2026-10-22.md): additive
+query evidence packet реализован отдельно от runtime. На четырёх замороженных
+вопросах сохранены все 19 baseline evidence; две привязки относятся к одному
+отдельному контролю, transfer-привязок нет. Полные страницы остаются во всех
+пакетах: 0/4 network eligible, сжатие и улучшение ответов не установлены. Новых
+generative API calls нет; существующие локальные query embeddings использовались.
+Gate пропускает вопросы при missing Istomina/DSC и Mars/regolith. Следующий шаг —
+отдельно замороженная проверка обязательных уточнений запроса и достаточности
+evidence до платного сравнения ответов и compaction. Production thresholds и
+прежние результаты не исправлялись. Нижележащие абзацы сохраняют историю решения.
+
+Обновление после [этапа 28](records_stage28_protocol_association_2026-10-22.md):
+отдельный sentence-ID contract и native Responses comparison реализованы на пяти
+exposed development контекстах. Все 11 целей source-integrity-valid; API/baseline
+category agreement 6/7 transfer и 4/4 separate control не устанавливает научную
+точность. DSC/conductivity различены в предложениях, origin остаётся непроверенной
+декларацией; production integration и другие провайдеры не подключены. Следующий
+bounded шаг — query evidence packet с сохранением связанных предложений и
+неопределённостей, затем отдельное сравнение контекстов ответа. Пятизапросный
+live budget stage28 исчерпан. Следующие абзацы сохраняют исходное решение до
+реализации stage28, а не требуют повторить этот прогон.
+
 Сохранить цель этапа 28: связь «свойство → метод → условия», включая различение
 DSC и проводимости. API-based сравнение на замороженных пакетах рассматривать
 как способ проверить эту задачу наряду с локальным baseline, а не как доказанный

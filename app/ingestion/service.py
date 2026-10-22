@@ -25,6 +25,7 @@ from app.ingestion.text_layers import (
     replace_text_layers,
     select_best_pages,
 )
+from app.metadata.bibliography import refresh as refresh_bibliography
 from app.metadata.doi import extract_first_doi
 from app.retrieval.index_lifecycle import mark_vector_index_stale
 
@@ -138,6 +139,8 @@ def reselect_article_text(session: Session, settings: Settings, article: Article
     session.flush()
     selected_pages = select_best_pages(session, article)
     chunk_count = _replace_article_content(session, settings, article, selected_pages)
+    session.flush()
+    refresh_bibliography(session, settings, article)
     classify_article(session, article)
     mark_vector_index_stale(session, collection_id=article.collection_id, embedding_model=settings.embedding_model)
     return chunk_count
@@ -160,6 +163,7 @@ def process_pdf(
     checksum = sha256_file(source_path)
     duplicate = session.scalar(select(Article).where(Article.checksum_sha256 == checksum))
     if duplicate is not None and not force_ocr:
+        refresh_bibliography(session, settings, duplicate)
         return IngestionResult(
             article_id=str(duplicate.id),
             status="duplicate",
@@ -232,6 +236,7 @@ def process_pdf(
     chunk_count = _replace_article_content(session, settings, article, selected_pages)
     session.flush()
     classify_article(session, article)
+    refresh_bibliography(session, settings, article)
     mark_vector_index_stale(session, collection_id=collection.id, embedding_model=settings.embedding_model)
 
     return IngestionResult(

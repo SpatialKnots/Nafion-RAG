@@ -17,6 +17,7 @@ import tomllib
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
+from typing import cast
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
@@ -138,7 +139,7 @@ def freeze(root: Path, destination: Path) -> dict[str, object]:
         target.write_bytes(raw)
     # Pin the installed dependency closure for this OS/Python; no direct URLs or credentials.
     pins = "# Observed installed dependency closure; validate in a clean environment.\n"
-    pins += "\n".join(f"{name}=={version}" for name, version in dependencies["packages"].items()) + "\n"
+    pins += "\n".join(f"{name}=={version}" for name, version in cast(dict[str, str], dependencies["packages"]).items()) + "\n"
     (destination / "requirements-observed.txt").write_text(pins, encoding="utf-8")
     (destination / "environment.json").write_text(json.dumps(dependencies, indent=2) + "\n", encoding="utf-8")
     with zipfile.ZipFile(destination / "source.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:

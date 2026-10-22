@@ -1,5 +1,89 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-22: [records stage35](records_stage35_bibliography_bridge_2026-10-22.md)
+подключил существующий TAC metadata extractor к импорту/дубликатам/переотбору
+текста без изменения его алгоритма. Миграция 0006 хранит exact source evidence,
+версии, raw alternatives и историю проекции. Заполнены 26 пустых полей 10 статей:
+authors 9/10, year 9/10, journal 8/10; это coverage, не accuracy. 23 другие статьи
+и данные вне метаданных не менялись. Read-only API/UI показывает происхождение;
+2158 tests и Ruff/mypy прошли, real ingestion/duplicate rollback и idempotence
+проверены. Генерации/retrieval нет. Далее — отдельная независимая проверка качества
+метаданных и unresolved layouts, без подгонки текущих Guo/Choi под ожидаемые значения.
+
+Обновление 2026-10-22: [records stage34](records_stage34_risk_preparation_2026-10-22.md)
+подключил аудит к явному API/UI `/answer/prepare/blocks/risks` и
+`/ui/answer/prepare/blocks/risks`. Полный текст, PDF-ссылки, поиск, unknown и прежняя
+подготовка доступны вместе; выбранная библиотека сохраняется при переходе.
+Четыре финальных read-only API-запроса полностью совпали со stage32 preparation
+и stage33 audit: 527 окон / 35 page occurrences, 0/4 network-ready. 2134 tests и
+Ruff/mypy прошли. Новых generative API calls нет. Далее — source-supported
+author/year diagnostics из front matter; unknown/ambiguous сохранить, не брать
+имена из references и не выдавать предложения за подтверждённые метаданные.
+
+Обновление 2026-10-22: [records stage33](records_stage33_context_risks_2026-10-22.md)
+добавил offline локализацию рисков без изменения выбора и допуска. На четырёх
+сохранённых результатах: 527 диагностических окон, 1549 visual asset occurrences,
+90 trigger records; 29 page occurrences сохраняют нелокализованные diagnostics.
+Геометрическая удалённость не доказывает нерелевантность. Окна суммарно покрывают
+22 страницы-вхождения; это диагностические области, не candidate wire packet.
+Все прежние запреты сохранены, retrieval и генерации нет. Далее — вывести аудит
+в UI подготовки; отдельно определить и проверить scientific exclusion criteria.
+
+Обновление 2026-10-22: [records stage32](records_stage32_block_context_2026-10-22.md)
+подключил API/UI подготовки целых PDF-блоков с неизменённым baseline. Четыре
+read-only запроса сохранили 19 evidence; учтены 863 block occurrences / 35 page
+occurrences, 30 страниц-вхождений отложены. 105 контекстов относятся к одному уже
+отклонённому вопросу; 0/4 technical passes. Aggregate union guard обнаружил три
+полные страницы в перекрывающихся окнах при нуле literal matches. 2062 tests,
+Ruff/mypy и два identical exports прошли; генерации и scientific acceptance нет.
+Далее — versioned local layout/visual risk assessment внутри выбранных блоков и
+защищённого окружения, с сохранением unknown/excluded evidence и новым frozen
+comparison. Не убирать diagnostics или поднимать byte ceiling по результатам этого прогона.
+
+Обновление 2026-10-22: [records stage31](records_stage31_answer_preparation_2026-10-22.md)
+подключил явный API/UI режим подготовки без генерации: `/answer/prepare` и
+`/ui/answer/prepare`. Четыре реальных read-only запроса сохранили те же 19 evidence;
+все заблокированы полными страницами, qualifiers допускают один. Исходные отказы,
+unknown metadata, PDF/layer identities и полный текст видны пользователю.
+2017 tests и Ruff/mypy прошли, два offline exports идентичны; scientific accuracy
+не оценивалась. Авторы/год выбранных статей не заполнены в БД; unknown сохранён,
+source-supported автоматическое заполнение остаётся отдельной задачей.
+Существующий `/answer` не менялся, новых generative API calls нет. Далее —
+source-supported block contexts с сохранением условий, отрицаний и unresolved
+границ, отдельный frozen comparison; guard не обходить обрезкой старого текста.
+
+Обновление 2026-10-22: [records stage30](records_stage30_query_qualifiers_2026-10-22.md)
+реализовал отдельную necessary-mention проверку и явно подключаемую provider-обёртку.
+Явные material phrases, автор/год и конечный каталог методов проверяются внутри
+одной статьи; unknown metadata не подменяется ссылкой из библиографии. Четыре
+сохранённых контекста: допуск 3 → 1, baseline refusals и все 19 evidence сохранены.
+24/24 constructed agreements, 1977 tests, Ruff/mypy и два byte-identical
+exports прошли; независимая scientific accuracy не установлена. Production default
+не менялся. Далее — явный режим подготовки ответа с полной диагностикой нового
+guard, расширенная отдельно оцениваемая группа вопросов и отдельный scope guard
+до генерации. Новых API/retrieval calls нет, старые full-page packets не разрешены.
+
+Обновление 2026-10-22: [records stage29](records_stage29_query_packet_2026-10-22.md)
+добавил отдельный additive query packet и сравнил его с четырьмя текущими контекстами
+без генерации. Все 19 evidence сохранены; две привязки одного separate control,
+transfer-привязок нет. Все пакеты содержат полные страницы, 0/4 network eligible;
+экономия и качество ответов не измерены. 1927 tests, Ruff/mypy и два byte-identical
+exports прошли. Gate пропускает запросы с missing Istomina/DSC и Mars/regolith;
+это наблюдение, не независимая scientific accuracy. Следующий bounded этап —
+versioned-проверка обязательных уточнений запроса и достаточности evidence на новом
+frozen наборе до платного сравнения ответов или сжатия. Production rules не менялись.
+
+Обновление 2026-10-22: [records stage28](records_stage28_protocol_association_2026-10-22.md)
+реализовал отдельный sentence-ID contract и bounded Responses comparison: пять
+реальных вызовов, 11 source-integrity-valid целей; baseline/API category agreement
+6/7 transfer и 4/4 separate control. DSC/conductivity различены в предложениях,
+mixed-role/clipped diagnostics сохранены; scientific accuracy, origin и applicability
+не установлены. 1894 tests, Ruff/mypy, frozen hashes и два byte-identical offline
+exports прошли; новых измерений нет. Live budget исчерпан. Следующий этап —
+versioned query evidence packet с сохранением связанных предложений и unresolved
+qualifiers, затем отдельное сравнение с текущим answer context на независимо
+оцениваемых вопросах. Stage28 не является production activation или научной приёмкой.
+
 Решение по направлению MVP, 2026-10-22: [локальная база evidence + заменяемый API](mvp_inference_strategy_2026-10-22.md).
 Первое подключение — существующий OpenAI provider; российские API требуют отдельных
 адаптеров и проверки качества. Автономная коробка сохранена как возможная комплектация
