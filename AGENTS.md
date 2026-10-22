@@ -15,6 +15,10 @@ Project boundary:
 - If an instruction or skill mentions ORCAVEDA, ORCA, VEDA, `.hess`, normal modes, PED, Wilson GF, or Stage 3D, treat it as belonging to a different project unless the user explicitly switches to that repository.
 - Keep project-specific instructions in this file and do not rely on instructions from other repositories.
 
+Project decision memory:
+- Read `docs/mvp_inference_strategy_2026-10-22.md` when planning MVP architecture, inference providers, or deployment. It records the local evidence + replaceable API direction, optional autonomous box, subjective strategy ratings, and limits on provider-support claims.
+- The current runtime provider is `openai`; other providers and a complete autonomous deployment remain plans until separately implemented and verified. Preserve the distinction between product direction and scientific acceptance.
+
 Caveman communication:
 - Use the installed `caveman` skill by default for assistant replies in this project, at `full` intensity. Read its SKILL.md from the available-skills catalog when first applying it in a session.
 - Keep the user's language. Shorten prose and remove filler; preserve exact technical terms, commands, errors, evidence, and uncertainty. Do not invent abbreviations.

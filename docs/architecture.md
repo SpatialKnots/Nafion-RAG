@@ -2,6 +2,22 @@
 
 ARIADNE is local-first. PostgreSQL remains the source of truth for source-preserving PDF ingestion and chunk evidence.
 
+## MVP direction recorded on 22 October 2026
+
+The first MVP prioritizes local evidence preparation/retrieval, API-based analysis
+and local output/source-reference validation. OpenAI is the implemented runtime
+provider. Additional providers require separate adapters and quality evaluation;
+OpenAI-compatible transport alone does not establish supported behavior. A fully
+local model and appliance remain a possible later deployment for a demonstrated
+offline requirement, not an accepted existing delivery.
+
+The [decision memory](mvp_inference_strategy_2026-10-22.md) records the discussion,
+subjective strategy ratings, evidence-packet requirements and scope boundaries.
+The [README diagram](../README.md#архитектура-mvp-и-варианты-анализа) distinguishes
+the implemented base path from planned provider/deployment alternatives. The
+stage28 property/method/condition association goal remains open; an API comparison
+is a proposed way to investigate it, not a completed scientific validation.
+
 ## Services
 
 - `postgres`: local PostgreSQL server managed outside this repository.

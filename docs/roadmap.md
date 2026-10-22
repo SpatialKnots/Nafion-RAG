@@ -1,5 +1,23 @@
 # ARIADNE: дорожная карта
 
+Решение по направлению MVP, 2026-10-22: [локальная база evidence + заменяемый API](mvp_inference_strategy_2026-10-22.md).
+Первое подключение — существующий OpenAI provider; российские API требуют отдельных
+адаптеров и проверки качества. Автономная коробка сохранена как возможная комплектация
+под подтверждённую потребность. Это приоритет дальнейшей проработки, не завершение
+интеграций или offline acceptance. Этап 28 сохраняет цель связи property/method/conditions;
+API-based сравнение рассматривается как вариант отдельно замороженного протокола.
+
+Обновление 2026-10-22: [records stage27](records_stage27_condition_multilingual_2026-10-22.md)
+добавил отдельную frozen RU/EN policy на прежних 52 страницах / 851 блоке.
+Пять scope proposals в трёх блоках, один cue-bearing блок с удержанным назначением,
+847 no_literal_cue; baseline/control воспроизведены точно. Mixed measurement/
+equilibration сохранён ambiguous; generic DSC protocol не привязан к проводимости.
+1854 tests, Ruff/mypy, 731 frozen bindings и два byte-identical exports прошли.
+Новых измерений/model calls и независимых научных метрик нет; browser acceptance
+не проверена из-за запрета file://. Далее — отдельно versioned source-only
+property/protocol association с сохранением DSC/conductivity boundary и новым
+frozen comparison; независимая научная оценка остаётся отдельной задачей.
+
 Обновление 2026-10-21: [records stage26](records_stage26_condition_transfer_2026-10-21.md)
 заморозил полный transfer scope других task-групп: 52 страницы / 851 блок,
 два primary tasks и три PDF, включая proposed supplement. Неизменённые правила
