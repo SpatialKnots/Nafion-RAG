@@ -95,6 +95,65 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапа 40](records_stage40_query_selection_2026-10-24.md), 24 октября:
+новая finite query-aware selection уменьшила wire 200221 → 81189 байт и full-page
+occurrences 22 → 1, выбрав 142/561 блоков целыми units. Это не lossless перепаковка:
+116 прежних окон остались целыми, 37 частичными, 374 отложены; все parents локально
+сохранены побайтно. Пять protected-group occurrences отложены целиком, scientific
+irrelevance не доказана. 11/11 exposed development checks не устанавливают полную
+научную сохранность. Guo/SEI показывает over-inclusion при отсутствии implicit
+sample/material scope. API admission 0/4, runtime/providers/DB не менялись, новых
+retrieval/model calls нет. Следующий bounded шаг — sample/material scope с явным
+unknown и source-based false-inclusion/exclusion checks до admission upgrade.
+Меньше bytes не означает доказанную экономию inference или scientific acceptance.
+
+Обновление после [этапа 39](records_stage39_context_completeness_2026-10-24.md), 24 октября:
+все 22 полных text-page occurrences обусловлены union прежних окон, а не размером
+JSON или добавленными dependency blocks. Отдельный source audit сохранил все
+1148 events/449 dependencies и прежние packets; одна уникальная cooccurrence
+proposal не доказывает sample identity или applicability условий. Подготовка
+в аргоне не наследуется измерениями; numeric interval/step/accuracy остаются
+разными неразрешёнными ролями. API admission 0/4, новых DB/retrieval/model calls
+нет. Следующий bounded шаг — отдельно замороженный query-aware selection experiment
+с полным parent локально и проверкой потерь связанных условий/защищённых групп.
+Это изменение отбора evidence, а не эквивалентная lossless перепаковка. Новая
+selection или появление literal proposal не снимают guards/отказы и не заменяют
+независимую научную оценку перед ограниченным inference comparison.
+
+Обновление после [этапа 38](records_stage38_compact_context_2026-10-24.md), 24 октября:
+компактный offline wire уменьшен с 8156634 до 200221 байта на прежних четырёх
+вопросах. Точные 561 блок, 527 окон и 449 зависимостей сохранены; полные
+diagnostics остаются побайтно неизменными локально. Все четыре wire проходят
+прежний byte ceiling, но network-ready 0/4: полнота и scientific applicability
+не установлены, 22 full-page occurrences и прежние отказы не сняты. Runtime,
+provider и источники не менялись; DB/retrieval/model calls нет. Следующий bounded
+шаг — source-based проверка полноты контекста и применимости условий с разбором
+незавершённых границ, без ослабления full-page guard. Меньше bytes не означает
+измеренную экономию inference, токенов или scientific acceptance.
+
+Обновление после [этапа 37](records_stage37_source_context_packet_2026-10-24.md), 24 октября:
+локальный сборщик точных блоков/зависимостей сохраняет 527 окон и 19 baseline
+Evidence; разрыв методики через формулу входит в одну структурную группу.
+6/6 development retention checks не доказывают научную применимость условий.
+Дедупликация текста окон 354553 → 127532 байта не доказывает экономию inference:
+полный wire с диагностикой занимает 8156634 байта на четыре вопроса, каждый
+превышает 100000; network-ready 0/4. Ни runtime, ни provider не менялись;
+DB/retrieval/model calls нет. Следующий bounded шаг — компактное представление
+для модели с полными локальными диагностическими sidecars, неизменным точным
+текстом и отдельно замороженным coverage comparison. Полные страницы и прежние
+отказы не разрешать через перенос диагностики или уменьшение сериализованного размера.
+
+Обновление после [этапа 36](records_stage36_metadata_quality_2026-10-23.md), 23 октября:
+на всех 23 документах вне stage35 выполнен отдельный source-based аудит прежнего
+извлекателя. Ассистент заморозил эталоны до новых предсказаний: авторы 18/23,
+год 21/21 известных, журнал 16/21 строгих совпадений. Четыре отказа по авторам,
+один `III`/`111` из text layer и пять расхождений пунктуации/пробелов не исправлялись.
+Это конечный quality baseline, не независимая научная приёмка или новый holdout.
+БД/PDF, provider и runtime не менялись; 76 tests, Ruff/mypy, HTML/source/DB/replay
+проверки прошли. Дальше — сохранность научных связей при подготовке контекста;
+прежние четыре заблокированных пакета не становятся разрешёнными после этого аудита.
+Независимая оценка остаётся отдельной от автоматического рабочего процесса Terms.
+
 Обновление после [этапа 35](records_stage35_bibliography_bridge_2026-10-22.md):
 прежний локальный TAC metadata extractor соединён с ingestion и provenance API/UI.
 Миграция 0006 хранит source-bound предложения и историю, существующие значения

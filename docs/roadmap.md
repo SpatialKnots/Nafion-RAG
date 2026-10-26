@@ -1,5 +1,58 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-24: [records stage40](records_stage40_query_selection_2026-10-24.md)
+реализовал отдельный query-aware selection: 142/561 блоков, wire 200221 → 81189
+байт, full-page occurrences 22 → 1. Смена selection учтена явно: 116 целых окон,
+37 частичных, 374 отложенных; все parents локально побайтно неизменны. Все пять
+protected-group occurrences отложены целиком, их научная ненужность не доказана.
+11/11 development checks, 179 targeted tests, Ruff/mypy и source/HTML/export QA
+прошли; scope TAC — все десять документов. Guo/SEI демонстрирует over-inclusion:
+implicit sample/material scope не реализован. Scientific loss не измерена, API
+admission 0/4. Далее — sample/material scope с unknown и отдельной проверкой
+false inclusions/exclusions; runtime/DB/retrieval/model calls нет.
+
+Обновление 2026-10-24: [records stage39](records_stage39_context_completeness_2026-10-24.md)
+разобрал 35 страниц-вхождений, 1148 source events и 449 зависимостей. Все 22 полные
+страницы возникают из union прежних окон; single full-page windows и добавления
+closure — 0. Одна уникальная literal cooccurrence proposal повторена в двух
+вопросах, научная применимость условий не установлена. 9/9 development checks,
+170 targeted tests, Ruff/mypy и source/HTML/export QA прошли; все десять TAC
+документов сохранены. Прежние packets/diagnostics побайтно неизменны, допуск к API
+0/4, DB/retrieval/model calls нет. Далее — отдельный query-aware selection experiment
+с оценкой потерь связанных условий/групп; это смена selection, не lossless перепаковка.
+
+Обновление 2026-10-24: [records stage38](records_stage38_compact_context_2026-10-24.md)
+уменьшил четыре model-facing wire с 8156634 до 200221 байта. Весь выбранный
+текст сохранён: 561 блок, 527 окон, 449 зависимостей; полные diagnostics этапа 37
+побайтно сохранены локально. Каждый wire проходит прежний лимит 100000, но
+network-ready 0/4: 22 полных страницы-вхождения и прежние отказы не сняты.
+125 targeted tests, Ruff/mypy, source/HTML QA и повторный экспорт прошли.
+Runtime не подключён, новых DB/retrieval/model calls нет. Далее — source-based
+полнота контекста и применимость условий, без обхода full-page guard.
+
+Обновление 2026-10-24: [records stage37](records_stage37_source_context_packet_2026-10-24.md)
+добавил отдельный локальный пакет точных блоков и структурных зависимостей.
+527 исходных окон восстанавливаются из 561 блока; сохранены 19 baseline Evidence.
+Разрыв методики через блоки формулы теперь входит в одну группу; 6/6 development
+retention checks прошли без научного назначения условий. Уникальный текст занимает
+127532 байта вместо 354553 байт повторяющихся окон, но wire вместе с диагностикой —
+8156634 байта на четыре вопроса; все четыре превышают прежний лимит, 22 полные
+страницы-вхождения сохраняются, network-ready 0/4. Это не экономия токенов или
+научная приёмка. Runtime не подключён; новых DB/retrieval/model calls нет.
+94 tests, Ruff/mypy прошли. Далее — компактное представление для модели с полной
+локальной диагностикой и отдельно замороженной проверкой покрытия, до платных ответов.
+
+Обновление 2026-10-23: [records stage36](records_stage36_metadata_quality_2026-10-23.md)
+проверил неизменённый metadata extractor на всех 23 документах вне scope этапа 35.
+Эталоны ассистента и правила заморожены до новых предсказаний: авторы 18/23,
+год 21/21 известных, журнал 16/21 строгих совпадений. Четыре отказа по авторам,
+один source-text `III`/`111` и пять расхождений точек/пробелов сохранены; последние
+не означают пять подмен журналов. Unknown не заполнены; независимой человеческой
+приёмки нет, корпус ранее использовался в TAC-разработке. 76 tests, Ruff/mypy,
+HTML search/expansion и точные source/replay/DB проверки прошли. БД/PDF и алгоритм
+не менялись. Далее — подготовка контекста ответа с сохранением научных связей;
+этот аудит не снимает прежний запрет отправки четырёх пакетов модели.
+
 Обновление 2026-10-22: [records stage35](records_stage35_bibliography_bridge_2026-10-22.md)
 подключил существующий TAC metadata extractor к импорту/дубликатам/переотбору
 текста без изменения его алгоритма. Миграция 0006 хранит exact source evidence,
