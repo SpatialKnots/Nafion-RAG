@@ -1,5 +1,18 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-26: [stage41](records_stage41_sample_scope_2026-10-26.md)
+добавил finite membrane/SEI scope audit всех 113 parent units, 22/22 development
+checks. [Stage42](records_stage42_sample_selection_2026-10-26.md) отложил четыре
+целых Guo/SEI units: 142 → 62 блока, wire 81189 → 67247 байт, полных страниц
+1 → 0. Unknown/mixed/unsupported-query units сохраняют прежний отбор; sample
+identity и scientific relevance не установлены. Все parents/diagnostics остаются
+локально; все десять TAC документов доступны в отдельных HTML каждого этапа.
+40/40 source expectations и 60 targeted tests прошли, Ruff/mypy — без ошибок.
+Scientific loss не измерена; API admission остаётся 0/4. Runtime/DB/retrieval/model
+calls нет. Далее — source-based origin/applicability audit retained фрагментов
+(собственная методика, обсуждение, bibliography, unresolved), с новым frozen
+comparison и отдельными false-retention/deferral cases до admission upgrade.
+
 Обновление 2026-10-24: [records stage40](records_stage40_query_selection_2026-10-24.md)
 реализовал отдельный query-aware selection: 142/561 блоков, wire 200221 → 81189
 байт, full-page occurrences 22 → 1. Смена selection учтена явно: 116 целых окон,

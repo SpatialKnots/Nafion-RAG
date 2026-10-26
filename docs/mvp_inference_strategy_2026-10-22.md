@@ -95,6 +95,20 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапов 41–42](records_stage42_sample_selection_2026-10-26.md),
+26 октября: finite sample-class audit реализован отдельно от отбора. Для вопроса
+о мембранах отложены четыре целых Guo/SEI units: 142 → 62 блока, wire 81189 →
+67247 байт, current full pages 1 → 0. Unknown, mixed и query без finite класса
+сохраняют прежний отбор. Это воспроизводимое предложение selection, не доказанная
+научная ненужность SEI-методик или сохранность всех условий. 40/40 development
+expectations, 60 targeted tests и Ruff/mypy прошли. Все полные parents остаются
+локально; оба этапа имеют отдельные review/TAC HTML для десяти документов.
+API admission 0/4, все прежние отказы сохранены; новых runtime/DB/retrieval/model
+calls нет. Далее — source-based origin и applicability retained фрагментов с
+явным unresolved и отдельными false-retention/deferral checks, до нового решения
+об admission. Нельзя объявлять ноль full pages достаточностью scientific context.
+Ниже — история решений.
+
 Обновление после [этапа 40](records_stage40_query_selection_2026-10-24.md), 24 октября:
 новая finite query-aware selection уменьшила wire 200221 → 81189 байт и full-page
 occurrences 22 → 1, выбрав 142/561 блоков целыми units. Это не lossless перепаковка:
