@@ -95,6 +95,19 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапа 43](records_stage43_source_origin_2026-10-27.md), 27 октября:
+при временно недоступном API выполнен отдельный offline origin/applicability audit
+на прежних frozen inputs. Отбор 62 блоков / 155 events и model-facing wires
+побайтно сохранены; все 561 source blocks / 1148 events учтены. Literal section
+и origin cues не устанавливают own work, sample identity или applicability;
+134 selected events остаются origin unknown, ещё 16 citation-only unknown.
+21/21 development checks, 51 targeted tests, HTML-тест и Ruff/mypy прошли; все
+десять TAC документов сохранены. Локальные prepare/run/export запрещают Python
+socket/DNS operations, model/embedding/retrieval/DB calls нет, admission 0/4.
+Следующая локальная задача — source-bound method/condition applicability и
+abstention cases; API status probing, смена provider и загрузка моделей для неё
+не требуются. Ниже — история решений.
+
 Обновление после [этапов 41–42](records_stage42_sample_selection_2026-10-26.md),
 26 октября: finite sample-class audit реализован отдельно от отбора. Для вопроса
 о мембранах отложены четыре целых Guo/SEI units: 142 → 62 блока, wire 81189 →

@@ -1,5 +1,18 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-27: [stage43](records_stage43_source_origin_2026-10-27.md)
+добавил полностью локальный origin/applicability audit всех 561 source blocks и
+1148 events. Прежний отбор 62 блоков / 155 events, все wires и отказы сохранены.
+Section hints — геометрические proposals, own-work origin/sample identity и
+applicability не назначены. 134 selected events остаются origin unknown, ещё 16
+citation-only unknown; научной приёмки нет. 21/21 development checks, 51 targeted
+tests, дополнительный HTML-тест и Ruff/mypy прошли. Поиск/раскрытие/selected filter,
+empty refused scope и TAC десять документов/восемь колонок проверены в браузере.
+Новых model/embedding/retrieval/DB calls нет; локальные CLI фазы работают с
+запрещёнными Python socket/DNS operations. Admission остаётся 0/4. Далее —
+source-bound method/condition applicability и abstention cases на frozen inputs;
+это локальная работа, не зависящая от доступности API.
+
 Обновление 2026-10-26: [stage41](records_stage41_sample_scope_2026-10-26.md)
 добавил finite membrane/SEI scope audit всех 113 parent units, 22/22 development
 checks. [Stage42](records_stage42_sample_selection_2026-10-26.md) отложил четыре
