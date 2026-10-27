@@ -1,5 +1,13 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-27: [stage48](records_stage48_dsc_admission_2026-10-27.md)
+выполнил пункт 2 pre-API плана. Новый DSC source packet прошёл 14/14 checks;
+source eligibility отделена от научной приёмки и сетевого исполнения. 12 старых
+blockers и семь файлов stage47 сохранены; current source blockers — 0,
+network_ready=false. 85 affected tests, Ruff/mypy, source/HTML/PDF-link QA и
+11 byte-identical export files прошли. API/model/retrieval/embedding/DB calls нет.
+Далее — пункт 3: frozen experiment contract, без реальных вызовов при запрете API.
+
 Обновление 2026-10-27: [stage47](records_stage47_dsc_context_2026-10-27.md)
 выполнил пункт 1 плана до API: отдельный DSC source packet Istomina, четыре
 identity цитаты и полный раздел 2.4 с physical p.4, без соседних WAXD/AC разделов.

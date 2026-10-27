@@ -95,6 +95,15 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапа 48](records_stage48_dsc_admission_2026-10-27.md),
+27 октября: новый DSC-пакет прошёл 14/14 source checks и пригоден для подготовки
+frozen-эксперимента. Эта eligibility не является научной приёмкой и не меняет
+старые production gates, отказы или historical 0/4. Network readiness false;
+API prohibition, отсутствие frozen experiment contract и provider envelope
+сохранены отдельно. 85 affected tests, Ruff/mypy, HTML/PDF-link QA прошли.
+API/model/retrieval/embedding/DB calls нет. Далее — пункт 3, prospective frozen
+experiment contract. Provider, архитектура и thresholds не менялись.
+
 Обновление после [этапа 47](records_stage47_dsc_context_2026-10-27.md),
 27 октября: новый DSC-контекст запрошенной Istomina собран отдельно — четыре
 identity anchors и полный раздел 2.4, 4346 bytes wire, exact source registry
