@@ -95,6 +95,15 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапа 47](records_stage47_dsc_context_2026-10-27.md),
+27 октября: новый DSC-контекст запрошенной Istomina собран отдельно — четыре
+identity anchors и полный раздел 2.4, 4346 bytes wire, exact source registry
+отдельно. Старые packets/PDF/metadata сохранены; 59 affected tests, Ruff/mypy,
+source/HTML/PDF-click QA прошли. API/model/retrieval/embedding/DB calls нет.
+Это завершение пункта 1 pre-API плана, не admission или runtime activation.
+Далее — пункт 2: отдельная проверка допуска нового пакета. Текущий provider,
+архитектура, thresholds и требование явных unknown не менялись.
+
 Обновление после [этапа 46](records_stage46_evidence_gaps_2026-10-27.md),
 27 октября: четыре прежних вопроса получили offline gap checklists и отдельную
 source-review сводку. Полный текст 11 PDF / 273 страниц проверен; DSC методика

@@ -1,5 +1,13 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-27: [stage47](records_stage47_dsc_context_2026-10-27.md)
+выполнил пункт 1 плана до API: отдельный DSC source packet Istomina, четыре
+identity цитаты и полный раздел 2.4 с physical p.4, без соседних WAXD/AC разделов.
+Wire 4346 bytes, source registry отдельно; старые пакеты/PDF/metadata неизменны.
+59 affected tests, Ruff/mypy, source/HTML/PDF-click QA и 7 byte-identical export
+files прошли. API/model/retrieval/embedding/DB calls нет, network_ready=false.
+Следующий пункт — отдельная проверка допуска нового пакета; она ещё не выполнена.
+
 Обновление 2026-10-27: [stage46](records_stage46_evidence_gaps_2026-10-27.md)
 выполнен по решениям грилла: четыре прежних вопроса, полный original text layer
 11 PDF / 273 страниц. Отдельно подтверждён source header Istomina 2021; DSC
