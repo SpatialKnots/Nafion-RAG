@@ -1,5 +1,17 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-27: [stage44](records_stage44_condition_applicability_2026-10-27.md)
+добавил отдельные same-event condition links без API и без смены отбора. Среди
+155 selected events — 38 condition occurrences: 2 measurement-context и
+4 protocol-parameter proposals, 10 preparation-only, 22 unresolved. Range/step/
+accuracy различены без numeric normalization; generic sample остаётся классом,
+scientific applicability не подтверждена. Все 561 blocks / 1148 events, прежние
+wires, PDF и отказы сохранены. 12/12 checks, 48 targeted tests и Ruff/mypy прошли.
+Все десять TAC документов доступны отдельно. CLI запрещает Python socket/DNS
+operations; model/embedding/retrieval/DB calls нет, admission 0/4. Далее — локальные
+explicit sample/table identifiers и ссылки на них с отдельными abstention cases;
+не назначать конкретный образец из общего соседства текста.
+
 Обновление 2026-10-27: [stage43](records_stage43_source_origin_2026-10-27.md)
 добавил полностью локальный origin/applicability audit всех 561 source blocks и
 1148 events. Прежний отбор 62 блоков / 155 events, все wires и отказы сохранены.

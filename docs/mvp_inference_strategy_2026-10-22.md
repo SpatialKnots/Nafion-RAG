@@ -95,6 +95,18 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапа 44](records_stage44_condition_applicability_2026-10-27.md),
+27 октября: same-event condition-link proposals реализованы локально, без API.
+В 155 selected events — 38 condition occurrences, включая два measurement-context
+и четыре protocol-parameter proposals; подготовка и unresolved сохранены отдельно.
+Range/step/accuracy не нормализуются в measured temperatures, sample class не
+становится конкретным образцом. Scientific applicability остаётся открытой;
+отбор, wires и все прежние запреты сохранены, admission 0/4. 12/12 checks,
+48 targeted tests и Ruff/mypy прошли. CLI запрещает Python socket/DNS operations;
+model/embedding/retrieval/DB calls нет, provider не менялся. Далее — source-bound
+explicit sample/table identifiers и ссылки на них с abstention cases; API для
+этой локальной работы не требуется. Ниже — история решений.
+
 Обновление после [этапа 43](records_stage43_source_origin_2026-10-27.md), 27 октября:
 при временно недоступном API выполнен отдельный offline origin/applicability audit
 на прежних frozen inputs. Отбор 62 блоков / 155 events и model-facing wires
