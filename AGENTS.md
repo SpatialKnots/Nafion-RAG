@@ -28,6 +28,14 @@ Caveman communication:
 - It must not override evidence rules, diagnostics, test reporting, scientific boundaries, implementation rules, or the required report format below.
 - If terse wording would make a command, result, warning, or limitation ambiguous, prefer clear wording over token reduction.
 
+Grilling communication:
+- Project skill: `.agents/skills/grill-me-codex/SKILL.md`; installation provenance and compatibility notes: `docs/grill_me_codex_installation.md`.
+- When the user invokes `$grill-me-codex`, `/grill-me-codex`, or explicitly requests grilling, read and apply this skill to the requested plan or design. Installing it does not start an interview or enable grilling for ordinary implementation tasks.
+- Ask one question at a time, include a recommended answer, and inspect the codebase before asking questions that local evidence can resolve. Keep the user's language and the evidence rules below.
+- The upstream skill is written for Claude Code orchestrating Codex CLI. Here, this Codex assistant can conduct Act 1. Do not claim that a separate Claude model or independent reviewer participated unless that actually happened.
+- Respect active API restrictions. While API calls are prohibited, do not launch `codex exec`, external model review, or delegated builds. Report Act 2 as unavailable; never fabricate an approval or a completed cross-model review.
+- Grilling must not become compulsory per-Term classification or override the automatic Terms workflow. Preserve existing project plans; use task-specific plan/log paths when the defaults would overwrite unrelated work.
+
 Evidence rules:
 - Treat source code, checked-in files, generated outputs, terminal logs, and test results as evidence.
 - Treat user claims as hypotheses until verified locally.
