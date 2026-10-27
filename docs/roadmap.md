@@ -1,5 +1,15 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-27: [stage49](records_stage49_dsc_experiment_2026-10-27.md)
+выполнил пункт 3: frozen question/source/prompt/model/budget/criteria и полный
+8712-byte Responses request. Budget одного будущего вызова без retry/fallback,
+4096 output tokens, 180 s; исторический alias, live compatibility/pricing unknown.
+Result template явно not_executed; offline response inspector не является API-run.
+57 affected tests, Ruff/mypy, HTML/PDF-link QA и 20 byte-identical export files
+прошли. Старые inputs и workflow сохранены; API/model/retrieval/embedding/DB calls
+нет, network_ready=false. Далее — пункт 4 при явном снятии запрета API и с durable
+attempt/result ledger; реальный executor ещё не реализован.
+
 Обновление 2026-10-27: [stage48](records_stage48_dsc_admission_2026-10-27.md)
 выполнил пункт 2 pre-API плана. Новый DSC source packet прошёл 14/14 checks;
 source eligibility отделена от научной приёмки и сетевого исполнения. 12 старых

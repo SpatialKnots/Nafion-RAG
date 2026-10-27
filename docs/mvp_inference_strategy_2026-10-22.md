@@ -95,6 +95,16 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапа 49](records_stage49_dsc_experiment_2026-10-27.md),
+27 октября: frozen DSC experiment contract готов offline — 8712-byte request,
+один будущий вызов с historical alias/settings, без retries/fallback, 4096 output
+tokens / 180 s. Reply/source criteria и unexecuted result format зафиксированы;
+usage/model/cost остаются unknown до фактического ответа. Alias/schema/pricing
+не проверялись у провайдера. 57 affected tests, Ruff/mypy, HTML/PDF-link QA прошли.
+API/model/retrieval/embedding/DB calls нет. Далее — пункт 4 после явного снятия
+API prohibition и реализации durable attempt/result recording; сама фиксация
+контракта не является сетевым разрешением или scientific acceptance.
+
 Обновление после [этапа 48](records_stage48_dsc_admission_2026-10-27.md),
 27 октября: новый DSC-пакет прошёл 14/14 source checks и пригоден для подготовки
 frozen-эксперимента. Эта eligibility не является научной приёмкой и не меняет
