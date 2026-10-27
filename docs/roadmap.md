@@ -1,5 +1,17 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-27: [stage45](records_stage45_sample_identifiers_2026-10-27.md)
+добавил отдельный sample/table identifier audit. Прежние 561 blocks / 1148 events,
+selection и wires сохранены; одна source-only supplemental table зарегистрирована
+отдельно, 21 строка. Текущие PDF text/blocks/lines проверены; старый stage23 replay
+не принят при изменённом pyproject.toml, mismatch сохранён. Три selected sample
+mentions имеют по кандидату строки Table 2, все три unresolved; методика/условия
+строкам не назначены, plasticiser composition не переименована в membrane/environment.
+8/8 source checks, 1/1 catalog check, 78 targeted tests и Ruff/mypy прошли.
+Все десять TAC документов сохранены; новых API/model/embedding/retrieval/DB calls
+нет, admission 0/4. Далее — локальный аудит полноты цепочек sample/method/condition
+с новыми source endpoints и unresolved cases, без назначения связей по соседству.
+
 Обновление 2026-10-27: [stage44](records_stage44_condition_applicability_2026-10-27.md)
 добавил отдельные same-event condition links без API и без смены отбора. Среди
 155 selected events — 38 condition occurrences: 2 measurement-context и

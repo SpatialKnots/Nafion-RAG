@@ -95,6 +95,19 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапа 45](records_stage45_sample_identifiers_2026-10-27.md),
+27 октября: sample/table references проверяются локально, с отдельной source-only
+таблицей на физической странице 6. Её 21 строка не добавлена в старый model wire;
+native model candidates не применяются. Старый stage23 replay не объявлен
+восстановленным: изменённый pyproject.toml явно записан, source hashes и текущая
+PDF text/block/line геометрия перепроверены отдельно. Три selected sample mentions
+имеют по кандидату строки, но остаются unresolved; методика/условия не назначены.
+8/8 source checks, 1/1 catalog check, 78 targeted tests и Ruff/mypy прошли,
+все десять TAC документов сохранены. API/model/embedding/retrieval/DB calls нет,
+admission 0/4; source selection/thresholds/provider не менялись. Далее — повторная
+локальная проверка полноты sample/method/condition chains с source endpoints,
+без вывода scientific identity или applicability из соседства. Ниже — история.
+
 Обновление после [этапа 44](records_stage44_condition_applicability_2026-10-27.md),
 27 октября: same-event condition-link proposals реализованы локально, без API.
 В 155 selected events — 38 condition occurrences, включая два measurement-context
