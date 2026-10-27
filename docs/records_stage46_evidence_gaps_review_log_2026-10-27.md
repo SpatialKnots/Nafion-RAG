@@ -22,9 +22,9 @@ No separate Claude session participated.
    missing from the saved packet, with new findings separate and explicit search
    statuses. User: `да`.
 
-Act 1 decisions are settled for writing the plan. Implementation sign-off has not
-yet been requested or received for this concrete plan. No implementation files
-were changed during this planning step.
+Act 1 decisions were settled for writing the plan. No implementation files were
+changed during that planning step. Subsequent implementation sign-off is recorded
+under Act 3 below.
 
 ## Local evidence used for planning
 
@@ -41,9 +41,14 @@ The active user instruction prohibits API calls. Project instructions also forbi
 launching `codex exec` or external review/delegated builds while that restriction
 applies. No reviewer was launched; completed review rounds: 0. `MAX_ROUNDS=5` is the
 upstream default, not an executed review budget. No APPROVED/REVISE reviewer verdict
-is claimed. This is an interview-derived plan awaiting user sign-off, not a plan
-that survived cross-model review.
+is claimed. This is an interview-derived plan, not a plan that survived cross-model
+review. The user subsequently authorized direct implementation below.
 
 ## Act 3 — Implementation
 
-Not started. The skill requires user sign-off on the completed plan before code.
+User sign-off on the concrete completed plan: `Да, переходим`.
+The assistant implemented stage46 directly, without launching another model.
+Final algorithm: `evidence_gap_audit_v0.2`; v0.1 exposed outputs were preserved,
+and the correction was registered before v0.2 outcomes. Final affected suite:
+90 passed, Ruff/mypy passed, HTML/source/PDF-link QA and repeat exports passed.
+Results and limitations: `records_stage46_evidence_gaps_2026-10-27.md`.

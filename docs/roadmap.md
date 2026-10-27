@@ -1,5 +1,16 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-10-27: [stage46](records_stage46_evidence_gaps_2026-10-27.md)
+выполнен по решениям грилла: четыре прежних вопроса, полный original text layer
+11 PDF / 273 страниц. Отдельно подтверждён source header Istomina 2021; DSC
+раздел на физической стр. 4 найден вне прежнего пакета. 2158 matching blocks /
+6657 literal spans — кандидаты, не научное принятие; связи не назначались.
+Отрицательный контроль отделён от содержательных вопросов. 90 targeted tests,
+Ruff/mypy, source/HTML/PDF-click QA и два экспорта 55 byte-identical files прошли.
+Исторические пакеты/metadata/PDF сохранены; API/model/retrieval/embedding/DB calls
+нет, admission 0/4. Далее — отдельный source-bound контекст запрошенной Istomina
+для DSC-вопроса с полным разделом 2.4 и сохранением прежних guards.
+
 Обновление 2026-10-27: [stage45](records_stage45_sample_identifiers_2026-10-27.md)
 добавил отдельный sample/table identifier audit. Прежние 561 blocks / 1148 events,
 selection и wires сохранены; одна source-only supplemental table зарегистрирована

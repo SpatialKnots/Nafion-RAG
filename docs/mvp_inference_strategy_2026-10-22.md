@@ -95,6 +95,16 @@ endpoint отдельно проверять обработку, хранени�
 
 ## Следующее инженерное решение
 
+Обновление после [этапа 46](records_stage46_evidence_gaps_2026-10-27.md),
+27 октября: четыре прежних вопроса получили offline gap checklists и отдельную
+source-review сводку. Полный текст 11 PDF / 273 страниц проверен; DSC методика
+Istomina найдена в отдельном source supplement, физическая стр. 4, вне прежнего
+packet. Это конкретный пробел отбора, не основание повысить admission или объявить
+автоматические научные связи. 90 targeted tests, Ruff/mypy и source/HTML/PDF-link
+QA прошли; старые packets/metadata/PDF сохранены, model/API/retrieval/embedding/DB
+calls нет, admission 0/4. Далее — отдельно подготовить контекст запрошенной статьи
+с полным разделом и прежними guards. Архитектура и текущий provider не менялись.
+
 Обновление после [этапа 45](records_stage45_sample_identifiers_2026-10-27.md),
 27 октября: sample/table references проверяются локально, с отдельной source-only
 таблицей на физической странице 6. Её 21 строка не добавлена в старый model wire;
