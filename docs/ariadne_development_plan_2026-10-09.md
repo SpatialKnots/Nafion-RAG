@@ -4,6 +4,15 @@
 
 ## 1. Назначение и статус
 
+Обновление 29 октября: основной answer runtime теперь `gigachat`, модель
+`GigaChat-2-Max`, без OpenAI fallback. Смена настроек и production adapter
+проверены offline; отдельного нового live/scientific acceptance нет. Локальные
+embeddings и historical frozen experiments не переключаются. Ближайший научный
+шаг — независимая проверка выбора evidence и применимости условий на новых
+случаях; прежние научные задачи S04/S14/S15 остаются открытыми.
+См. [отчёт](gigachat_runtime_switch_2026-10-29.md) и
+[DSC named spans от 28 октября](gigachat_dsc_named_spans_2026-10-28.md).
+
 Обновление 27 октября, [records stage49](records_stage49_dsc_experiment_2026-10-27.md): пункт 3 pre-API плана выполнен offline. Зафиксированы question/source/prompt, historical model/settings, один будущий вызов без retry/fallback, критерии и форматы artifacts/result/errors. Полный request 8712 bytes, max output 4096 tokens, timeout 180 s; live provider/schema/pricing не проверены и стоимость не придумана. Source-bound reply proposals учитывают шесть fields с exact M1 quotes или явной abstention, без scientific acceptance. Реального response/usage нет; отдельный offline inspector сохраняет supplied raw bytes/metadata и expected errors. 57 affected tests, Ruff/mypy, HTML/PDF-link QA и 20 byte-identical export files прошли. Старые packets/PDF/metadata/workflow не менялись; API/model/retrieval/embedding/DB calls нет, network_ready=false. Далее — пункт 4, bounded live smoke после явного снятия API prohibition, с durable attempt/result recording; sending executor пока не реализован.
 
 Обновление 27 октября, [records stage48](records_stage48_dsc_admission_2026-10-27.md): выполнен пункт 2 pre-API плана, отдельная source-admission проверка нового DSC packet. Все 14 checks прошли; current source blockers — 0, packet пригоден для подготовки frozen-эксперимента. Scientific acceptance и execution authorization не следуют из source eligibility: network_ready=false, API prohibition действует, provider request ещё не построен. Все 12 старых причин отказа и семь файлов stage47 сохранены; прежние production gates и historical 0/4 не менялись. 85 affected tests, Ruff/mypy, HTML/PDF-link QA и 11 byte-identical export files прошли. API/model/retrieval/embedding/DB calls нет. Далее — пункт 3: frozen question/context/prompt/model/budget/criteria и request/raw response/usage/errors/hashes contract.

@@ -1,0 +1,47 @@
+{
+  "version": "user_questions_20261030_v0.1",
+  "question_author": "user_in_this_chat_2026-10-30",
+  "spelling_policy": "preserve_verbatim_do_not_apply_suggested_query_corrections",
+  "reference_answers": null,
+  "independent_scientific_annotations": null,
+  "cases": [
+    {
+      "id": "q1_swelling_forms",
+      "question": "Покажи как меняется степень набухания мембраны Нафион пре переходе от протонированной к литированной форме",
+      "requirements": [
+        "Compare protonated and lithiated Nafion swelling for matched source-supported media and conditions.",
+        "Preserve definition/units of swelling; do not conflate mass gain, mass ratio or volume swelling.",
+        "Do not assert a universal increase/decrease from a limited solvent set."
+      ],
+      "known_topic_overlap": [
+        "docs/evaluation_questions_user_regression_extended.yaml: user_reg_004_ru_swelling_li_vs_h",
+        "docs/evaluation_questions_user_cross_lingual.yaml: user_xling_016_ru_dissertation_lithium_swelling"
+      ]
+    },
+    {
+      "id": "q2_best_mixture",
+      "question": "Какая смесь растворителей даёт наилучшую ионную проводимость для Li-Nafion",
+      "requirements": [
+        "Identify the mixture and its composition/basis, conductivity/unit and temperature when reported.",
+        "Do not substitute the best individual solvent or an unrelated membrane/conductivity type.",
+        "State the tested comparison set; do not infer a global literature optimum."
+      ],
+      "known_topic_overlap": [
+        "docs/evaluation_questions_user_regression_extended.yaml: user_reg_002_ru_ec_sl_highest_conductivity",
+        "docs/evaluation_questions_user_cross_lingual.yaml: user_xling_001_ru_sanginov_ec_sl_conductivity"
+      ]
+    },
+    {
+      "id": "q3_lithiation_methods",
+      "question": "Какие существуют методики литирования Nafion?",
+      "requirements": [
+        "Separate distinct source-supported lithiation/ion-exchange protocols by work and starting material.",
+        "Retain reagent, medium, concentration, temperature, duration, washing/drying and endpoints only where linked in source.",
+        "Do not count cleaning/protonation as lithium exchange or claim an exhaustive literature catalogue."
+      ],
+      "known_topic_overlap": [
+        "Experimental source contexts have been exposed in prior cleaning/protonation/operation pilots; no unseen-source claim."
+      ]
+    }
+  ]
+}

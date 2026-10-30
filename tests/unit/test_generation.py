@@ -1097,7 +1097,7 @@ def test_build_answer_provider_rejects_unknown_provider() -> None:
     settings = _settings()
     settings.rag_provider = "unknown"
 
-    with pytest.raises(ValueError, match="Supported provider: openai"):
+    with pytest.raises(ValueError, match="Supported provider: gigachat"):
         build_answer_provider(settings)  # type: ignore[arg-type]
 
 
@@ -1178,14 +1178,22 @@ def test_llm_provider_prompts_collapse_pdf_line_breaks_in_evidence() -> None:
     assert expected in openai_provider._user_prompt("question", evidence)  # noqa: SLF001 - prompt normalization test
 
 
-def test_build_answer_provider_accepts_openai() -> None:
+def test_build_answer_provider_accepts_gigachat() -> None:
+    from app.generation.gigachat import GigaChatAnswerProvider
+
     settings = _settings()
-    settings.rag_provider = "openai"
-    settings.rag_openai_api_key = "test-key"
+    settings.gigachat_credentials = "test-key"
 
     provider = build_answer_provider(settings)  # type: ignore[arg-type]
 
-    assert isinstance(provider, OpenAIAnswerProvider)
+    assert isinstance(provider, GigaChatAnswerProvider)
+
+
+def test_build_answer_provider_rejects_retired_openai_selection() -> None:
+    settings = _settings()
+    settings.rag_provider = "openai"
+    with pytest.raises(ValueError, match="Supported provider: gigachat"):
+        build_answer_provider(settings)  # type: ignore[arg-type]
 
 
 class StaticProvider:
@@ -1229,13 +1237,13 @@ def _settings() -> SimpleNamespace:
         default_collection="literature",
         rag_top_k=5,
         rag_retrieval_method="hybrid",
-        rag_provider="openai",
+        rag_provider="gigachat",
         rag_max_claims=5,
-        rag_openai_base_url="https://api.openai.com/v1",
-        rag_openai_api_key="",
-        rag_openai_model="gpt-4.1-mini",
-        rag_openai_max_tokens=1200,
-        rag_model="",
+        gigachat_credentials="",
+        gigachat_scope="GIGACHAT_API_PERS",
+        gigachat_ca_bundle_file="",
+        rag_gigachat_max_tokens=1200,
+        rag_model="GigaChat-2-Max",
         rag_timeout_seconds=120,
     )
 

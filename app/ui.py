@@ -32,7 +32,8 @@ from app.db.session import get_session
 from app.documents.context import ContextNotFoundError, get_chunk_context, get_page_range_context
 from app.documents.service import PageEvidenceNotFoundError, build_pdf_url
 from app.facts.service import list_structured_facts, structured_fact_summary, structured_fact_to_response
-from app.generation.providers import GenerationOutputError, GenerationUnavailableError
+from app.generation.presentation import PresentationSource, capture_sources
+from app.generation.providers import Evidence, GenerationOutputError, GenerationUnavailableError
 from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import job_to_response
 from app.library.service import (
@@ -45,7 +46,7 @@ from app.library.service import (
     update_library_source,
 )
 from app.retrieval.index_lifecycle import list_vector_index_states, request_vector_rebuild, vector_index_state_to_response
-from app.retrieval.search import SearchFilters, search_chunks
+from app.retrieval.search import SearchFilters, SearchResponse, search_chunks
 from app.retrieval.vector_index import VectorIndexUnavailableError
 
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -177,12 +178,12 @@ def _citation_href(citation: dict[str, object]) -> str | None:
 
 
 def _linked_answer_text(answer: str, citations: list[dict[str, object]]) -> str:
-    by_id: dict[str, str] = {}
+    by_id: dict[str, tuple[str, str]] = {}
     for citation in citations:
         citation_id = citation.get("citation_id")
         href = _citation_href(citation)
         if citation_id and href:
-            by_id[str(citation_id)] = href
+            by_id[str(citation_id)] = (href, _citation_label(citation))
     if not by_id:
         return _html(answer)
 
@@ -190,14 +191,49 @@ def _linked_answer_text(answer: str, citations: list[dict[str, object]]) -> str:
     cursor = 0
     for match in re.finditer(r"\[([A-Za-z]\d+)\]", answer):
         citation_id = match.group(1)
-        href = by_id.get(citation_id)
-        if href is None:
+        link = by_id.get(citation_id)
+        if link is None:
             continue
         parts.append(_html(answer[cursor : match.start()]))
-        parts.append(f"<a href='{_html(href)}' target='_blank' rel='noopener'>{_html(match.group(0))}</a>")
+        href, label = link
+        parts.append(f"<a href='{_html(href)}' data-citation-id='{_html(citation_id)}' "
+                     f"target='_blank' rel='noopener'>{_html(label)}</a>")
         cursor = match.end()
     parts.append(_html(answer[cursor:]))
     return "".join(parts)
+
+
+def _citation_label(citation: dict[str, object]) -> str:
+    title = str(citation.get("title") or "Название неизвестно")
+    start, end = citation.get("page_start"), citation.get("page_end")
+    pages = _page_range(start if type(start) is int and start > 0 else None,
+                        end if type(end) is int and end > 0 else None)
+    return f"{title} — с. {pages}" if pages else f"{title} — страница неизвестна"
+
+
+def _claim_source_fragment(citation: dict[str, object], source: PresentationSource | None) -> str:
+    """Exact request-local context, not an automatically established supporting quote."""
+    label = _citation_label(citation)
+    if source is None or not source.matches(citation):
+        text = str(citation.get("text") or "")
+        return ("<details class='claim-source'><summary>" + _html(label) + " — сохранённый фрагмент</summary>"
+                "<p class='muted'>Полный контекст этого запроса недоступен. Показан фрагмент из данных ответа.</p>"
+                f"<pre class='source-exact'>{_html(text)}</pre></details>")
+    content = ""
+    if source.generation_is_derived:
+        content += ("<p class='muted'>Вычисленная табличная сводка системы; это не цитата из PDF.</p>"
+                    f"<pre class='source-exact'>{_html(source.generation_text)}</pre>")
+    elif source.source_text != source.generation_text:
+        content += ("<p class='muted'>Текст, переданный модели; совпадение с исходным фрагментом не установлено.</p>"
+                    f"<pre class='source-exact'>{_html(source.generation_text)}</pre>")
+    if source.source_text is not None:
+        content += (f"<p class='muted'>Исходный фрагмент, текстовый слой: {_html(source.text_layer)}. "
+                    "Соответствие утверждению отдельно не подтверждено.</p>"
+                    f"<pre class='source-exact'>{_html(source.source_text)}</pre>")
+    else:
+        content += "<p class='muted'>Привязанный исходный фрагмент в трассе отсутствует.</p>"
+    return ("<details class='claim-source'><summary>" + _html(label)
+            + " — полный контекст</summary>" + content + "</details>")
 
 
 def _highlighted_text(text: str, highlights: object) -> str:
@@ -332,6 +368,10 @@ def _layout(title: str, body: str) -> HTMLResponse:
     .claim-card:last-child::after { display:none; }
     .claim-card.low-evidence { border-left-color:var(--coral); }
     .claim-text { font-size:14px; line-height:1.45; margin:0 0 8px; }
+    .claim-text, .answer-lede, .source-exact { white-space:pre-wrap; overflow-wrap:anywhere; }
+    .source-exact { font:14px/1.55 system-ui; max-height:32rem; overflow:auto; }
+    .claim-source { margin:10px 0; border:1px solid var(--line); border-radius:8px; padding:10px; }
+    .claim-source summary { cursor:pointer; color:#155E63; }
     .source-card { border:1px solid var(--line); border-radius:8px; padding:16px; background:var(--paper); margin-bottom:10px; }
     .source-card.table-derived { border-left:4px solid var(--coral); }
     .source-head { display:flex; justify-content:space-between; gap:12px; align-items:start; margin-bottom:6px; }
@@ -768,7 +808,8 @@ def dashboard(session: SessionDep) -> HTMLResponse:
     return _layout("Dashboard", body)
 
 
-def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
+def _answer_payload_panel(payload: dict[str, Any], question: str,
+                          presentation_sources: dict[str, PresentationSource] | None = None) -> str:
     status_class = "ok" if payload.get("status") == "answered" else "warn"
     answer = payload.get("answer")
     metadata = payload.get("metadata", {})
@@ -870,22 +911,26 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
                 continue
             citation_ids = [str(item) for item in claim.get("citation_ids", [])]
             chips = []
-            for citation_id in citation_ids:
+            source_fragments = []
+            for citation_id in dict.fromkeys(citation_ids):
                 citation = citation_by_id.get(citation_id)
                 href = _citation_href(citation) if citation else None
-                if href:
+                if href and citation is not None:
                     chips.append(
                         f"<a class='citation-chip' href='{_html(href)}' target='_blank' rel='noopener'>"
-                        f"{_html(citation_id)}</a>"
+                        f"{_html(_citation_label(citation))}</a>"
                     )
                 else:
                     chips.append(f"<span class='citation-chip'>{_html(citation_id)}</span>")
+                if citation is not None:
+                    source_fragments.append(_claim_source_fragment(citation, (presentation_sources or {}).get(citation_id)))
             citation_chips_html = "".join(chips) or "<span class='muted'>No citation links</span>"
             claim_cards.append(
                 "<article class='claim-card'>"
                 f"<p class='section-kicker'>Claim {index:02d}</p>"
                 f"<p class='claim-text'>{_html(claim.get('text'))}</p>"
                 f"<div class='actions'>{citation_chips_html}</div>"
+                + "".join(source_fragments) +
                 "</article>"
             )
 
@@ -905,7 +950,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
             links.append(_context_link(str(article_id), str(chunk_id), question))
         if article_id:
             links.append(_pdf_link(str(article_id), page_start))
-        title = _html(citation.get("title"))
+        title = _html(citation.get("title") or "Название неизвестно")
         article_cell = f"<a href='/ui/articles/{_html(article_id)}'>{title}</a>" if article_id else title
         page_range = _page_range(page_start, page_end)
         source_type = str(citation.get("source_type") or "")
@@ -965,7 +1010,8 @@ def _answer_payload_panel(payload: dict[str, Any], question: str) -> str:
         "<section class='answer-card'>"
         "<p class='section-kicker'>Evidence-based answer</p>"
         f"{answer_block}"
-        f"<div class='claims-thread'>{claim_cards_html}</div></section>"
+        f"<details><summary>Проверить утверждения и исходные фрагменты</summary>"
+        f"<div class='claims-thread'>{claim_cards_html}</div></details></section>"
         "<section class='evidence-card'>"
         "<p class='section-kicker'>Source fragment</p>"
         f"{source_cards_html}</section>"
@@ -980,7 +1026,8 @@ def _answer_error_panel(exc: Exception) -> str:
         title = "Generation provider unavailable"
         hint = (
             "Retrieval may have succeeded, but answer generation could not reach the configured provider. "
-            "Check RAG_PROVIDER=openai, OpenAI API key, OpenAI base URL, and local network permissions."
+            "Check RAG_PROVIDER=gigachat, GIGACHAT_CREDENTIALS, GIGACHAT_SCOPE, RAG_MODEL, "
+            "trusted TLS certificates, and local network permissions."
         )
     elif isinstance(exc, GenerationOutputError):
         title = "Generation output rejected"
@@ -1192,6 +1239,11 @@ def _answer_result_fragment(
     if top_k <= 0:
         return "<section class='panel'><p class='warn'>top_k must be positive.</p></section>"
     try:
+        presentation_sources: dict[str, PresentationSource] = {}
+
+        def observe(retrieval: SearchResponse, evidence: list[Evidence], metadata: dict[str, object]) -> None:
+            presentation_sources.update(capture_sources(retrieval, evidence))
+
         response = answer_question(
             session,
             get_settings(),
@@ -1202,9 +1254,10 @@ def _answer_result_fragment(
             answer_style=answer_style,
             answer_language=answer_language,
             library_source_id=library_source_id,
+            trace_observer=observe,
         )
         payload = answer_response_to_dict(response)
-        return _answer_payload_panel(payload, question)
+        return _answer_payload_panel(payload, question, presentation_sources)
     except (GenerationUnavailableError, GenerationOutputError, VectorIndexUnavailableError, ValueError) as exc:
         return _answer_error_panel(exc)
 

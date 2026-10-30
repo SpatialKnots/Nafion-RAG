@@ -15,6 +15,7 @@ from app.core.config import Settings
 from app.documents.service import build_pdf_url
 from app.generation.evidence_adequacy import LIGATURES, assess_evidence_adequacy
 from app.generation.evidence_selection import select_answer_evidence
+from app.generation.gigachat import GigaChatAnswerProvider
 from app.generation.providers import (
     AnswerLanguage,
     AnswerProvider,
@@ -23,7 +24,6 @@ from app.generation.providers import (
     ExtractiveAnswerProvider,
     GeneratedClaim,
     GenerationOutputError,
-    OpenAIAnswerProvider,
 )
 from app.generation.query_assist import query_assistance_to_dict, suggest_query_corrections
 from app.retrieval.cross_lingual import detect_query_language, glossary_terms_for_concepts
@@ -78,15 +78,16 @@ def normalize_answer_language(answer_language: str) -> AnswerLanguage:
 
 def build_answer_provider(settings: Settings) -> AnswerProvider:
     provider = settings.rag_provider.strip().lower()
-    if provider == "openai":
-        return OpenAIAnswerProvider(
-            base_url=settings.rag_openai_base_url,
-            api_key=settings.rag_openai_api_key,
-            model=settings.rag_model or settings.rag_openai_model,
+    if provider == "gigachat":
+        return GigaChatAnswerProvider(
+            credentials=settings.gigachat_credentials,
+            scope=settings.gigachat_scope,
+            ca_bundle_file=settings.gigachat_ca_bundle_file,
+            model=settings.rag_model,
             timeout_seconds=settings.rag_timeout_seconds,
-            max_tokens=settings.rag_openai_max_tokens,
+            max_tokens=settings.rag_gigachat_max_tokens,
         )
-    raise ValueError(f"Unsupported RAG provider: {settings.rag_provider}. Supported provider: openai")
+    raise ValueError(f"Unsupported RAG provider: {settings.rag_provider}. Supported provider: gigachat")
 
 
 def _evidence_from_response(response: SearchResponse, *, use_full_text: bool = False) -> list[Evidence]:

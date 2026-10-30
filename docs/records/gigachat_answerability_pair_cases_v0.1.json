@@ -1,0 +1,21 @@
+{
+  "version": "gigachat_answerability_pair_v0.1",
+  "cases": [
+    {
+      "id": "missing_hold_duration",
+      "question": "Какова точная длительность выдержки образцов при каждой температуре перед измерением проводимости в работе Каюмова 2021 года? Укажите время только при явном указании в источнике; не выводите его из шага температуры или неизменности спектров.",
+      "expected_behavior": "false with empty claims if the selected evidence still provides a criterion but no exact measurement dwell duration",
+      "comparison_prepared": "output/gigachat_abstention_live_20261029/cases/missing_hold_duration/prepared",
+      "offline_candidate": "output/gigachat_answerability_20261029/offline_v01/missing_hold_duration/request.json"
+    },
+    {
+      "id": "equilibrium_criterion",
+      "question": "По какому признаку в работе Каюмова 2021 года определяли достижение термического равновесия перед измерением проводимости мембран?",
+      "expected_behavior": "true with an exact citation supporting unchanged spectra as the equilibrium criterion; do not invent a numerical dwell duration",
+      "source_cue_guard": {
+        "recorded_title": "Каюмов 2021",
+        "patterns": ["термического\\s+равновесия", "неиз[-\\s]*менности\\s+спектров"]
+      }
+    }
+  ]
+}

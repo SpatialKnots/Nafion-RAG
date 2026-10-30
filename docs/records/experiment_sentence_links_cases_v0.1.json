@@ -1,0 +1,27 @@
+{
+  "version": "experiment_sentence_links_cases_v0.1",
+  "annotation_origin": "assistant_authored_constructed_software_cases_not_independent_scientific_gold",
+  "cases": [
+    {"id":"explicit_measurement","text":"Conductivity of sample A was measured by impedance spectroscopy. Before this measurement, sample A was held for 15 min.","expected_links":1},
+    {"id":"explicit_ru","text":"Электропроводность образца А измеряли методом импедансной спектроскопии. Перед этим измерением образец А выдерживали 15 мин.","expected_links":1},
+    {"id":"explicit_same_operation","text":"Conductivity of sample A was measured by impedance spectroscopy. For the same measurement, sample A was held for 15 min.","expected_links":1},
+    {"id":"instrument_spectra","text":"Для измерений импеданса использовали прибор Z-3000; спектры записывали после достижения термического равновесия, о чем судили по неиз-\nменности спектров.","expected_links":1},
+    {"id":"instrument_spectra_period","text":"For impedance measurements, an instrument was used. Spectra were recorded after thermal equilibrium, judged by unchanged spectra.","expected_links":1},
+    {"id":"different_sample","text":"Conductivity of sample A was measured by impedance spectroscopy. Before this measurement, sample B was held for 15 min.","expected_links":0},
+    {"id":"unlinked_neighbor","text":"Conductivity of sample A was measured by impedance spectroscopy. Sample A was held for 15 min.","expected_links":0},
+    {"id":"preparation_parent","text":"Sample A was dried for 2 days before conductivity measurement. Before this measurement, sample A was held for 15 min.","expected_links":0},
+    {"id":"preparation_child","text":"Conductivity of sample A was measured by impedance spectroscopy. Before this measurement, sample A was dried for 2 days.","expected_links":0},
+    {"id":"soaking_child","text":"Conductivity of sample A was measured by impedance spectroscopy. Before this measurement, sample A was soaked for 2 days.","expected_links":0},
+    {"id":"negated_parent","text":"Conductivity of sample A was not measured by impedance spectroscopy. Before this measurement, sample A was held for 15 min.","expected_links":0},
+    {"id":"negated_child","text":"Conductivity of sample A was measured by impedance spectroscopy. Before this measurement, sample A was not held for 15 min.","expected_links":0},
+    {"id":"hypothesis","text":"Conductivity of sample A might be measured by impedance spectroscopy. Before this measurement, sample A was held for 15 min.","expected_links":0},
+    {"id":"different_property","text":"Conductivity of sample A was measured by impedance spectroscopy. Before this measurement of swelling, sample A was held for 15 min.","expected_links":0},
+    {"id":"different_method","text":"Conductivity of sample A was measured by impedance spectroscopy. Before this gravimetric measurement, sample A was held for 15 min.","expected_links":0},
+    {"id":"paragraph_boundary","text":"Conductivity of sample A was measured by impedance spectroscopy.\n\nBefore this measurement, sample A was held for 15 min.","expected_links":0},
+    {"id":"mixed_samples","text":"Conductivity of sample A and sample B was measured by impedance spectroscopy. Before this measurement, sample A was held for 15 min.","expected_links":0},
+    {"id":"mixed_methods","text":"Conductivity and swelling of sample A were measured by impedance spectroscopy and gravimetry. Before this measurement, sample A was held for 15 min.","expected_links":0},
+    {"id":"other_work","text":"Conductivity of sample A was measured by impedance spectroscopy. In another work, before this measurement, sample A was held for 15 min.","expected_links":0},
+    {"id":"ambiguous_reference","text":"Conductivity of sample A was measured by impedance spectroscopy. This was followed by a 15 min waiting period.","expected_links":0},
+    {"id":"intervening_preparation","text":"Conductivity of sample A was measured by impedance spectroscopy. Sample A was dried. Before this measurement, sample A was held for 15 min.","expected_links":0}
+  ]
+}

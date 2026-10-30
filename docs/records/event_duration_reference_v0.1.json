@@ -1,0 +1,143 @@
+{
+  "cases": [
+    {
+      "case_id": "dispersion_hold_then_spectra",
+      "reference": {
+        "duration_owners": [
+          {
+            "atom_id": "D1",
+            "operation_id": "cell_hold"
+          }
+        ],
+        "exact_text_sha256": "05c4a902a26468611822d8535e31c3aadfdeb6cfe0b62e8631630d2eb9a5018d",
+        "operations": [
+          {
+            "anchor": {
+              "end": 53,
+              "start": 42,
+              "text": "выдерживали"
+            },
+            "duration_state": "present",
+            "id": "cell_hold"
+          }
+        ],
+        "target_operation_id": "cell_hold",
+        "unannotated_atom_ids": []
+      },
+      "source": {
+        "article_id": "6f6fca14-92e8-446d-b1cd-ec08ca811962",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\9fc86c2246321045_Диссертация_Чернюк_С.Д..pdf",
+        "original_pdf_sha256": "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266",
+        "page_number": 59,
+        "page_text_sha256": "25475bc4419ce1d3920e9cc2ed80c5fde2c1b7cb3aef26d89660a827d000cab8",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "e6bfdadf-dec8-49d7-9911-2801fcdcbc83"
+      }
+    },
+    {
+      "case_id": "impedance_equilibrium_criterion",
+      "reference": {
+        "duration_owners": [],
+        "exact_text_sha256": "a84f964e93893af6520182097d4e0e008a29219ac8710e2bf1fa15de3f9b7184",
+        "operations": [
+          {
+            "anchor": {
+              "end": 227,
+              "start": 204,
+              "text": "термического равновесия"
+            },
+            "duration_state": "not_in_excerpt",
+            "id": "equilibrium_wait"
+          }
+        ],
+        "target_operation_id": "equilibrium_wait",
+        "unannotated_atom_ids": []
+      },
+      "source": {
+        "article_id": "1445f31a-0de7-482b-b335-029ebdd552a5",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\4bf40c35a28d407c_Каюмов_2021.pdf",
+        "original_pdf_sha256": "4bf40c35a28d407c7172059dbd05cccf19c3224b500fa4bedf09c7d968b59cde",
+        "page_number": 3,
+        "page_text_sha256": "c6dc7e337465d0aacffcb0fd93efed888688c4ceab09aa15a648c3669115c53c",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "38bcc695-7074-494c-ad19-6730e524b24e"
+      }
+    },
+    {
+      "case_id": "protonation_missing_time",
+      "reference": {
+        "duration_owners": [
+          {
+            "atom_id": "D1",
+            "operation_id": "peroxide_cleaning"
+          },
+          {
+            "atom_id": "D2",
+            "operation_id": "air_drying"
+          },
+          {
+            "atom_id": "D3",
+            "operation_id": "storage_over_p2o5"
+          }
+        ],
+        "exact_text_sha256": "5e71cc90e50033eb0a1bbe8b8f940b7a306ba435d6227f86642a3528fda75a3d",
+        "operations": [
+          {
+            "anchor": {
+              "end": 16,
+              "start": 9,
+              "text": "очищали"
+            },
+            "duration_state": "present",
+            "id": "peroxide_cleaning"
+          },
+          {
+            "anchor": {
+              "end": 194,
+              "start": 178,
+              "text": "Про-\nтонирование"
+            },
+            "duration_state": "not_in_excerpt",
+            "id": "hcl_protonation"
+          },
+          {
+            "anchor": {
+              "end": 395,
+              "start": 389,
+              "text": "сушили"
+            },
+            "duration_state": "present",
+            "id": "air_drying"
+          },
+          {
+            "anchor": {
+              "end": 441,
+              "start": 432,
+              "text": "оставляли"
+            },
+            "duration_state": "present",
+            "id": "storage_over_p2o5"
+          }
+        ],
+        "target_operation_id": "hcl_protonation",
+        "unannotated_atom_ids": []
+      },
+      "source": {
+        "article_id": "255a2922-3f5c-417d-8bb9-6e2241997b2d",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\47d7e8489618ad81_Чернюк_2023.pdf",
+        "original_pdf_sha256": "47d7e8489618ad8150f99e585c12ed3dee6fdad30236c538809d20d18a47a845",
+        "page_number": 3,
+        "page_text_sha256": "bfd2db27b8ab5ebaa77095be4afd944363009e73c79737cbaebf8163a159ad61",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "70aecd4b-f427-4bf0-9d06-48768f7e7561"
+      }
+    }
+  ],
+  "exposure": "all_three_sources_and_model_replies_already_inspected_before_annotation",
+  "origin": "assistant_posthoc_preliminary_not_independent_gold",
+  "scope": "duration_ownership_only_not_complete_event_annotation",
+  "version": "event_duration_reference_v0.1"
+}

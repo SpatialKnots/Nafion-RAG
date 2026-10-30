@@ -10,7 +10,7 @@
 
 ## Архитектура MVP и варианты анализа
 
-Направление MVP зафиксировано **22 октября 2026 года**: локальное хранение, подготовка и поиск источников; анализ выбранного evidence через API; локальная проверка структуры ответа и ссылок. Сейчас runtime provider — `openai`. Подключение других LLM-провайдеров через адаптеры и автономная комплектация с локальной моделью остаются планом. [Память решения и ограничения](docs/mvp_inference_strategy_2026-10-22.md).
+Направление MVP зафиксировано **22 октября 2026 года**: локальное хранение, подготовка и поиск источников; анализ выбранного evidence через API; локальная проверка структуры ответа и ссылок. С **29 октября** основной answer provider — `gigachat`, модель по умолчанию `GigaChat-2-Max`; фабрика ответов принимает только GigaChat, без fallback на OpenAI. Адаптер проверен локальными транспортными тестами; научная приёмка общего пути ответов остаётся открытой. Исторические records-эксперименты сохраняют исходные провайдеры. Автономная комплектация остаётся планом. [Память решения и ограничения](docs/mvp_inference_strategy_2026-10-22.md).
 
 ```mermaid
 flowchart TB
@@ -22,11 +22,11 @@ flowchart TB
         SEARCH --> PACK["Вопрос, выбранные фрагменты и source IDs"]
     end
 
-    PACK --> OPENAI["OpenAI API: реализованный provider"]
-    PACK -.-> OTHER["Другие API: адаптеры в плане<br/>YandexGPT, GigaChat и другие"]
+    PACK --> GIGACHAT["GigaChat API: основной answer provider<br/>GigaChat-2-Max"]
+    PACK -.-> OTHER["Другие API: возможные адаптеры"]
     PACK -.-> LOCAL["Локальная LLM: возможная<br/>автономная комплектация"]
 
-    OPENAI --> CHECK["Локально: проверка структуры<br/>и citation IDs"]
+    GIGACHAT --> CHECK["Локально: проверка структуры<br/>и citation IDs"]
     OTHER -.-> CHECK
     LOCAL -.-> CHECK
     CHECK --> RESULT["Ответ / отказ и ссылки<br/>на исходные PDF-страницы"]
@@ -49,7 +49,7 @@ flowchart TB
 | Текст и источники | PyMuPDF, OCRmyPDF, оригинальный/OCR/выбранный текстовый слой, детерминированные чанки, контроль PDF и ссылки на страницы | Ошибки OCR, повреждённые глифы и сложная геометрия PDF остаются возможны |
 | Retrieval | `exact`, `semantic`, `hybrid`, `hybrid_cross_lingual`, фильтры и группировка; локальные FastEmbed-векторы | Семантическим методам нужен индекс; ограничения группировки могут скрывать нужные фрагменты |
 | Индекс | Состояния и поколения индекса, очередь пересборки, фоновая пересборка и очистка поколений | Готовность текста и готовность векторного индекса различаются |
-| Ответы | OpenAI provider, проверка citation IDs, отказы по эвристике достаточности, mini-review по статьям | Цитата и прохождение эвристик не доказывают научную корректность утверждения |
+| Ответы | GigaChat provider, проверка citation IDs, отказы по эвристике достаточности, mini-review по статьям | Цитата и прохождение эвристик не доказывают научную корректность утверждения; новый runtime не прошёл отдельный live/scientific acceptance |
 | Подготовка ответа | Отдельные `/answer/prepare` и `/ui/answer/prepare`: поиск, проверка уточнений, source/page diagnostics, весь выбранный текст и PDF-ссылки | Генерация отключена; grammar конечная, scientific acceptance отсутствует; существующий `/answer` остаётся отдельным путём |
 | Контексты PDF-блоков | `/answer/prepare/blocks` и `/ui/answer/prepare/blocks`: целые блоки с окружением, условиями/guards и полным исходным baseline | Отложенные/невыбранные блоки сохранены; объединённое покрытие страниц и byte ceiling проверяются; генерации нет |
 | Аудит рисков контекста | `/answer/prepare/blocks/risks` и `/ui/answer/prepare/blocks/risks`: точный текст окружения, PDF-ссылки, поиск и layout/visual диагностика | Удалённая геометрия не доказывает нерелевантность; прежние отказы и выбор сохранены; генерация отключена |
@@ -252,12 +252,19 @@ Invoke-RestMethod 'http://127.0.0.1:8000/search?q=proton%20transport&collection=
 Поиск и просмотр источников доступны без ключа генерации. Для ответов через настраиваемый provider в `.env` нужны:
 
 ```dotenv
-RAG_PROVIDER=openai
-RAG_OPENAI_API_KEY=YOUR_API_KEY
-RAG_OPENAI_MODEL=YOUR_MODEL
+RAG_PROVIDER=gigachat
+GIGACHAT_CREDENTIALS=YOUR_AUTHORIZATION_KEY
+GIGACHAT_SCOPE=GIGACHAT_API_PERS
+RAG_MODEL=GigaChat-2-Max
+RAG_GIGACHAT_MAX_TOKENS=1200
+RAG_TIMEOUT_SECONDS=120
 ```
 
-Provider отправляет вопрос и выбранные фрагменты настроенному OpenAI API endpoint. Таким образом, хранение и retrieval локальные, а этот путь генерации использует внешний сервис. Локальный model smoke для experimental records — отдельный harness.
+Provider получает OAuth-токен через `https://ngw.devices.sberbank.ru:9443/api/v2/oauth`, затем отправляет вопрос и выбранные фрагменты в `https://api.giga.chat/v1/chat/completions`. `GIGACHAT_CREDENTIALS` — ключ авторизации без префикса `Basic`, не access token. Scope должен соответствовать учётной записи; адаптер сам его не меняет. Токен получается заново для каждой генерации, не сохраняется. Запрос использует native JSON Schema, без retry или fallback; ошибки сети, фильтрации, обрезания и формата не превращаются в научный отказ.
+
+TLS verification включена. Необязательный `GIGACHAT_CA_BUNDLE_FILE` добавляет доверенные PEM-сертификаты к системным; отключения проверки нет. Перенаправления и environment proxies для этих запросов отключены. Параметры `RAG_OPENAI_*` больше не выбирают основной provider; `RAG_PROVIDER=openai` отклоняется явно. После смены `.env` уже запущенный сервер нужно перезапустить, поскольку settings кэшируются.
+
+Хранение, retrieval, локальные embedding-модели и индексы сохранены. Исторические frozen records/OpenAI CLI и результаты — отдельные эксперименты с исходными контрактами; они не переключаются задним числом. Отчёт о смене runtime: [29 октября](docs/gigachat_runtime_switch_2026-10-29.md).
 
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/answer `

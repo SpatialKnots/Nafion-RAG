@@ -1,0 +1,527 @@
+{
+  "annotation_status": "preliminary_assistant_only",
+  "cases": [
+    {
+      "answer_state": "lower_bound_only_not_exact",
+      "article_id": "1445f31a-0de7-482b-b335-029ebdd552a5",
+      "category": "preparation_lower_bound",
+      "exact_text": "После 30 мин пере-\nмешивания на магнитной мешалке готовые смеси\nрастворителей перед их использованием выдер-\nживали не менее 24 ч при комнатной температу-\nре.",
+      "id": "solvent_wait_bound",
+      "page": 2,
+      "page_end_offset": 4034,
+      "page_start_offset": 3876,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "Сообщено не менее 24 ч; 30 мин относится к перемешиванию, а не к выдержке смеси.",
+      "question": "Какова точная длительность выдержки готовых смесей растворителей перед использованием?",
+      "quote_sha256": "6df1e315434eb89e292b8e064820975806d2603536effb15d8c65001b2331d5e",
+      "source": {
+        "article_id": "1445f31a-0de7-482b-b335-029ebdd552a5",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\4bf40c35a28d407c_Каюмов_2021.pdf",
+        "original_pdf_sha256": "4bf40c35a28d407c7172059dbd05cccf19c3224b500fa4bedf09c7d968b59cde",
+        "page_number": 2,
+        "page_text_sha256": "1c1fe9e2105bf9a7e5f02b60c85ec6b58e3bec67e0a22f0f8527c12d0825daec",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "30c51f7e-a5e1-49b3-a8c0-9d6d5d7de63a"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "reported_values_with_temperature_exception",
+      "article_id": "1445f31a-0de7-482b-b335-029ebdd552a5",
+      "category": "preparation_condition_exception",
+      "exact_text": "Для получения пластифицированных поли-\nэлектролитов высушенные образцы мембран На-\nфион-Li+ выдерживали в индивидуальных или\nсмешанных растворителях в течение 2 сут при\n30°C; насыщение EC производили при 40°C.",
+      "id": "plasticization_temperature_exception",
+      "page": 2,
+      "page_end_offset": 4244,
+      "page_start_offset": 4035,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "2 сут и 30°C указаны для выдержки; для насыщения EC отдельно указано 40°C. Не объединять температуры.",
+      "question": "Какие время и температуры указаны для насыщения мембран растворителями, включая EC?",
+      "quote_sha256": "ad6dfa15ce199ceaf080e139a1da6c03c05462855e413f014a422be4611f1172",
+      "source": {
+        "article_id": "1445f31a-0de7-482b-b335-029ebdd552a5",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\4bf40c35a28d407c_Каюмов_2021.pdf",
+        "original_pdf_sha256": "4bf40c35a28d407c7172059dbd05cccf19c3224b500fa4bedf09c7d968b59cde",
+        "page_number": 2,
+        "page_text_sha256": "1c1fe9e2105bf9a7e5f02b60c85ec6b58e3bec67e0a22f0f8527c12d0825daec",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "30c51f7e-a5e1-49b3-a8c0-9d6d5d7de63a"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "criterion_present_duration_not_reported_in_excerpt",
+      "article_id": "1445f31a-0de7-482b-b335-029ebdd552a5",
+      "category": "measurement_criterion_missing_duration",
+      "exact_text": "Для измерений импеданса использовали при-\nбор Z-3000 (ООО “Элинс”, Россия); спектры за-\nписывали в диапазоне частот 1 Гц–3 МГц при по-\nстоянной \nтемпературе \nпосле \nдостижения\nsolv\nEW\n,\n100%\nW\nMr\n×\nλ =\n×\nтермического равновесия, о чем судили по неиз-\nменности спектров.",
+      "id": "impedance_equilibrium_criterion",
+      "page": 3,
+      "page_end_offset": 1239,
+      "page_start_offset": 970,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [
+          {
+            "child": {
+              "end": 227,
+              "start": 204,
+              "text": "термического равновесия"
+            },
+            "id": "instrument_to_spectra",
+            "parent": {
+              "end": 23,
+              "start": 0,
+              "text": "Для измерений импеданса"
+            },
+            "relation_type": "measurement_context",
+            "template_scope": "in_template_scope"
+          }
+        ],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "Критерий — неизменность спектров. Числовой длительности здесь нет; фрагмент уже использовался в разработке.",
+      "question": "По какому признаку судили о тепловом равновесии? Указано ли точное время?",
+      "quote_sha256": "a84f964e93893af6520182097d4e0e008a29219ac8710e2bf1fa15de3f9b7184",
+      "source": {
+        "article_id": "1445f31a-0de7-482b-b335-029ebdd552a5",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\4bf40c35a28d407c_Каюмов_2021.pdf",
+        "original_pdf_sha256": "4bf40c35a28d407c7172059dbd05cccf19c3224b500fa4bedf09c7d968b59cde",
+        "page_number": 3,
+        "page_text_sha256": "c6dc7e337465d0aacffcb0fd93efed888688c4ceab09aa15a648c3669115c53c",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "38bcc695-7074-494c-ad19-6730e524b24e"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "sample_transfer_contradicted_by_excerpt",
+      "article_id": "1445f31a-0de7-482b-b335-029ebdd552a5",
+      "category": "different_samples_negated_upper_bound",
+      "exact_text": "Ионная проводимость образцов 1–3\n(рис. 3) коррелирует со степенью набухания: если\nдля мембраны Нафион-Li+/EC (образец 2) она до-\nстигает значений порядка 10–4 См см–1, то для На-\nфион-Li+/SL (образец 1) значения σ заметно ни-\nже, а для Нафион-Li+/G2 (образец 3) они не пре-\nвышают 10–5 См см–1.",
+      "id": "sample_specific_conductivity_bound",
+      "page": 4,
+      "page_end_offset": 4075,
+      "page_start_offset": 3781,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "Образец 2 и образец 3 разделены явно; для образца 3 записано «не превышают 10–5 См см–1».",
+      "question": "Можно ли приписать образцу 3 проводимость порядка 10–4 См см–1, указанную для образца 2?",
+      "quote_sha256": "debc650842ed9a6a02181ab24aa962c7608da2263f40202ef3a36cb8db8fcefc",
+      "source": {
+        "article_id": "1445f31a-0de7-482b-b335-029ebdd552a5",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\4bf40c35a28d407c_Каюмов_2021.pdf",
+        "original_pdf_sha256": "4bf40c35a28d407c7172059dbd05cccf19c3224b500fa4bedf09c7d968b59cde",
+        "page_number": 4,
+        "page_text_sha256": "5d1d165045a670de9bec3760312308cb729ae35acd53f918bf72ca6c121abd1c",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "0c3cf235-22e5-41e3-8ac3-97fb5eb321cb"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "reported_preparation_time_and_sequence",
+      "article_id": "f016f559-48b1-4421-beda-a155e42a25aa",
+      "category": "preparation_sequence",
+      "exact_text": "Очистка мембраны \nосуществлялась путем выдержки образцов шири­\nной 5 см в 5 мас. % водном растворе H2O2 (ос.ч., \nТУ 2611-003-57856778-2004) при 60–65°С в тече­\nние 40 минут при постоянном перемешивании. По \nокончании обработки образцы промывались ди­\nстиллированной водой.",
+      "id": "cleaning_then_rinsing",
+      "page": 2,
+      "page_end_offset": 3400,
+      "page_start_offset": 3128,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [
+          {
+            "child": {
+              "end": 226,
+              "start": 207,
+              "text": "окончании обработки"
+            },
+            "id": "cleaning_to_rinse",
+            "parent": {
+              "end": 172,
+              "start": 164,
+              "text": "40 минут"
+            },
+            "relation_type": "procedure_sequence",
+            "template_scope": "outside_template_scope"
+          }
+        ],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "40 минут относятся к очистке; после обработки образцы промывали водой.",
+      "question": "Каковы время очистки в H2O2 и следующая операция?",
+      "quote_sha256": "34a44d68f68eeb233f6e589e93184edcc46428e150299b891a279d916756ca8a",
+      "source": {
+        "article_id": "f016f559-48b1-4421-beda-a155e42a25aa",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\de0c55db3994c9a6_Чернюк_2024.pdf",
+        "original_pdf_sha256": "de0c55db3994c9a6c2a2e3f0939d3b28b907fe3ac0c6ca867050be02bc53f182",
+        "page_number": 2,
+        "page_text_sha256": "a872480a91bb367fa0ce07d28052fc0889470d2dbe93b14a5ad79c053545891b",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "1d9e3654-ea74-455c-833d-680bf33ba727"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "criteria_and_sequence_present_numeric_durations_missing",
+      "article_id": "f016f559-48b1-4421-beda-a155e42a25aa",
+      "category": "calorimetry_criteria_sequence_missing_duration",
+      "exact_text": "На­\nвески мембран Li-Nafion (0.03–0.05 г) помещались \nв стеклянные ампулы емкостью 0.5 мл и высуши­\nвались до постоянной массы в сушильном шкафу \nпри 60оС. Далее ампулы помещали в калориметри­\nческие кюветы с растворителем и термостатиро­\nвали до установления теплового равновесия. Затем \nампулы разбивали о дно кюветы и регистрировали \nтепловой эффект процесса набухания.",
+      "id": "calorimetry_ampoule_sequence",
+      "page": 3,
+      "page_end_offset": 761,
+      "page_start_offset": 389,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [
+          {
+            "child": {
+              "end": 168,
+              "start": 156,
+              "text": "Далее ампулы"
+            },
+            "id": "drying_to_thermostat",
+            "parent": {
+              "end": 126,
+              "start": 110,
+              "text": "постоянной массы"
+            },
+            "relation_type": "procedure_sequence",
+            "template_scope": "outside_template_scope"
+          },
+          {
+            "child": {
+              "end": 305,
+              "start": 289,
+              "text": "ампулы разбивали"
+            },
+            "id": "thermostat_to_breaking",
+            "parent": {
+              "end": 168,
+              "start": 156,
+              "text": "Далее ампулы"
+            },
+            "relation_type": "procedure_sequence",
+            "template_scope": "outside_template_scope"
+          }
+        ],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "Сушка — до постоянной массы; термостатирование — до теплового равновесия; затем ампулы разбивали и регистрировали эффект.",
+      "question": "До каких состояний сушили и термостатировали ампулы? Какой этап следовал затем?",
+      "quote_sha256": "30a4bbb177e662e976fd2a428ac1523d922267a1b299f8b212ade9c8012a41a3",
+      "source": {
+        "article_id": "f016f559-48b1-4421-beda-a155e42a25aa",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\de0c55db3994c9a6_Чернюк_2024.pdf",
+        "original_pdf_sha256": "de0c55db3994c9a6c2a2e3f0939d3b28b907fe3ac0c6ca867050be02bc53f182",
+        "page_number": 3,
+        "page_text_sha256": "69f797ab25083f6f381eecfeecf56d787b7ba720a06667423a1020a714839a8b",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "44869c2b-770b-4bad-a513-b271ccc479f6"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "protonation_duration_not_reported_in_excerpt",
+      "article_id": "255a2922-3f5c-417d-8bb9-6e2241997b2d",
+      "category": "missing_stage_duration",
+      "exact_text": "Мембрану очищали от примесей, выдерживая\nобразцы в 5%-ном растворе H2O2 (ос.ч., ТУ 2611-\n003-57856778-2004) при 60–80°C в течение 2 ч, а\nзатем промывали в дистиллированной воде. Про-\nтонирование очищенной мембраны осуществля-\nли путем выдержки образцов в 0.1 М HCl (ос.ч.,\nОбщество с ограниченной ответственностью\n“Сигма Тек”) при 60–65°C с последующей про-\nмывкой. Подготовленные образцы сушили на\nвоздухе при 60°C в течение 1 ч и оставляли при\nкомнатной температуре над P2O5 на 2 недели.",
+      "id": "protonation_missing_time",
+      "page": 3,
+      "page_end_offset": 3146,
+      "page_start_offset": 2657,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [
+          {
+            "child": {
+              "end": 204,
+              "start": 183,
+              "text": "тонирование очищенной"
+            },
+            "id": "cleaning_is_not_protonation",
+            "parent": {
+              "end": 133,
+              "start": 120,
+              "text": "в течение 2 ч"
+            },
+            "relation_type": "same_measurement_context",
+            "template_scope": "boundary_check"
+          }
+        ],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "2 ч относятся к очистке H2O2; время протонирования HCl в этом фрагменте не задано. Сушка и хранение имеют свои сроки.",
+      "question": "Сколько длилось протонирование в HCl? Можно ли использовать соседние 2 ч очистки?",
+      "quote_sha256": "5e71cc90e50033eb0a1bbe8b8f940b7a306ba435d6227f86642a3528fda75a3d",
+      "source": {
+        "article_id": "255a2922-3f5c-417d-8bb9-6e2241997b2d",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\47d7e8489618ad81_Чернюк_2023.pdf",
+        "original_pdf_sha256": "47d7e8489618ad8150f99e585c12ed3dee6fdad30236c538809d20d18a47a845",
+        "page_number": 3,
+        "page_text_sha256": "bfd2db27b8ab5ebaa77095be4afd944363009e73c79737cbaebf8163a159ad61",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "70aecd4b-f427-4bf0-9d06-48768f7e7561"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "procedure_present_degassing_duration_missing",
+      "article_id": "255a2922-3f5c-417d-8bb9-6e2241997b2d",
+      "category": "sorption_sequence_missing_duration",
+      "exact_text": "Изотермическую интервальную равновесную\nсорбцию паров воды порошкообразным образ-\nцом Nafion изучали объемным методом с помо-\nщью автоматического анализатора ASAP 2020\n(“Micromeritics”, США) при комнатной темпера-\nтуре. Навеску полимера массой 0.115 г помещали\nв стеклянную ампулу и проводили дегазацию\nобразца в вакууме при 90°С. Затем ампулу при-\nсоединяли к порту установки и измеряли коли-\nчество сорбированной воды в автоматическом\nрежиме с использованием программного обеспе-\nчения анализатора.",
+      "id": "sorption_degassing_then_connection",
+      "page": 3,
+      "page_end_offset": 3987,
+      "page_start_offset": 3487,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [
+          {
+            "child": {
+              "end": 376,
+              "start": 359,
+              "text": "к порту установки"
+            },
+            "id": "degassing_to_port",
+            "parent": {
+              "end": 302,
+              "start": 293,
+              "text": "дегазацию"
+            },
+            "relation_type": "procedure_sequence",
+            "template_scope": "outside_template_scope"
+          }
+        ],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "Указана дегазация в вакууме при 90°С; затем ампулу присоединяли к порту. Время дегазации не указано.",
+      "question": "Как обрабатывали ампулу перед измерением сорбции и что делали затем? Есть ли время дегазации?",
+      "quote_sha256": "d1dd98251228a0f22080f537dfdc199ea05fed3a3401279fde92f3862bde34cf",
+      "source": {
+        "article_id": "255a2922-3f5c-417d-8bb9-6e2241997b2d",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\47d7e8489618ad81_Чернюк_2023.pdf",
+        "original_pdf_sha256": "47d7e8489618ad8150f99e585c12ed3dee6fdad30236c538809d20d18a47a845",
+        "page_number": 3,
+        "page_text_sha256": "bfd2db27b8ab5ebaa77095be4afd944363009e73c79737cbaebf8163a159ad61",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "70aecd4b-f427-4bf0-9d06-48768f7e7561"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "separate_measurement_and_drying_conditions",
+      "article_id": "255a2922-3f5c-417d-8bb9-6e2241997b2d",
+      "category": "measurement_vs_preparation_temperature",
+      "exact_text": "Тепловые эффекты взаимодействия порошка\nNafion 212 с водой измеряли с использованием\nизотермического микрокалориметра типа “Каль-\nве ДАК-1-1” (Научно-исследовательский инсти-\nтут экспериментального приборостроения, Чер-\nноголовка) при 25°C. Точную навеску полимера\n(~40 мг) помещали в тонкостенную стеклянную\nампулу объемом 0.5 мл и сушили на воздухе при\n60°C до постоянной массы, затем добавляли за-\nданное количество воды, которая полностью рас-\nтворялась в полимерной матрице, вызывая ее\nограниченное набухание.",
+      "id": "calorimetry_measurement_vs_drying",
+      "page": 3,
+      "page_end_offset": 5121,
+      "page_start_offset": 4607,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [
+          {
+            "child": {
+              "end": 379,
+              "start": 355,
+              "text": "60°C до постоянной массы"
+            },
+            "id": "measurement_is_not_drying",
+            "parent": {
+              "end": 239,
+              "start": 231,
+              "text": "при 25°C"
+            },
+            "relation_type": "same_measurement_context",
+            "template_scope": "boundary_check"
+          }
+        ],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "25°C — измерение тепловых эффектов; 60°C — сушка до постоянной массы. Числовое время сушки не задано.",
+      "question": "Какая температура относится к микрокалориметрии, а какая — к сушке навески?",
+      "quote_sha256": "9d52e22eda7d36d7ed7b51d61f5d7ccfc2234c115f3d7fa3f31e865a161ad85b",
+      "source": {
+        "article_id": "255a2922-3f5c-417d-8bb9-6e2241997b2d",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\47d7e8489618ad81_Чернюк_2023.pdf",
+        "original_pdf_sha256": "47d7e8489618ad8150f99e585c12ed3dee6fdad30236c538809d20d18a47a845",
+        "page_number": 3,
+        "page_text_sha256": "bfd2db27b8ab5ebaa77095be4afd944363009e73c79737cbaebf8163a159ad61",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "70aecd4b-f427-4bf0-9d06-48768f7e7561"
+      },
+      "unresolved": [
+        "Связь общей методики измерения с конкретной навеской подразумевается контекстом; общую кореференцию прототип не устанавливает."
+      ]
+    },
+    {
+      "answer_state": "explicit_two_hour_hold_in_dispersion_context",
+      "article_id": "6f6fca14-92e8-446d-b1cd-ec08ca811962",
+      "category": "dispersion_measurement_hold_nonadjacent_reference",
+      "exact_text": "После заполнения ячейку герметизировали и выдерживали 2 часа при рабочей \nтемпературе для установления термического и структурного равновесия. \n \nРисунок 2.4 — Схема сборки ячейки для измерения проводимости дисперсий Li-Nafion \n \n \nПосле выдержки регистрировали спектры импеданса в заданном частотном диапазоне.",
+      "id": "dispersion_hold_then_spectra",
+      "page": 59,
+      "page_end_offset": 506,
+      "page_start_offset": 195,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [
+          {
+            "child": {
+              "end": 261,
+              "start": 232,
+              "text": "После выдержки регистрировали"
+            },
+            "id": "hold_to_spectra",
+            "parent": {
+              "end": 60,
+              "start": 42,
+              "text": "выдерживали 2 часа"
+            },
+            "relation_type": "measurement_context",
+            "template_scope": "outside_template_scope"
+          }
+        ],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "2 часа относятся к герметизированной ячейке с дисперсией. «После выдержки» отсылает к этому этапу; между ними подпись рисунка.",
+      "question": "Сколько выдерживали заполненную ячейку с дисперсией перед регистрацией спектров?",
+      "quote_sha256": "05c4a902a26468611822d8535e31c3aadfdeb6cfe0b62e8631630d2eb9a5018d",
+      "source": {
+        "article_id": "6f6fca14-92e8-446d-b1cd-ec08ca811962",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\9fc86c2246321045_Диссертация_Чернюк_С.Д..pdf",
+        "original_pdf_sha256": "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266",
+        "page_number": 59,
+        "page_text_sha256": "25475bc4419ce1d3920e9cc2ed80c5fde2c1b7cb3aef26d89660a827d000cab8",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "e6bfdadf-dec8-49d7-9911-2801fcdcbc83"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "explicitly_excluded",
+      "article_id": "6f6fca14-92e8-446d-b1cd-ec08ca811962",
+      "category": "explicit_exclusion_negation",
+      "exact_text": "После выдержки регистрировали спектры импеданса в заданном частотном диапазоне. \nПолученные зависимости комплексного сопротивления анализировали в координатах \nдействительной и мнимой частей импеданса. Значение сопротивления дисперсии определяли \nпо пересечению высокочастотного участка спектра с действительной осью. Дополнительные \nнизкочастотные элементы спектра, связанные с поляризационными процессами, при \nопределении сопротивления не учитывали.",
+      "id": "resistance_low_frequency_exclusion",
+      "page": 59,
+      "page_end_offset": 879,
+      "page_start_offset": 427,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [
+          {
+            "child": {
+              "end": 103,
+              "start": 81,
+              "text": "Полученные зависимости"
+            },
+            "id": "recorded_to_obtained_dependencies",
+            "parent": {
+              "end": 47,
+              "start": 15,
+              "text": "регистрировали спектры импеданса"
+            },
+            "relation_type": "measurement_context",
+            "template_scope": "outside_template_scope"
+          }
+        ],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "Низкочастотные элементы при определении сопротивления не учитывали. Сопротивление определяли по высокочастотному пересечению.",
+      "question": "Учитывали ли низкочастотные поляризационные элементы при определении сопротивления?",
+      "quote_sha256": "1d053bd9ba7e8c13372a46abf1d778406c4e24ed2e327465f22c11b1c96e93a7",
+      "source": {
+        "article_id": "6f6fca14-92e8-446d-b1cd-ec08ca811962",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\9fc86c2246321045_Диссертация_Чернюк_С.Д..pdf",
+        "original_pdf_sha256": "9fc86c22463210456b39107e69c8cdf2589804a08c8da3a9c60e4f34c2293266",
+        "page_number": 59,
+        "page_text_sha256": "25475bc4419ce1d3920e9cc2ed80c5fde2c1b7cb3aef26d89660a827d000cab8",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "e6bfdadf-dec8-49d7-9911-2801fcdcbc83"
+      },
+      "unresolved": []
+    },
+    {
+      "answer_state": "cooling_hold_reported_sample_specific_temperature_not_numeric_here",
+      "article_id": "6b637f9e-afd9-43d2-b02f-13949cc4aa6c",
+      "category": "cooling_stage_duration_and_unspecified_sample_temperature",
+      "exact_text": "Использование другого\nрежима охлаждения, включающего в себя изотер-\nмическую выдержку в течение 30 мин в области\nтемпературы кристаллизации, индивидуальной\nдля каждого образца (табл. 3), с последующим\nохлаждением до –90°С со скоростью 5°С/мин",
+      "id": "cooling_isothermal_hold",
+      "page": 5,
+      "page_end_offset": 3296,
+      "page_start_offset": 3054,
+      "preliminary_annotation": {
+        "forbidden_measurement_context_dependencies": [],
+        "independent_confirmation": false,
+        "origin": "assistant_authored_source_review_not_independent_gold",
+        "required_dependencies": [],
+        "unannotated_pairs": "not_scored_not_assumed_negative"
+      },
+      "preliminary_note": "Изотермическая выдержка 30 мин относится к режиму охлаждения около индивидуальной температуры кристаллизации. Единая температура не задана; ссылка на табл. 3 не заменяет её значения.",
+      "question": "К какому этапу относится 30-минутная выдержка? Указана ли одна температура для всех образцов?",
+      "quote_sha256": "a2138db9d32aab03e00c85c82278c459ed1384838c60bbcd7d335caed9c1cba0",
+      "source": {
+        "article_id": "6b637f9e-afd9-43d2-b02f-13949cc4aa6c",
+        "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\7b422210e1a7baa2_Резницких_2021.pdf",
+        "original_pdf_sha256": "7b422210e1a7baa2182f6bf928046b3d6d7a64c9750dbf48c4745adb4c5dde45",
+        "page_number": 5,
+        "page_text_sha256": "3d65c0f5ef02e7157fe06b19d04ced6e73d9ea1fd22429f555d478fb786a28f4",
+        "selection_basis": "retrieval",
+        "text_layer": "original",
+        "text_layer_id": "ad17576d-2ced-4d4e-bebd-956dfb5a352d"
+      },
+      "unresolved": [
+        "Точные температуры каждого образца требуют таблицы 3; выбранный фрагмент её не содержит."
+      ]
+    }
+  ],
+  "prototype_tuning": "none_before_or_after_evaluation_in_this_stage",
+  "selection": "purposeful_examples_from_25_previously_exposed_source_pages_not_random_or_held_out",
+  "version": "real_experiment_cases_v0.1"
+}

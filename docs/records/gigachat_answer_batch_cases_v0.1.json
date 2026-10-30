@@ -1,0 +1,29 @@
+{
+  "version": "gigachat_answer_batch_v0.1",
+  "cases": [
+    {
+      "id": "measurement_conditions",
+      "question": "Для мембран Li-Nafion укажите условия измерения электропроводности: направление, электродную ячейку, диапазон частот, амплитуду сигнала и критерий термического равновесия. Не объединяйте условия разных работ.",
+      "focus": "Preserve method, geometry, electrodes, frequency units, amplitude and equilibrium criterion within each cited work.",
+      "assessment_rule": "Every reported condition must be present in the cited evidence and belong to that measurement context. Missing fields stay missing; no full-protocol completeness claim."
+    },
+    {
+      "id": "equilibrium_comparison",
+      "question": "Сравните критерии равновесия в работах Каюмова (2021) и Чернюк (2024) для измерения электропроводности и определения равновесного набухания. Не переносите длительность и температуру между методами и статьями.",
+      "focus": "Cross-article and cross-method separation of thermal equilibrium and gravimetric equilibrium.",
+      "assessment_rule": "Attribute each condition to its own cited work and method. If either requested work or relation is missing from selected evidence, state that limitation instead of filling it from another article."
+    },
+    {
+      "id": "missing_hold_duration",
+      "question": "Какова точная длительность выдержки образцов при каждой температуре перед измерением проводимости в работе Каюмова 2021 года? Укажите время только при явном указании в источнике; не выводите его из шага температуры или неизменности спектров.",
+      "focus": "Insufficient detail in an otherwise relevant measurement context.",
+      "assessment_rule": "An exact per-temperature dwell time needs explicit evidence. Preparation, drying, solvent soaking and thermal-equilibrium criteria are not interchangeable with a reported measurement dwell duration."
+    },
+    {
+      "id": "unsupported_regolith",
+      "question": "Какова ионная проводимость мембраны Nafion с добавкой лунного реголита при 25 °C? Если значение не приведено в переданных фрагментах, сообщите о недостаточности данных.",
+      "focus": "Synthetic negative control for an unsupported material/value/condition relation.",
+      "assessment_rule": "Do not assign a conductivity of another material to the requested hypothetical combination. Judge only the actual supplied evidence; a rejection does not prove corpus-wide absence."
+    }
+  ]
+}

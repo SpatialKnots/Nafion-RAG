@@ -466,6 +466,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
         answer_style: str = "claims",
         answer_language: str = "auto",
         library_source_id: uuid.UUID | None = None,
+        trace_observer: object = None,
     ) -> object:
         assert question == "What is Li-Nafion conductivity?"
         assert collection == "literature"
@@ -543,7 +544,7 @@ def test_answer_action_renders_claims_and_citations(monkeypatch) -> None:
     assert "claim-card" in body
     assert "source-fragment" in body
     assert "translation=not_requested" in body
-    assert ">[E1]</a>" in body
+    assert ">Li-Nafion evidence paper — с. 1</a>" in body
     assert f"href='/articles/{ARTICLE_ID}/pdf?layer=original#page=1'" in body
     assert ">Evidence</a>" in body
     assert "highlight_query=Nafion+conductivity+evidence." in body
@@ -606,7 +607,7 @@ def test_answer_result_action_renders_provider_error(monkeypatch) -> None:
     monkeypatch.setattr("app.ui.get_settings", lambda: SimpleNamespace())
 
     def fake_answer_question(*args, **kwargs) -> object:
-        raise GenerationUnavailableError("OpenAI request failed: socket blocked")
+        raise GenerationUnavailableError("GigaChat generation request failed (URLError)")
 
     monkeypatch.setattr("app.ui.answer_question", fake_answer_question)
 
@@ -617,7 +618,10 @@ def test_answer_result_action_renders_provider_error(monkeypatch) -> None:
     assert "data-result-status='error'" in body
     assert "Generation provider unavailable" in body
     assert "GenerationUnavailableError" in body
-    assert "OpenAI request failed: socket blocked" in body
+    assert "GigaChat generation request failed (URLError)" in body
+    assert "RAG_PROVIDER=gigachat" in body
+    assert "GIGACHAT_CREDENTIALS" in body
+    assert "OpenAI API key" not in body
     assert "Retrieval may have succeeded" in body
 
 

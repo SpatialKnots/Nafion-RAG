@@ -30,15 +30,15 @@ class Settings(BaseSettings):
     default_top_k: int = 10
     search_max_top_k: int = Field(default=100, ge=1)
     result_page_size_max: int = Field(default=100, ge=1)
-    rag_provider: str = "openai"
+    rag_provider: str = "gigachat"
     rag_retrieval_method: str = "hybrid_cross_lingual"
     rag_top_k: int = Field(default=5, ge=1)
     rag_max_claims: int = Field(default=5, ge=1)
-    rag_openai_base_url: str = "https://api.openai.com/v1"
-    rag_openai_api_key: str = ""
-    rag_openai_model: str = "gpt-4.1-mini"
-    rag_openai_max_tokens: int = Field(default=1200, ge=1)
-    rag_model: str = ""
+    gigachat_credentials: str = Field(default="", repr=False)
+    gigachat_scope: str = "GIGACHAT_API_PERS"
+    gigachat_ca_bundle_file: str = ""
+    rag_gigachat_max_tokens: int = Field(default=1200, ge=1)
+    rag_model: str = "GigaChat-2-Max"
     rag_timeout_seconds: int = Field(default=120, ge=1)
     enable_external_metadata_lookup: bool = False
     upload_max_file_size_mb: int = Field(default=100, ge=1)
