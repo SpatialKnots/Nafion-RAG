@@ -221,8 +221,10 @@ def _claim_source_fragment(citation: dict[str, object], source: PresentationSour
                 f"<pre class='source-exact'>{_html(text)}</pre></details>")
     content = ""
     if source.generation_is_derived:
-        content += ("<p class='muted'>Вычисленная табличная сводка системы; это не цитата из PDF.</p>"
-                    f"<pre class='source-exact'>{_html(source.generation_text)}</pre>")
+        note = ("Подготовленные системой цитаты и ограничения ответа; исходный PDF-текст показан отдельно."
+                if source.source_type == "procedure_derived" else "Вычисленная табличная сводка системы; это не цитата из PDF.")
+        content += (f"<p class='muted'>{note}</p>"
+                    f"<pre class='source-exact'>{_html(_prepared_statement_text(source.generation_text, source.source_type))}</pre>")
     elif source.source_text != source.generation_text:
         content += ("<p class='muted'>Текст, переданный модели; совпадение с исходным фрагментом не установлено.</p>"
                     f"<pre class='source-exact'>{_html(source.generation_text)}</pre>")
@@ -234,6 +236,19 @@ def _claim_source_fragment(citation: dict[str, object], source: PresentationSour
         content += "<p class='muted'>Привязанный исходный фрагмент в трассе отсутствует.</p>"
     return ("<details class='claim-source'><summary>" + _html(label)
             + " — полный контекст</summary>" + content + "</details>")
+
+
+def _prepared_statement_text(text: str, source_type: str) -> str:
+    if source_type not in {"procedure_derived", "comparison_derived"}:
+        return text
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return "Подготовленный фрагмент не удалось прочитать; исходные данные:\n" + text
+    records = payload.get("records") if isinstance(payload, dict) else None
+    if not isinstance(records, list) or not all(isinstance(r, dict) and isinstance(r.get("allowed_claim"), str) for r in records):
+        return "Неизвестный формат подготовленного фрагмента; исходные данные:\n" + text
+    return "\n\n".join(r["allowed_claim"] for r in records)
 
 
 def _highlighted_text(text: str, highlights: object) -> str:
@@ -943,7 +958,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str,
         raw_page_end = citation.get("page_end")
         page_start = raw_page_start if isinstance(raw_page_start, int) else None
         page_end = raw_page_end if isinstance(raw_page_end, int) else None
-        evidence_text = str(citation.get("text") or "")
+        evidence_text = _prepared_statement_text(str(citation.get("text") or ""), str(citation.get("source_type") or ""))
         links = []
         if article_id and chunk_id:
             links.append(_context_link(str(article_id), str(chunk_id), evidence_text, "Evidence", "phrase"))
@@ -977,7 +992,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str,
             f"<td class='num'>{_html(_page_range(page_start, page_end))}</td>"
             f"<td>{_html(citation.get('original_language') or 'unknown')}</td>"
             f"<td class='num'>{_html(citation.get('score'))}</td>"
-            f"<td>{_html(_truncate(str(citation.get('text') or ''), 360))}"
+            f"<td>{_html(_truncate(_prepared_statement_text(str(citation.get('text') or ''), source_type), 360))}"
             f"<div class='muted'>translation={_html(citation.get('translation_status') or 'not_requested')}</div></td>"
             f"<td class='actions'>{' '.join(links)}</td>"
             "</tr>"

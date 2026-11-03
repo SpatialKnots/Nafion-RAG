@@ -1,0 +1,29 @@
+{
+  "version": "retrieval_window_selection_controls_v0.1",
+  "origin": "assistant_constructed_development_controls; not independent scientific gold",
+  "question": "How does solvent nature affect the morphology of particles in a Nafion dispersion?",
+  "controls": [
+    {"id":"en_explicit","text":"Solvent nature affects the morphology of particles in a Nafion dispersion.","body":true,"local":true,"development_relation":true},
+    {"id":"ru_explicit","text":"Морфология частиц дисперсии Nafion зависит от природы растворителя.","body":true,"local":true,"development_relation":true},
+    {"id":"en_ligature","text":"The morphology of particles in a Naﬁon dispersion varies with solvent nature.","body":true,"local":true,"development_relation":true},
+    {"id":"ru_form","text":"Форма частиц дисперсии Нафион меняется при изменении растворителя.","body":true,"local":true,"development_relation":true},
+    {"id":"decimal","text":"At 2.5 wt% solvent nature affects the morphology of particles in a Nafion dispersion.","body":true,"local":true,"development_relation":true},
+    {"id":"negation","text":"Solvent nature does not affect the morphology of particles in a Nafion dispersion.","body":true,"local":false,"development_relation":false},
+    {"id":"ru_negation","text":"Влияние растворителя на морфологию частиц дисперсии Nafion не исследовали.","body":true,"local":false,"development_relation":false},
+    {"id":"future","text":"We will study how solvent nature affects the morphology of particles in a Nafion dispersion.","body":true,"local":false,"development_relation":false},
+    {"id":"proposal","text":"We propose to study how solvent nature affects the morphology of particles in a Nafion dispersion.","body":true,"local":false,"development_relation":false},
+    {"id":"question","text":"Does solvent nature affect the morphology of particles in a Nafion dispersion?","body":true,"local":false,"development_relation":false},
+    {"id":"mixed_material","text":"Solvent nature affects PVDF morphology; Nafion dispersion particles are controls.","body":true,"local":false,"development_relation":false},
+    {"id":"wrong_property","text":"Solvent nature affects conductivity of Nafion dispersion particles.","body":false,"local":false,"development_relation":false},
+    {"id":"wrong_object","text":"Solvent nature affects membrane morphology in cast Nafion films.","body":false,"local":false,"development_relation":false},
+    {"id":"wrong_material","text":"Solvent nature affects the morphology of particles in a PVDF dispersion.","body":false,"local":false,"development_relation":false},
+    {"id":"heading","text":"Nafion dispersion particle morphology and solvent.","body":true,"local":false,"development_relation":false},
+    {"id":"cue_borrowing","text":"Nafion dispersion contains particles. Solvent affects membrane morphology.","body":true,"local":false,"development_relation":false},
+    {"id":"paragraph_borrowing","text":"Nafion dispersion contains particles\n\nSolvent affects membrane morphology","body":true,"local":false,"development_relation":false},
+    {"id":"title_only","text":"Solvent affects morphology.","title":"Nafion dispersion particles","body":false,"local":false,"development_relation":false},
+    {"id":"anaphora_false_refusal","text":"Nafion dispersion contains particles. Their morphology varies with solvent nature.","body":true,"local":false,"development_relation":true},
+    {"id":"implicit_false_refusal","text":"Nafion dispersion particle morphology: distinct shapes in different solvents.","body":true,"local":false,"development_relation":true},
+    {"id":"unrecognized_other_material","text":"Solvent affects polystyrene morphology; Nafion dispersion particles are controls.","body":true,"local":true,"development_relation":false},
+    {"id":"unrecognized_absence","text":"Evidence is lacking that solvent nature affects the morphology of particles in a Nafion dispersion.","body":true,"local":true,"development_relation":false}
+  ]
+}

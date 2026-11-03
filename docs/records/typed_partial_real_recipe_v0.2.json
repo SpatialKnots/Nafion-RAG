@@ -1,0 +1,14 @@
+{
+  "version":"typed_partial_real_recipe_v0.2",
+  "origin":"assistant post-hoc development labels on previously exposed source spans; not independent scientific gold",
+  "source":"output/cross_lingual_relation_20261102/review_v03/report.json",
+  "selection":"all six distinct previous near-relation raw span texts; retain every address; extend only the ca.-truncated sentence",
+  "annotations":[
+    {"sha256":"b7ca6d07e8052bd8b4b840b34f1d34fad54dac0758468bbc1c86ee73fa6b5093","partial_relation":false},
+    {"sha256":"76e764f31497307f39666a28d1e648e8922a271b7b0420f0345222ef61bdd038","partial_relation":true,"variable_kind":"named_component_ratio","complete_requirements":false},
+    {"sha256":"6ae81e5e4efbe064f12d767468481ff258def20651a7319da7c281589f2a5c43","partial_relation":false,"extend_ca_sentence":true},
+    {"sha256":"99bba04964d4a6e09d2bbe2139ea9797e61a9ddea8e8155880021440592055ce","partial_relation":false},
+    {"sha256":"025fdd31166b8371649f1d8348dd4a0f94b9e0fab3b1d24fc8bf20dde238c018","partial_relation":false},
+    {"sha256":"233b00941e933eaf26adeca794d0b9c2d8466fe5b6d94928f5c0d4d3b8a4f222","partial_relation":false}
+  ]
+}

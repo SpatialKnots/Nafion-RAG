@@ -1,0 +1,18 @@
+{
+  "version": "independent_answer_review_user_decision_v0.1",
+  "decision_source": "user_reply_in_this_chat_after_review_packet_preparation",
+  "decision_verbatim": "Оставить этап открытым до новых эталонов",
+  "selected_stage": "independent_scientific_evaluation_from_original_plan",
+  "broader_stage4_status": "open_waiting_for_additional_external_references",
+  "single_case_retrospective_pilot_as_complete_stage4": false,
+  "available_reference_cases": 1,
+  "current_user_authorship_statement_verbatim": "я составил",
+  "available_cases_statement_verbatim": "Пока есть только эталон Kim",
+  "authorship_method_llm_assistance_expert_verification": "not_declared; not inferred from authorship",
+  "independent_scientific_metrics": null,
+  "scientific_acceptance": "not_established",
+  "plan_completion_percent": 75,
+  "new_live_call_authorization": false,
+  "original_case_request_slot": "consumed_closed_no_resend",
+  "next_input": "Additional external questions/references and source pages, frozen before their future model outputs; disclose annotation method and prior prediction exposure without rewriting existing references."
+}

@@ -1,0 +1,24 @@
+{
+  "version": "retrieval_ablation_case_recipe_v0.1",
+  "top_k": 5,
+  "collection": "literature",
+  "existing_fixture_files": [
+    "docs/evaluation_questions.yaml",
+    "docs/evaluation_questions_extended.yaml"
+  ],
+  "user_questions_file": "docs/records/user_questions_2026-10-30_v0.1.json",
+  "morphology_original_request": "output/user_reference_20261030_01/preparation_v01/api_request.json",
+  "morphology_development_paraphrases": [
+    {
+      "id": "constructed_ru_particle_morphology",
+      "query": "Как природа растворителя влияет на морфологию частиц дисперсии Nafion?"
+    },
+    {
+      "id": "constructed_en_particle_morphology",
+      "query": "How does solvent nature affect the morphology of particles in a Nafion dispersion?"
+    }
+  ],
+  "reference_windows": "output/kim_retrieval_audit_20261031/capture_v02/capture.json",
+  "annotation_policy": "Existing exposed labels and assistant development paraphrases; no independent annotation or new answer gold",
+  "new_live_authorization": false
+}

@@ -1,0 +1,22 @@
+{
+  "version": "independent_reference_candidates_20261030_v0.1",
+  "status": "user_supplied_reference_candidates_before_new_model_run",
+  "reference_provider": "user_in_this_chat",
+  "annotation_method": null,
+  "independent_expert_verification": "not_declared",
+  "model_answers": null,
+  "scientific_scores": null,
+  "new_live_authorization": false,
+  "cases": [
+    {
+      "id": "user_ref_001_nafion_dispersion_morphology",
+      "question": "Как меняется морфология частиц дисперсии Nafion в зависимости от природы растворителя?",
+      "expected_answer_verbatim": "1. Апротонные полярные растворители (NMP, DMAc, DMF): рыхлые микрогелевые частицы с относительно подвижными полимерными цепями, образующими слабосвязанную сетку.\n2. Спирты и полиолы (например, глицерин): преимущественно цилиндрические (стержнеобразные) частицы. В глицерине радиус около 2,2 нм, длина около 15 нм.\n3. Водно-спиртовые смеси: морфология зависит от соотношения компонентов. Например, при увеличении доли воды в системе вода/изопропанол наблюдается переход от сферических частиц к эллиптическим цилиндрам, затем к крупным набухшим агрегатам (более 200 нм).\n4. При концентрировании: в апротонных растворителях формируется обратимая гелевая сетка, в спиртах — плёнка, а в водно-спиртовых смесях возможно осаждение частиц.",
+      "source_reference_verbatim": "Kim et al., Macromolecules, 2015, 48, 2161–2172, рис. 2–4.",
+      "source_selection": "Original PDF was randomly selected from local corpus at user request before reference was supplied.",
+      "source_pdf_path": "data/pdf/dbc50f87b0f35c92_Kim_и_др._-_2015_-_Origin_of_Toughness_in_Dispersion-Cast_Nafion_Membranes.pdf",
+      "scope_notes_policy": "Assistant source checks remain separate; never silently rewrite user reference or call assistant annotations independent gold.",
+      "topic_independence": "pending_overlap_audit_not_assumed"
+    }
+  ]
+}

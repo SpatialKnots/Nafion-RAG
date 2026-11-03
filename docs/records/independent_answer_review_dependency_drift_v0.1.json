@@ -1,0 +1,16 @@
+{
+  "version": "independent_answer_review_dependency_drift_v0.1",
+  "observed_drift": [
+    {
+      "path": "C:\\Users\\unive\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\poppler\\Library\\bin\\pdftoppm.exe",
+      "historical_sha256": "f473853a5a1a08ad1b10708cb65ba98aa04276b42dbdd7cfd01625ba1e72784d",
+      "current_sha256": "8a7c0aa1cb5b4da26a922938693a87a6f9b5ee589aaeca705b8d44a42aac1eb7",
+      "current_bytes": 65840,
+      "cause": "unknown; no tool update or binary modification performed by this review",
+      "role": "historical PDF page image rendering only",
+      "used_by_new_review": false,
+      "limitation": "Original historical binary is not archived here; identical historical re-rendering is not reverified. Saved PNG manifests remain unchanged. Fresh text checks use the existing project PyMuPDF."
+    }
+  ],
+  "verification_policy": "Verify all other historical bindings unchanged; separately require exact old/new digest mapping for this one binary. Never rewrite historical reports, manifests or expected hashes."
+}

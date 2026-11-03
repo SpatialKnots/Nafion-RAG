@@ -13,9 +13,13 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.documents.service import build_pdf_url
+from app.generation.comparison_scope import conductivity_superlative, swelling_transition, transition_constraints
 from app.generation.evidence_adequacy import LIGATURES, assess_evidence_adequacy
 from app.generation.evidence_selection import select_answer_evidence
 from app.generation.gigachat import GigaChatAnswerProvider
+from app.generation.lithiation_overview import allowed_claims
+from app.generation.lithiation_overview import prepare as prepare_lithiation_overview
+from app.generation.lithiation_overview import validate_claims as validate_lithiation_claims
 from app.generation.providers import (
     AnswerLanguage,
     AnswerProvider,
@@ -197,10 +201,16 @@ def answer_question(
         display_evidence,
     )
     evidence, display_evidence, deduplication_metadata = _deduplicate_parallel_evidence(evidence, display_evidence)
+    adequacy_evidence = evidence
+    transition_metadata = None
+    if swelling_transition(normalized_question):
+        evidence, display_evidence, transition_metadata = _bounded_swelling_transition(
+            evidence, active_answer_language, normalized_question,
+        )
     cross_lingual_concepts = _cross_lingual_matched_concepts(retrieval.metadata)
     adequacy = assess_evidence_adequacy(
         normalized_question,
-        evidence,
+        adequacy_evidence,
         concept_terms=glossary_terms_for_concepts(cross_lingual_concepts),
     )
     adequacy_metadata = {
@@ -215,6 +225,29 @@ def answer_question(
         "required_concepts": asdict(adequacy.required_concepts),
         "relation_requirements": adequacy.relation_requirements,
     }
+    overview = prepare_lithiation_overview(normalized_question, evidence, answer_language=active_answer_language)
+    actual_adequate = adequacy.adequate
+    if overview is not None:
+        actual_adequate = overview.eligible and not adequacy.required_concepts.missing and not adequacy.relation_requirements["missing"]
+        adequacy_metadata["lexical_baseline"] = deepcopy(adequacy_metadata)
+        adequacy_metadata["adequate"] = actual_adequate
+        adequacy_metadata["reason"] = overview.reason if actual_adequate or not overview.eligible else adequacy.reason
+        if actual_adequate:
+            evidence = overview.evidence
+            display_evidence = overview.evidence
+    optimum_scope = conductivity_superlative(normalized_question)
+    if optimum_scope is not None:
+        actual_adequate = False
+        adequacy_metadata["lexical_baseline"] = deepcopy(adequacy_metadata)
+        adequacy_metadata["adequate"] = False
+        adequacy_metadata["reason"] = optimum_scope["reason"]
+    if transition_metadata is not None:
+        actual_adequate = (bool(transition_metadata["eligible"]) and not adequacy.required_concepts.missing
+                           and not adequacy.relation_requirements["missing"])
+        adequacy_metadata["lexical_baseline"] = deepcopy(adequacy_metadata)
+        adequacy_metadata["adequate"] = actual_adequate
+        adequacy_metadata["reason"] = (transition_metadata["reason"] if actual_adequate or not transition_metadata["eligible"]
+                                        else adequacy.reason)
     query_assistance = suggest_query_corrections(normalized_question, adequacy.distinctive_terms, adequacy.matched_terms)
     base_metadata = {
         "retrieval": retrieval.metadata,
@@ -228,11 +261,17 @@ def answer_question(
     }
     if derived_metadata:
         base_metadata["derived_evidence"] = derived_metadata
+    if overview is not None:
+        base_metadata["lithiation_overview"] = overview.metadata()
+    if optimum_scope is not None:
+        base_metadata["conductivity_best_scope"] = optimum_scope
+    if transition_metadata is not None:
+        base_metadata["swelling_transition"] = transition_metadata
     if query_assistance is not None:
         base_metadata["query_assistance"] = query_assistance_to_dict(query_assistance)
     if trace_observer is not None:
         trace_observer(deepcopy(retrieval), deepcopy(evidence), deepcopy(base_metadata))
-    if not adequacy.adequate:
+    if not actual_adequate:
         return AnswerResponse(
             query=normalized_question,
             status="insufficient_evidence",
@@ -265,9 +304,15 @@ def answer_question(
             metadata=base_metadata,
         )
     _validate_claims(generated.claims, generation_evidence)
+    quote_contract = allowed_claims(generation_evidence)
+    validate_lithiation_claims(generated.claims, quote_contract)
+    if quote_contract and active_answer_style == "mini_review":
+        keys = [_claim_article_key(claim, {item.citation_id: item for item in generation_evidence}) for claim in generated.claims]
+        if len(keys) != len(set(keys)):
+            raise GenerationOutputError("Bounded mini-review must select at most one statement per work")
     claims = (
         _merge_mini_review_claims_by_article(generated.claims, generation_evidence)
-        if active_answer_style == "mini_review"
+        if active_answer_style == "mini_review" and not quote_contract
         else generated.claims
     )
     _validate_claims(claims, generation_evidence)
@@ -452,6 +497,8 @@ def _augment_swelling_comparison_evidence(
 ) -> tuple[list[Evidence], list[Evidence], dict[str, object] | None]:
     if not _has_swelling_comparison_intent(question):
         return evidence, display_evidence, None
+    if swelling_transition(question):
+        return evidence, display_evidence, None
     for generation_item, display_item in zip(evidence, display_evidence, strict=False):
         rows = _extract_swelling_comparison_rows(generation_item.text)
         if not rows:
@@ -474,6 +521,70 @@ def _augment_swelling_comparison_evidence(
             "nonmatching_row_count": len(nonmatching),
         }
     return evidence, display_evidence, None
+
+
+def _bounded_swelling_transition(
+    evidence: list[Evidence], answer_language: str, question: str,
+) -> tuple[list[Evidence], list[Evidence], dict[str, object]]:
+    import json
+
+    version = "nafion_swelling_transition_v0.1"
+    unsupported = transition_constraints(question)
+    if unsupported:
+        return evidence, evidence, {"version": version, "eligible": False,
+                                   "reason": "unsupported_swelling_transition_constraint", "unsupported_terms": unsupported}
+    for source in evidence:
+        rows = _extract_swelling_comparison_rows(source.text)
+        table_heading = re.search(r"(?:таблица|table)\s*4\.5", source.text, re.I)
+        if len(rows) != len(_SWELLING_TABLE_ROWS) or table_heading is None:
+            continue
+        first_row = re.search(r"ацетонитрил\s+\d", source.text[table_heading.end():], re.I)
+        if first_row is None:
+            continue
+        heading = source.text[table_heading.start():table_heading.end() + first_row.start()].casefold()
+        heading = re.sub(r"[-‑–]", "-", heading)
+        if "h-nafion" not in heading or "li-nafion" not in heading:
+            continue
+        if not re.search(r"набухани|swelling", heading) or not 0 <= heading.find("αh") < heading.find("αli"):
+            continue
+        higher = sum(row.alpha_li > row.alpha_h for row in rows)
+        lower = sum(row.alpha_li < row.alpha_h for row in rows)
+        equal = sum(row.alpha_li == row.alpha_h for row in rows)
+        english = answer_language == "en" or (answer_language == "auto" and not re.search(r"[а-яё]", question, re.I))
+        if higher and lower:
+            conclusion = ("The direction of change depends on solvent; these rows do not support a general increase upon lithiation."
+                          if english else "Направление изменения зависит от растворителя; "
+                          "общего увеличения при литировании эти строки не показывают.")
+        elif equal == len(rows):
+            conclusion = "All listed pairs are equal." if english else "Во всех перечисленных парах значения совпадают."
+        elif higher:
+            conclusion = ("In these rows Li-Nafion is higher or equal." if english else
+                          "В перечисленных строках значения Li-Nafion выше или совпадают.")
+        else:
+            conclusion = ("In these rows Li-Nafion is lower or equal." if english else
+                          "В перечисленных строках значения Li-Nafion ниже или совпадают.")
+        names = {en: re.sub(r"^n(?:,n)?-", lambda m: m.group().upper(), ru) for ru, en in _SWELLING_TABLE_ROWS}
+        lines = [f"{row.solvent if english else names[row.solvent]}: αH={row.alpha_h} → αLi={row.alpha_li}, "
+                 f"Δα={row.alpha_li - row.alpha_h:+}" for row in rows]
+        if english:
+            text = ("System arithmetic from Table 4.5: " + conclusion
+                    + f" Li-Nafion is higher in {higher}/9 rows, lower in {lower}/9, equal in {equal}/9. "
+                    + "Nine paired equilibrium-swelling values: " + "; ".join(lines) + ". "
+                    "This comparison covers the listed solvents, not the complete literature.")
+        else:
+            text = ("Арифметическое сравнение таблицы 4.5: " + conclusion
+                    + f" Для Li-Nafion значения выше в {higher}/9 строк, ниже в {lower}/9, равны в {equal}/9. "
+                    + "Девять пар равновесных степеней набухания: " + "; ".join(lines) + ". "
+                    "Сравнение относится к перечисленным растворителям, а не ко всей литературе.")
+        record = {"allowed_claim": text, "origin": "system_decimal_arithmetic_from_source_table",
+                  "rows": [{"solvent": row.solvent, "alpha_h": str(row.alpha_h), "alpha_li": str(row.alpha_li),
+                            "delta_alpha": str(row.alpha_li - row.alpha_h)} for row in rows]}
+        derived = replace(source, source_type="comparison_derived", text=json.dumps({"version": version, "records": [record]},
+                                                                                   ensure_ascii=False))
+        return [derived], [derived], {"version": version, "eligible": True, "reason": "complete_supported_table_4_5",
+                                     "source_article_id": source.article_id, "source_chunk_id": source.chunk_id,
+                                     "records": [record], "units_or_temperature_added": False}
+    return evidence, evidence, {"version": version, "eligible": False, "reason": "complete_paired_table_not_found"}
 
 
 def _has_swelling_comparison_intent(question: str) -> bool:

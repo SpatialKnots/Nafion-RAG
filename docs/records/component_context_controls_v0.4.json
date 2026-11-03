@@ -1,0 +1,15 @@
+{
+  "version":"component_context_controls_v0.4",
+  "origin":"assistant exposed post-v0.3 development negatives, frozen before v0.4 corpus measurement; not independent accuracy",
+  "question":"How does solvent nature affect the morphology of particles in a Nafion dispersion?",
+  "controls":[
+    {"id":"joined_component_delimiter","text":"alphaandbeta were used as solvents for Nafion dispersions. Nafion particle morphology depends on the alpha/beta ratio.","partial":true,"complete":false},
+    {"id":"absence_of_evidence_nominal","text":"We observed absence of evidence for the effect of solvent on the morphology of particles in a Nafion dispersion.","partial":false,"complete":false},
+    {"id":"lack_of_evidence_nominal","text":"We observed a lack of evidence for the effect of solvent on the morphology of particles in a Nafion dispersion.","partial":false,"complete":false},
+    {"id":"absence_of_direct_evidence","text":"We observed absence of direct evidence for the effect of solvent on the morphology of particles in a Nafion dispersion.","partial":false,"complete":false},
+    {"id":"ru_absence_of_evidence","text":"Мы наблюдали отсутствие доказательств влияния растворителя на морфологию частиц дисперсии Nafion.","partial":false,"complete":false},
+    {"id":"ru_absence_of_data","text":"Мы наблюдали отсутствие данных о влиянии растворителя на морфологию частиц дисперсии Nafion.","partial":false,"complete":false},
+    {"id":"absence_of_evidence_direct","text":"We observed a lack of evidence that solvent affects the morphology of particles in a Nafion dispersion.","partial":false,"complete":false},
+    {"id":"absence_of_evidence_context","text":"We observed absence of evidence that alpha and beta were used as solvents for Nafion dispersions. Nafion particle morphology depends on the alpha/beta ratio.","partial":true,"complete":false}
+  ]
+}

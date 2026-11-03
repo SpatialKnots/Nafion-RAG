@@ -1,5 +1,210 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-11-03, [particle attachment/direction v0.7](particle_attachment_2026-11-03.md):
+Local PDF audit493 pages/33 PDFs→40 matching pages,15 native diagnostic pages
+preserved.14 new frozen windows/six works/28 preliminary role-presence checks.
+328 actual service replays/1968 repeated diagnostics, old v0.6 exact/292 outside-
+scope preserved. Owned particle24/36, attached dispersion21/36,158 syntactic
+observations/seven unique units/17 role-complete observations(9 shape+8
+concentration/null), requested full0. Post-hoc69 method/intent/model mentions
+retain broad morphology_description label: это не научные facts/confirmations.
+46 new controls/193 old replays;423 distinct tests(68 новых), Ruff7,374 bindings,
+33 PDF hashes/8 reference+6 old+2 prior-chain+14 new fresh windows/1806 base+
+6079 atomic spans и HTML33 TAC/eight columns/41 links passed. Final:
+output/particle_attachment_20261103/review_v01/review.html. No rollout/app/gate/
+index/provider calls; next separate design — mention/method/model/result typing
+на real frozen positives/negatives, не syntax-based admission. Independent
+evaluation/cache-ORM open, rewriting deferred; план качества ответов75%.
+
+Обновление 2026-11-03, [explicit source-reference chains v0.6](source_reference_chain_2026-11-03.md):
+Отдельные measured v0.5/v0.6, каждый328 service replays/1968 repeated diagnostics;
+old v0.4 exactly preserved,292 out-of-scope unchanged. Новые chain bindings16/36,
+27 observations одной unique Welch context association,0 full chain requirements;
+old partial20/36/base full0 сохранены. Particle attachment/direction unresolved.
+6 old windows/3 parents/2 new contexts/150 inherited addresses; audit138 identical
+parents/12 different,141 context matches/0 absent. Original v0.5 heading false
+admission сохранён; отдельно predeclared v0.6 finite heading guard/6 negatives.
+54 final chain controls+139 older replays;355 distinct tests(72 новых), Ruff11,
+360 bindings/33 PDFs/8 reference+6 old+2 new fresh windows/1806 base+1745 chain
+spans и HTML33 TAC/8 columns/41 links passed. Final:
+output/source_reference_chain_20261103/review_v06/review.html.
+Не rollout: association не является particle dependency или scientific admission.
+Далее — отдельная проверка explicit particle attachment/direction на дополнительных
+real examples/negatives. Новых DB/search/embedding/model/OAuth/slots0; independent
+evaluation/cache-ORM открыты, rewriting deferred, план качества ответов75%.
+
+Обновление 2026-11-03, [component context / observed-null v0.4](component_context_relation_2026-11-03.md):
+Каждый из отдельно измеренных v0.3/v0.4:328 service replays/1968 repeated
+diagnostics;292 вне области baseline preserved. Corpus gain0:20/36 partial
+sets,39 observations одной unique relation,0 context bindings/full requirements.
+Nominal observed-null regression восстановлена. Два post-hoc v0.3 false
+admissions сохранены; v0.4 отдельно исправляет joined delimiter/absence-of-
+evidence confusion на8 новых negatives, со всеми131 предыдущими controls.
+283 distinct tests(105 новых), Ruff9,338 bindings/33 PDFs/8 reference+6 real
+fresh windows/2842 graph+92 context raw spans и HTML33 TAC/8 columns/41 links
+passed. Final output/component_context_relation_20261103/review_v04/review.html.
+No rollout: нет corpus benefit или scientific acceptance. Следующая отдельная
+гипотеза — bounded explicit source-reference chain с subject/status protection,
+не простое widening окна. Новых DB/search/embedding/model/OAuth/slots0;
+independent evaluation/cache-ORM открыты, план качества ответов75%.
+
+Обновление 2026-11-02, [typed partial v0.2](typed_partial_relation_2026-11-02.md):
+328 service replays/1968 repeated three-arm diagnostics совпали,292 outside-scope
+baseline preserved. Partial edges в20/36 scoped sets:39 observations одного
+exposed raw Welch named-ratio relation, не39 независимых подтверждений. Full
+requirements0 у v1/segmentation-only/v2.6 frozen real windows(1 positive),48 old
+и30 new constructed controls; потерян old observed_nominal_null complete case,
+не скрыт.274 разных tests(42 новых), Ruff6,33 PDFs/8 reference+6 real fresh
+windows/320 bindings/1806 graph spans и static HTML33 TAC/8 columns/41 links
+passed. Final output/typed_partial_relation_20261102/review_v01/review.html.
+Полезен как offline partial extraction, не runtime gate. Далее — source binding
+component ratio к explicit solvent/dispersion context и nominal-null regression,
+без переноса условий. Новых DB/search/embedding/model/OAuth/slots0; independent
+evaluation/cache-ORM открыты, план качества ответов75%.
+
+Обновление 2026-11-02, [RU/EN relation audit](cross_lingual_relation_audit_2026-11-02.md):
+328 frozen evidence sets/328 actual service trace/status replays/656 diagnostic
+executions проверены.36 scoped sets дают0 полных textual proposals;292 вне
+области сохранили baseline.48 constructed behavior controls проходят, но реальные
+named-ratio/context relations не покрыты;150 exact near-relation observations
+сохранены, ca.-segmentation defect виден.24 duplicate source groups с повторами
+между наборами, sources не удалены.232 разных tests(61 новый), Ruff6,33 PDFs/
+8 fresh anchors/310 final bindings/4861 raw spans и static HTML33 TAC/8 columns/
+41 links passed. Final output/cross_lingual_relation_20261102/review_v03/review.html.
+Algorithm/runtime/gate не внедрялись, новых DB/search/embedding/model/OAuth/
+slots0. Next design — partial source relations/typed variables/context/ownership
+на frozen real excerpts с negatives; не keyword bypass. Independent evaluation
+и cache/ORM открыты; план качества ответов75%.
+
+Обновление 2026-11-02, [offline window selection](retrieval_window_selection_2026-11-02.md):
+304 baseline replays и608 candidate comparisons (1216 executions с повторами)
+на76 frozen cases завершены;584 out-of-scope traces неизменны. Body-cue priority
+в combined повышает exact Kim windows у RU original/paraphrase с1/8 до4/8,
+но gate теперь отказывает (у original coverage7/9→1/9). Изменены четыре source
+sets, все вытесненные тексты сохранены; local sentence candidate gains0.
+На22 controls weak11 false qualifications, strict2 false qualifications/2 false
+refusals; не scientific metrics.201 различных tests, Ruff6,33 PDF hashes,
+8 fresh anchors,299 final bindings и static HTML33 TAC/8 columns/41 links passed.
+Final: output/retrieval_window_selection_20261102/review_v02/review.html.
+Runtime/gate unchanged; rollout отклонён. Новых DB/embedding/model/OAuth/slots0.
+Далее — offline cross-lingual requested-relation/adequacy, ownership/negation/
+false-refusal и source redundancy diagnostics; не lexical bypass. Independent
+evaluation/cache-ORM остаются открытыми; план качества ответов75%.
+
+Решение 2026-11-02: [query rewriting](query_rewriting_2026-11-02.md) сохранён
+как отложенный отдельный эксперимент: исходный вопрос плюс ограниченный LLM
+search variant, с проверкой сохранения условий, источников, стоимости и задержки.
+Сначала — offline ranking/window selection на frozen candidates; генеративный
+rewriter не внедрён, новых API/OAuth/slots это решение не разрешает.
+
+Обновление 2026-10-31, [внешний review n=1](independent_answer_review_2026-10-31.md):
+user declared authorship «я составил», только Kim доступен; остальные provenance
+поля unknown. Новый bound review сохраняет original reference/response и прежнюю
+assistant post-hoc assessment без экспертного статуса.8 exact windows/9 selected
+pages/4 PDF hashes/274 current bindings и HTML4 TAC/8 columns/17 links прошли.
+Historical rendering binary drift записан отдельно;268 остальных old bindings
+совпали, полное повторение old rendering не заявляется. Новых calls/slots0.
+Пользователь явно выбрал оставить stage4 открытым до новых эталонов, не заменять
+его single-case pilot. **План75%**; independent scientific metrics остаются null.
+
+Обновление 2026-10-31, [offline ablation поиска](retrieval_ablation_2026-10-31.md):
+baseline/ligatures/expansion/combined на76 cases/67 queries при одинаковых
+per-query limits и final top5.304 preparations и304 full replays, read-only DB,
+model/OAuth/slots0. Все arms62/62 coarse article hits без identity losses,
+но RU combined возвращает только Na-form window1/8; EN ligatures3/8, combined4/8.
+Expansion возвращает6 original source windows в fusion,0 в feature input;
+combined Kim вставлен language diversity, не morphology coverage rule.
+Source identity/order меняется35/36 cases, полные records57; не объявлять safety.
+Partial14 arms/cache amendment и counter53→62 correction сохранены отдельно.
+165 tests, Ruff8, replay/corruption control, source/hash/static HTML QA прошли;
+33 TAC works/41 PDF links. qext044 inherited declared-negative gate admission
+не исправлен. Runtime rollout не обоснован. Следующий offline дизайн — ranking/
+window selection на frozen candidates и requested relation/false refusals.
+Independent scientific evaluation остаётся открытой; план75%.
+
+Обновление 2026-10-31, [локализация Kim2015](kim_retrieval_loss_2026-10-31.md):
+original exact/semantic top-50 уже исключают статью до позднего ranking.
+17 новых boundaries и весь final trace воспроизведены; отдельные расширенные
+каналы с совпавшими prefixes дают exact155/semantic179 для первого Kim chunk.
+Восемь reference windows есть только в semantic251–514; raw Naﬁon ligature
+и отсутствие RU/EN glossary concepts зафиксированы без runtime fix. Gate
+воспроизводит7/9 без morphology/particle terms; constructed отрицание/heading/
+thermal-only тоже допускаются.130 tests, Ruff, offline replay/corruption control,
+source/hash/static HTML QA прошли;33 TAC works/41 PDF links. Read-only DB,
+model/OAuth/slots0. Ranking/gate, независимый набор и cache/ORM остаются открыты;
+план75%. Следующий дизайн: общий RU/EN coverage/normalization, requested
+relation и false-refusal evaluation; не Kim-specific promotion.
+
+Обновление 2026-10-30, [первый внешний live-case](user_reference_001_live_2026-10-30.md):
+после отдельного разрешения ровно1 model POST+1 OAuth завершены, без повторов.
+HTTP200/answered, но вместо морфологии получены термостойкость и набухание.
+Отдельное сопоставление с пользовательским reference выявило пропуск всех
+четырёх пунктов; общей accuracy нет. Kim не выбран, gate пропустил lexical
+coverage без морфологии/частиц; стадия потери Kim пока не локализована.
+Полный offline ASGI replay совпал,0 новых сетевых/DB вызовов. Raw outputs,
+source notes и отдельный HTML сохранены; приложение не менялось. Новый слот
+израсходован/закрыт. Первый case оценён, набор ещё не завершён; прогресс75%.
+
+Обновление 2026-10-30, [первый внешний эталон](user_reference_001_preparation_2026-10-30.md):
+пользовательский вопрос/ответ Kim2015 сохранён дословно; source notes отдельно.
+Actual /answer preparation top5 выбрала три другие работы, Kim не выбран.
+Только вопрос вошёл в inference, код приложения не менялся. Запрос65483 bytes
+заморожен, model/OAuth/slots0; отдельный one-call scope подготовлен, разрешения
+нет.22 tests, Ruff, exact-source/binding/static HTML QA прошли. Ответа/научной
+оценки ещё нет; prior topic exposure раскрыт. Общий прогресс75%.
+
+Обновление 2026-10-30, [bounded runtime](bounded_answer_runtime_2026-10-30.md):
+в `/answer` интегрированы узкие q1/q3 profiles. Q1 получает Decimal-сравнение
+всех9 Table4.5 pairs/Δ и корректный scope; q3 — exact source-quote selection с
+atomic record и ограничением неполного протокола. GigaChat выбирает подготовленный
+текст; native enum и local validation не допускают свободного дополнения.
+Q2 теперь блокирует неподтверждённый optimum до provider; scoped comparison
+extraction ещё не реализована. Model/default limits/no-fallback сохранены.
+369 tests, Ruff9 files, mypy app183,7 offline ASGI cases,5 schema fixtures и
+source/static HTML QA прошли. Final review_v05: пять TAC works, восемь колонок,
+25 PDF/page links. Новые ответы только synthetic; real model/OAuth/DB calls0.
+Current app drift объявлен, old snapshots/guards/slots сохранены. Два native
+candidates unsent/unreserved, автоматической отправки нет. Provider enum support,
+live behavior и независимая научная оценка не проверены; общий прогресс75%.
+
+Обновление 2026-10-30, [subject context](lithiation_subject_context_2026-10-30.md):
+реализованы отдельные предложения привязки к numbered heading и точной ссылке
+на подрисунок, с закрытием scope при смене раздела/материала/формы/этапа.
+Реальный q3 E1 даёт unverified link через «рисунок2.1б» и подпись Nafion;
+с.52 post-hoc отдельно даёт dispersion heading link.24 context excerpts имеют
+unique exact page anchors. Исходные36 operation/field results и три gate
+metadata сохранены; conditions не перенесены, научных подтверждений0.
+132 tests (43 новых), Ruff, diagnostic mypy,24 свежие PDF pages и static HTML
+QA прошли. Final review_v02: пять TAC works/eight columns/29 PDF/page links.
+Runtime, исходный отказ q3 и закрытые live budgets не менялись; новых calls/
+requests/slots нет. Independent scientific evaluation открыта, прогресс75%.
+
+Обновление 2026-10-30, [проверка операции литирования](lithiation_operation_audit_2026-10-30.md):
+реализован отдельный source-only finite RU/EN analyzer статуса, local Nafion
+attachment и полей реагента/концентрации/времени/температуры с exact raw spans.
+Отрицание, будущее, заголовки, вопросы, чужой материал, общие условия и смешанные
+операции не становятся положительным candidate. Same-region не устанавливает
+владельца условий; scientific confirmations0. На14 source rows все16 регионов
+остались unresolved; пять candidates встречаются только в22 искусственных
+текстах. Для q3 affirmative cue и четыре поля найдены, но ссылка на Nafion
+требует контекста раздела;47 поверхностей остаются unassigned. Новых calls/
+requests/slots и runtime changes нет. 89 tests, Ruff, diagnostic mypy,24 свежие
+PDF pages и static HTML QA прошли; final review_v03 содержит пять TAC works,
+восемь колонок,19 PDF/page links. Следующий этап — subject attachment через
+явный контекст с защитой границ материала/операции. Независимая оценка открыта,
+общий прогресс75%.
+
+Обновление 2026-10-30, [offline-разбор отказа литирования](lithiation_gate_audit_2026-10-30.md):
+три исходных gate metadata воспроизведены точно. Для q3 источник содержит
+«литирование», вопрос — «литирования»; lexical matcher не сопоставляет форму.
+Один alias допускает также отрицание/заголовок/будущее/чужой материал; удаление
+общих слов допускает одно упоминание Nafion. Поэтому shortcuts не внедрены.
+66 tests (14 новых), Ruff, diagnostic mypy, 23 fresh PDF pages, 35 current /
+293 prior bindings и static HTML QA прошли. Final review_v03: пять TAC works,
+восемь колонок, пять PDF links; browser не проверен. Новых calls/requests/slots
+и app changes нет. Следующий дизайн: target operation/status/value ownership
+и ограничения полноты методик. Независимая оценка открыта; общий прогресс75%.
+
 Обновление 2026-10-30, [два разрешённых live-ответа](user_questions_live_2026-10-30.md):
 после явного разрешения пользователя выполнены ровно два model POST и два OAuth,
 оба HTTP200 / answered / stop, без повторов; оба новых slots consumed/closed.
