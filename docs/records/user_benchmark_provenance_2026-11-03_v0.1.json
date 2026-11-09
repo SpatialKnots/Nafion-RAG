@@ -1,0 +1,16 @@
+{
+  "bytes": 26932,
+  "date_local": "2026-11-03",
+  "llm_assistance": null,
+  "model_oauth_calls": 0,
+  "model_outputs": null,
+  "new_live_authorization": false,
+  "prior_five_prediction_exposure": "user_declared_not_seen",
+  "provenance_reply_verbatim": "Ответы не видел. Вопросы составлены мной лично",
+  "question_authorship": "user_declared_personal",
+  "scientific_scores": null,
+  "separate_expert_verification": null,
+  "sha256": "8b5450878bf9791635767f800616c38e8f1d9108852563171b8af8d1a3677332",
+  "source_path": "C:\\Users\\unive\\Downloads\\Nafion_RAG_Benchmark_v1.0.md",
+  "user_provision_verbatim": "Вот. Мои личные вопросы и ответы"
+}

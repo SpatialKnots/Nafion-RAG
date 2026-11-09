@@ -17,7 +17,8 @@ from app.generation.providers import Evidence, GeneratedClaim, GenerationOutputE
 
 VERSION = "nafion_lithiation_quote_selection_v0.1"
 SOURCE_TYPE = "procedure_derived"
-CONTRACT_TYPES = {SOURCE_TYPE: VERSION, "comparison_derived": "nafion_swelling_transition_v0.1"}
+CONTRACT_TYPES = {SOURCE_TYPE: VERSION, "comparison_derived": "nafion_swelling_transition_v0.1",
+                  "reference_quote_derived": "explicit_reference_quotes_v0.3", "source_fact_derived": "source_fact_selection_v0.2"}
 METHOD = re.compile(r"ионным\s+обменом|ионного\s+обмена|ion[ -]+exchange|нейтрализаци\w*|neutrali[sz]ation", re.I)
 OVERVIEW = re.compile(r"\b(?:метод\w*|методик\w*|способ\w*|methods|ways|procedures)\b", re.I)
 LITHIATION = re.compile(r"\b(?:литировани\w*|lithiation|lithiate)\b", re.I)

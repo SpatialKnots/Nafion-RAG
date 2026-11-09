@@ -13,7 +13,12 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.documents.service import build_pdf_url
+from app.generation.answer_facts import prepare as prepare_answer_facts
+from app.generation.answer_facts import resolve_selections as resolve_fact_selections
+from app.generation.answer_fidelity import prepare as prepare_answer_fidelity
+from app.generation.answer_fidelity import validate as validate_answer_fidelity
 from app.generation.comparison_scope import conductivity_superlative, swelling_transition, transition_constraints
+from app.generation.context_completion import complete_context
 from app.generation.evidence_adequacy import LIGATURES, assess_evidence_adequacy
 from app.generation.evidence_selection import select_answer_evidence
 from app.generation.gigachat import GigaChatAnswerProvider
@@ -30,6 +35,11 @@ from app.generation.providers import (
     GenerationOutputError,
 )
 from app.generation.query_assist import query_assistance_to_dict, suggest_query_corrections
+from app.generation.reference_quotes import prepare as prepare_reference_quotes
+from app.generation.reference_quotes import resolve_selections
+from app.generation.reference_quotes import validate_complete as validate_reference_quotes
+from app.generation.source_role_assembly import has_markers as has_assembly_markers
+from app.generation.source_role_assembly import prepare as prepare_source_assembly
 from app.retrieval.cross_lingual import detect_query_language, glossary_terms_for_concepts
 from app.retrieval.search import SearchFilters, SearchResponse, SearchResult, make_snippet, search_chunks
 
@@ -192,7 +202,11 @@ def answer_question(
         retrieval.results,
         additional_queries=_cross_lingual_selection_queries(retrieval.metadata),
     )
-    selected_retrieval = SearchResponse(query=retrieval.query, results=evidence_selection.results, metadata=retrieval.metadata)
+    context_results, context_metadata = complete_context(
+        session, normalized_question, active_collection,
+        SearchFilters.normalize(library_source_id=library_source_id), evidence_selection.results,
+    )
+    selected_retrieval = SearchResponse(query=retrieval.query, results=context_results, metadata=retrieval.metadata)
     evidence = _evidence_from_response(selected_retrieval, use_full_text=True)
     display_evidence = _evidence_from_response(selected_retrieval)
     evidence, display_evidence, derived_metadata = _augment_swelling_comparison_evidence(
@@ -201,6 +215,7 @@ def answer_question(
         display_evidence,
     )
     evidence, display_evidence, deduplication_metadata = _deduplicate_parallel_evidence(evidence, display_evidence)
+    raw_fact_sources = evidence
     adequacy_evidence = evidence
     transition_metadata = None
     if swelling_transition(normalized_question):
@@ -227,6 +242,16 @@ def answer_question(
     }
     overview = prepare_lithiation_overview(normalized_question, evidence, answer_language=active_answer_language)
     actual_adequate = adequacy.adequate
+    reference_quotes = prepare_reference_quotes(normalized_question, evidence, retrieval.metadata.get("explicit_source_reference"),
+                                               answer_language=active_answer_language)
+    if reference_quotes is not None:
+        actual_adequate = (reference_quotes.eligible and not adequacy.required_concepts.missing
+                           and not adequacy.relation_requirements["missing"])
+        adequacy_metadata["lexical_baseline"] = deepcopy(adequacy_metadata)
+        adequacy_metadata["adequate"] = actual_adequate
+        adequacy_metadata["reason"] = reference_quotes.reason
+        if actual_adequate:
+            evidence, display_evidence = reference_quotes.evidence, reference_quotes.display
     if overview is not None:
         actual_adequate = overview.eligible and not adequacy.required_concepts.missing and not adequacy.relation_requirements["missing"]
         adequacy_metadata["lexical_baseline"] = deepcopy(adequacy_metadata)
@@ -248,6 +273,32 @@ def answer_question(
         adequacy_metadata["adequate"] = actual_adequate
         adequacy_metadata["reason"] = (transition_metadata["reason"] if actual_adequate or not transition_metadata["eligible"]
                                         else adequacy.reason)
+    fidelity = prepare_answer_fidelity(normalized_question, evidence)
+    if fidelity is not None and not fidelity.eligible:
+        adequacy_metadata["fidelity_baseline"] = deepcopy(adequacy_metadata)
+        actual_adequate = False
+        adequacy_metadata["adequate"] = False
+        adequacy_metadata["reason"] = "answer_fidelity_source_pattern_unresolved"
+    facts = prepare_answer_facts(normalized_question, raw_fact_sources, reference_quotes, fidelity,
+                                answer_language=active_answer_language)
+    facts_provider_supported = not isinstance(provider, ExtractiveAnswerProvider) and (
+        provider is not None or settings.rag_provider == "gigachat")
+    if (facts_provider_supported and (facts is None or not facts.eligible) and reference_quotes is not None
+            and reference_quotes.diagnostics.get("family") == "composition_cycling" and has_assembly_markers(raw_fact_sources)
+            and active_answer_language != "en"
+            and (active_answer_language == "ru" or re.search(r"[а-яё]", normalized_question, re.I))):
+        assembled = prepare_source_assembly(normalized_question, raw_fact_sources,
+            retrieval.metadata.get("explicit_source_reference"), {r.chunk_id: r.text_layer for r in context_results},
+            answer_language=active_answer_language)
+        facts = assembled
+        if assembled.eligible:
+            actual_adequate = not adequacy.required_concepts.missing and not adequacy.relation_requirements["missing"]
+            adequacy_metadata["assembly_baseline"] = deepcopy(adequacy_metadata)
+            adequacy_metadata["adequate"] = actual_adequate
+            adequacy_metadata["reason"] = assembled.reason if actual_adequate else adequacy.reason
+    facts_active = facts is not None and facts.eligible and actual_adequate and facts_provider_supported
+    if facts_active and facts is not None:
+        evidence, display_evidence = facts.evidence, facts.display
     query_assistance = suggest_query_corrections(normalized_question, adequacy.distinctive_terms, adequacy.matched_terms)
     base_metadata = {
         "retrieval": retrieval.metadata,
@@ -261,8 +312,17 @@ def answer_question(
     }
     if derived_metadata:
         base_metadata["derived_evidence"] = derived_metadata
+    if context_metadata is not None:
+        base_metadata["condition_context_completion"] = context_metadata
     if overview is not None:
         base_metadata["lithiation_overview"] = overview.metadata()
+    if reference_quotes is not None:
+        base_metadata["reference_quote_selection"] = reference_quotes.metadata()
+    if fidelity is not None:
+        base_metadata["answer_fidelity"] = fidelity.metadata()
+    if facts is not None:
+        base_metadata["source_facts"] = {**facts.metadata(), "active": facts_active,
+                                         "provider_selection_supported": facts_provider_supported}
     if optimum_scope is not None:
         base_metadata["conductivity_best_scope"] = optimum_scope
     if transition_metadata is not None:
@@ -304,9 +364,17 @@ def answer_question(
             metadata=base_metadata,
         )
     _validate_claims(generated.claims, generation_evidence)
+    if facts_active:
+        generated = replace(generated, claims=resolve_fact_selections(generated.claims, generation_evidence))
+    if not facts_active:
+        validate_answer_fidelity(generated.claims, fidelity)
+    if reference_quotes is not None and not facts_active:
+        generated = replace(generated, claims=resolve_selections(generated.claims, generation_evidence))
     quote_contract = allowed_claims(generation_evidence)
     validate_lithiation_claims(generated.claims, quote_contract)
-    if quote_contract and active_answer_style == "mini_review":
+    if reference_quotes is not None and not facts_active:
+        validate_reference_quotes(generated.claims, reference_quotes)
+    if quote_contract and active_answer_style == "mini_review" and reference_quotes is None and not facts_active:
         keys = [_claim_article_key(claim, {item.citation_id: item for item in generation_evidence}) for claim in generated.claims]
         if len(keys) != len(set(keys)):
             raise GenerationOutputError("Bounded mini-review must select at most one statement per work")

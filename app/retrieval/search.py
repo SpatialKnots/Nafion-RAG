@@ -16,7 +16,9 @@ from app.core.config import Settings, get_settings
 from app.db.models import Article, ArticleTag, Chunk, Collection, LibrarySourceFile
 from app.documents.service import build_pdf_url
 from app.retrieval.cross_lingual import QueryBundle, build_query_bundle, detect_query_language, query_bundle_metadata
+from app.retrieval.requested_context import retain_requested_context
 from app.retrieval.reranking import rerank_cross_lingual_results as feature_rerank_cross_lingual_results
+from app.retrieval.source_reference import rank_context, reference, resolve
 from app.retrieval.vector_index import LoadedVectorIndex, embed_query_with_fastembed, load_current_vector_index_generation
 
 STOPWORDS = {"and", "in", "or", "the", "using", "vs", "with"}
@@ -645,6 +647,9 @@ def hybrid_search(
             "component_methods": ["exact_ilike", "semantic_cosine"],
         }
     )
+    fused_results, context_retention = retain_requested_context(query, fused_results, limit=top_k)
+    if context_retention is not None:
+        metadata["requested_context_retention"] = context_retention
     limited_results = fused_results[:top_k]
     metadata = _metadata(normalized_filters, metadata)
     if normalized_group_by == "article":
@@ -752,7 +757,11 @@ def hybrid_cross_lingual_search(
         query_language=bundle.language,
         top_k=top_k,
     )
+    language_diverse_results, context_retention = retain_requested_context(query, language_diverse_results, limit=top_k)
     limited_results = language_diverse_results[:top_k]
+    scoped_results, reference_metadata = _source_reference_search(session, query, collection_name, normalized_filters, top_k)
+    if scoped_results is not None:
+        limited_results = scoped_results
     metadata = _metadata(
         normalized_filters,
         {
@@ -765,6 +774,10 @@ def hybrid_cross_lingual_search(
             "language_diversity": language_diversity_metadata,
         },
     )
+    if context_retention is not None:
+        metadata["requested_context_retention"] = context_retention
+    if reference_metadata is not None:
+        metadata["explicit_source_reference"] = reference_metadata
     if normalized_group_by == "article":
         groups = group_results_by_article(limited_results, chunks_per_article=chunks_per_article)
         metadata.update(
@@ -777,6 +790,41 @@ def hybrid_cross_lingual_search(
         )
         return SearchResponse(query=bundle.original, results=[], metadata=metadata, groups=groups)
     return SearchResponse(query=bundle.original, results=limited_results, metadata=metadata)
+
+
+def _source_reference_inventory(session: Session, collection: str, filters: SearchFilters) -> dict[str, dict[str, Any]]:
+    statement = (select(Article).join(Chunk, Chunk.article_id == Article.id).join(Collection)
+                 .where(Collection.name == collection))
+    return {str(a.id): {"title": a.title, "authors": a.authors, "year": a.year}
+            for a in session.scalars(apply_search_filters(statement, filters)).unique()}
+
+
+def _source_reference_chunks(session: Session, query: str, collection: str, filters: SearchFilters,
+                             article_id: str) -> list[SearchResult]:
+    statement = (select(Chunk, Article).join(Article).join(Collection).where(Collection.name == collection,
+                 Article.id == uuid.UUID(article_id)).order_by(Chunk.chunk_index, Chunk.id))
+    return [_result_from_chunk_article(c, a, query=query, score=0.0, retrieval_method="explicit_source_reference")
+            for c, a in session.execute(apply_search_filters(statement, filters)) if c.text.strip()]
+
+
+def _source_reference_search(session: Session, query: str, collection: str, filters: SearchFilters,
+                             top_k: int) -> tuple[list[SearchResult] | None, dict[str, Any] | None]:
+    citation = reference(query)
+    if citation is None:
+        return None, None
+    candidates = resolve(citation, _source_reference_inventory(session, collection, filters))
+    metadata: dict[str, Any] = {"version": "explicit_source_reference_v0.1", "surname": citation.surname,
+                                "year": citation.year, "matching_article_ids": candidates, "resolved": False}
+    if len(candidates) != 1:
+        metadata["reason"] = "ambiguous_metadata" if candidates else "no_metadata_match"
+        return None, metadata
+    rows = _source_reference_chunks(session, query, collection, filters, candidates[0])
+    if not rows:
+        metadata["reason"] = "no_usable_chunks"
+        return None, metadata
+    selected, role_metadata = rank_context(query, rows, top_k=top_k)
+    metadata.update(role_metadata, resolved=True, reason="unique_registered_metadata_candidate", article_id=candidates[0])
+    return selected, metadata
 
 
 def _cross_lingual_variant_top_k(bundle: QueryBundle, *, top_k: int, settings: Settings) -> int:

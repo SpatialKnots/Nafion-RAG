@@ -58,6 +58,7 @@ def capture_sources(retrieval: SearchResponse, evidence: list[Evidence]) -> dict
             item.citation_id, item.article_id, item.chunk_id, item.page_start, item.page_end, item.text,
             result.full_text if bound and result is not None else None,
             result.text_layer if bound and result is not None else None, item.source_type,
-            item.source_type in {"table_derived", "procedure_derived", "comparison_derived"},
+            item.source_type in {"table_derived", "procedure_derived", "comparison_derived", "reference_quote_derived",
+                                 "source_fact_derived"},
         )
     return output

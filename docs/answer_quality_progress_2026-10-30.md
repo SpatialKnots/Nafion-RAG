@@ -1,5 +1,56 @@
 # ARIADNE: выполнение плана качества ответов
 
+9 ноября, read-only проверка: [Methods identity bridge](methods_identity_bridge_2026-11-09.md).
+Один real Lin candidate связан через explicit aliases и Methods lists с literal
+code в Conclusion; ordered pairing явно объявлен как допущение диагностики.
+Причина figure_caption — Figure2 в смешанном чанке; Methods span отдельно
+классифицируется formula_block. Runtime193 Python+YAML/source_type прежние.
+33 new tests/Ruff5/mypy diagnostic1 passed; старые81/5 native только hash-verified,
+не rerun.33 PDFs/3 fresh+visually checked pages/53 raw observations verified.
+Нового production admission/model/OAuth/slots0; общий пункт4/independent75% открыты.
+
+9 ноября, следующий шаг: [source-role assembly v0.1](source_role_assembly_2026-11-09.md).
+Явный одинаковый Electrolyte LABEL. в отдельных paragraphs связывает composition/
+capacity/CE при сохранении identity/type/layer/cell/required-coverage и F-ID guards.
+763 tests(50 new)/Ruff9/mypy app193 passed;81 old/current full results/native
+неизменны. Полные случаи constructed; real Lin остаётся unresolved по source_type
+Methods и отсутствию прямого label в Abstract. Нового natural complete/live ответа
+нет, model/OAuth/slots0. Пункт4/independent evaluation/прежний75% открыты.
+
+9 ноября, продолжение: [естественный CE grammar miss](natural_source_grammar_2026-11-09.md).
+619 chunks/33 works→212 recipe observations,18→21 complete за счёт трёх bindings
+одного Lin2020 Conclusion passage. natural_coulombic_source_v0.1 сохраняет
+приблизительность/unknowns/F-ID/raw provenance.713 tests(40 new),Ruff9/mypy app192
+passed; пять current+76 old full results/native unchanged. Production admission
+Conclusion не расширялся, нового полного ответа нет. Model/OAuth/slots0;
+общий пункт4, independent evaluation и прежний75% остаются открытыми.
+
+9 ноября: [пункт4, первый ограниченный scope](source_paraphrases_2026-11-09.md).
+`source_paraphrases_v0.2`: три роли Q02/Q04,9 constructed positive paraphrases
+и45 negatives; F-ID/raw binding/server recomputation сохранены.673 tests,
+Ruff8/mypy app192 passed. Все81 full-service baselines и пять native bodies
+прежние; три frozen-channel прогона243 executions. v0.1 adverse9 false
+admissions сохранены, отдельный v0.2 исправляет новые prefix/case guards.
+Нового live-ответа/DB preparation нет; model/OAuth/slots0. Общий scope пункта4,
+независимая научная оценка и прежний прогресс75% остаются открытыми.
+
+Исторический план следующей сессии, по решению пользователя 6 ноября: **7 ноября — пункт4
+текущего списка улучшений**, гибкость source grammars и снижение ложных отказов
+на эквивалентных формулировках с сохранением проверки источников/условий.
+Подробности: [план следующей сессии](next_session_2026-11-07.md).
+На дату той записи реализация не была начата; актуальный результат выше.
+Это не этап4 независимой оценки и не разрешение live calls.
+
+6 ноября: [пункт3 — добор контекста условий](condition_context_completion_2026-11-06.md).
+Ограниченный `condition_context_completion_v0.2` добавляет один raw methods chunk
+из той же работы/коллекции/типа/слоя с исходными фильтрами и диагностикой. Q03
+теперь получает PDF2 (Nafion115, метод и исходная вода), не теряя таблицу и прежние
+источники.162 frozen-channel actual service executions;76 old cases и четыре
+других новых вопроса trace/native unchanged.581 тест/Ruff10/mypy app191 passed.
+Fresh read-only Q03/rollback совпал trace/native75391 bytes; real model/OAuth/slots0.
+Source availability не равна scientific ownership или качеству нового ответа.
+Пункт4 и independent scientific evaluation остаются открыты; **план75% работ**.
+
 Основной план: `answer_quality_plan_2026-10-30.md`. Его версия и статус после
 первой итерации сохранены как frozen input предыдущего отчёта. Этот отдельный
 журнал ведёт последующий прогресс без переписывания прежних bindings.
@@ -241,3 +292,123 @@ explicit figure/subpanel reference и отдельная post-hoc дисперс
 сохранены.132 tests и source/binding/static QA прошли. Ни одна proposal не
 объявлена научным подтверждением; runtime и live budgets не менялись.
 **Прогресс остаётся75%:** independent scientific evaluation по-прежнему открыта.
+
+3 ноября получен [пользовательский benchmark из пяти новых вопросов/эталонов](user_benchmark_intake_2026-11-03.md).
+Оригинал заморожен до новых предсказаний; пользователь лично составил вопросы
+и заявляет, что ответов ARIADNE на них не видел. LLM assistance в ответах/отдельная
+экспертная проверка не указаны. Проверены пять PDF, 10 страниц, 19 raw spans,
+две таблицы визуально; 12 типографических совпадений цитат/два диагностических
+несовпадения сохранены без правки gold. 17 software tests, Ruff4 и static/source QA
+прошли. Новых предсказаний/научных оценок/live calls/slots нет. Подготовка входов и
+сравнение ещё впереди; предоставление gold не разрешает live calls.
+**Прогресс остаётся75%; пункт4 открыт.**
+
+По запросу «подготовь входы» выполнена [question-only подготовка пяти случаев](user_benchmark_inputs_2026-11-03.md)
+через реальный локальный `/answer`, с read-only DB и остановкой provider transport
+до внешней отправки. Все пять native bodies сохранены; gold/expected articles не
+входили в worker/API. 47 tests/Ruff4, 279 bindings/11 PDF hashes/35 fresh pages и
+static HTML11 TAC/eight columns/58 links прошли. Sandbox partial Q01 и ранние
+fixture errors сохранены. Реальных model/OAuth calls/slots и научных scores нет.
+Подготовка завершена; live dispatch отдельно не разрешён. **План остаётся75%.**
+
+4 ноября пользователь отдельно разрешил предложенные пять frozen calls и
+попросил таблицу «мои ответы / программа». [Запуск и сравнение выполнены](user_benchmark_live_2026-11-04.md):
+4 model POST attempts/5 OAuth attempts, без повторов; Q01 OAuth503,
+Q02 blacklist502, Q03 answered с подменой энергии когезии на энтальпию набухания
+и пропуском3/5 растворителей, Q04 пустой content502, Q05 insufficient_evidence.
+Исходные эталоны и ответы не менялись, gold не попадал в inference.
+50 tests/Ruff4, пять точных offline ASGI replay, source/static HTML QA прошли.
+Итоговая таблица содержит все пять вопросов и 13 TAC работ. Все пять slots и
+весь новый budget закрыты; дополнительного автоматического запуска нет.
+Это post-hoc comparison ассистента, не независимая научная accuracy/приёмка;
+технические сбои выделены отдельно. **План остаётся75%; пункт4 открыт.**
+
+5 ноября завершён согласованный первый офлайн-этап
+[локализации потерь и retrieval candidates](benchmark_retrieval_repair_2026-11-05.md).
+Все пять исходных full traces воспроизведены. Широкое окно не возвращает эталонные
+страницы; отдельный общий author/year candidate возвращает4/10 страниц и8/12
+mapped quotes, сохраняя все76 прежних внеобластных traces. Q01/Q05 gate отказывает,
+Q05 теряет таблицу проводимости; Q03/Q04 не исправлены.95 tests/источники/static
+HTML QA прошли. Ничего не включено в runtime, новых model/OAuth/slots нет.
+**План остаётся75%; научная независимая оценка и cache/ORM открыты.**
+
+Следующим шагом [исправлено сохранение контекста Q03/Q04 в рабочем коде](requested_context_runtime_2026-11-05.md).
+Перед hybrid/final cuts и после answer selection ограниченные body-only facets
+удерживают нужную таблицу и cycle/structure contexts.162 offline service runs,
+76 прежних full traces без изменений и две fresh read-only DB/local-search
+проверки подтвердили эффект.96 tests/Ruff8/full mypy app184/source/static QA passed.
+Новых ответов модели нет. Q01/Q05 admission/author integration и проверка величин
+в claims остаются открытыми; gate не ослаблен, live budgets закрыты.
+**План остаётся75%; это retrieval repair, не scientific acceptance.**
+
+Далее [добавлены production explicit-reference retrieval и bounded source quotes
+для Q01/Q05](reference_quote_runtime_2026-11-05.md). Q05 сохраняет обе части —
+preparation и conductivity table; новый допуск требует точных исходных цитат
+вместе, unknown constraints/частичный/добавленный текст блокируются. Общий gate
+threshold не снижен. Source retention по пяти cases теперь9/10 pages и12/12
+mapped quotes; Q03 p2 остаётся вне контекста.262 tests/Ruff15/full mypy app186,
+две фактические read-only native preparations/source QA passed; модель/OAuth0,
+только отдельно помеченные SYNTHETIC selections. Independent scientific answer
+evaluation/quantity ownership/cache-ORM остаются открытыми, live budgets закрыты.
+**План остаётся75%; source retention не равен scientific accuracy.**
+
+После отдельного разрешения пользователя [выполнены две реальные попытки Q01/Q05](reference_quote_live_2026-11-05.md).
+Actual2 POST+2 OAuth, без повторов; оба native answerable=true/stop, но локальный
+API502 из-за единичных Unicode-замен начала цитаты. Q05 table совпала полностью;
+это не успешный API ответ и не scientific acceptance. Usage2803 total, cost unknown.
+31 tests/Ruff4/два final exact offline replays/source/static QA passed. Реальные
+outputs сохранены, бюджеты закрыты. Следующий отдельный offline фикс — ASCII
+selection IDs и server-side подстановка raw quotes; пока не реализован.
+**План остаётся75%; независимая оценка/Q03 quantity ownership/cache-ORM открыты.**
+
+Следующим согласованным офлайн-шагом [реализованы ASCII selection IDs и серверная
+подстановка исходных цитат](ascii_quote_selection_2026-11-05.md). Модель выбирает
+полный набор точных IDs/citations, сервер выдаёт только заранее привязанные raw
+quotes.299 distinct tests/Ruff10/full mypy app186 прошли; два offline прогона
+по164 service executions и76 прежних full traces без изменений, две fresh
+read-only native preparations, две synthetic ASGI HTTP200 и source/static QA.
+Все synthetic результаты явно отделены от реальных ответов. Historical import
+добавил один pyc: manifest поймал его, файл сохранён в quarantine, adapter
+исправлен и отдельно проверен, исходные файлы/старые HTTP502 не менялись.
+Новые запросы не отправлялись, реальные model/OAuth/slots0, live budgets закрыты.
+**План остаётся75%; новый live ID protocol/научная независимая оценка/Q03
+quantity ownership/cache-ORM остаются открытыми.**
+
+После явного «Го новый тест» [завершён новый реальный прогон всех пяти вопросов](user_benchmark_retest_2026-11-05.md).
+Ровно5 model POST+5 OAuth, без повторов; все5 HTTP200/answered. Реальные ID ответы
+Q01/Q05 дали точные серверные цитаты; Q03 теперь содержит все пять верных пар
+α/ΔH и максимум НМП. Q02 остаётся неполным по условиям, Q04 переоценивает
+необратимость и изменение кристаллических рефлексов. Это post-hoc наблюдения,
+не независимая scientific accuracy.18 new tests/Ruff3/пять final exact offline
+ASGI replays/source/static QA прошли. Все slots и весь новый scope закрыты,
+app во время теста не менялся, source/gold/old outputs неизменны.
+**План остаётся75%; независимая научная приёмка, completeness/uncertainty и
+cache-ORM открыты. Следующая работа — отдельно офлайн, без новых вызовов.**
+
+По согласованию пользователя [добавлен конечный source-bound fidelity контракт
+для условий Q02 и оговорок Q04](answer_fidelity_2026-11-05.md). Prompt получает
+роли с raw anchors, provider и service отклоняют неполное покрытие и известные
+преувеличения.350 tests(51 new)/Ruff8/full mypy app187,162 channel service runs,
+76 old traces без изменений, восемь final synthetic/counterfactual ASGI checks,
+две fresh read-only native preparations/source/static QA прошли. Q01/Q03/Q05
+полные traces/native bytes прежние. Все реальные старые ответы и gold сохранены;
+ошибки v0.1 prefix/parser/test adapters документированы, v0.2 проверена отдельно.
+Новые native Q02/Q04 не отправлены, реальные model/OAuth/slots0. Конечное покрытие
+не является общей semantic/ownership проверкой и может false-refuse правильную
+перефразировку; реальное поведение нового prompt ещё не проверялось.
+**План остаётся75%; независимая научная приёмка/cache-ORM открыты, бюджеты закрыты.**
+
+Пользователь выбрал пункты1 и2: [добавлены структурированные source-bound факты
+и русский серверный ответ](structured_answers_2026-11-05.md). В четырёх bounded
+семействах модель выбирает F-IDs, сервер повторно вычисляет поля/условия/статусы
+и сводку; UI сохраняет точные исходные цитаты. Неизвестные поля/неоднозначные
+единицы явные, неподдержанные источники/English/Q03 идут прежним путём.
+544 tests(60 new)/Ruff16/full mypy app190, два core runs162+24 ASGI каждый,
+76 old traces/Q03 trace+native без изменений, четыре fresh read-only unsent
+preparations/source/static UI QA прошли.21 текстовая запись/13render records
+не являются независимыми scientific confirmations; synthetic outputs не live.
+Ошибки controls/historical adapters/sandbox UI/HTML section+URL QA сохранены,
+final display rebuilt отдельно без backend/model resend. Все реальные старые
+outputs/gold неизменны, model/OAuth/new slots0, бюджеты закрыты.
+**План остаётся75%; конечные грамматики/неполные условия/неоднозначная единица
+Q05 и независимая научная приёмка/cache-ORM остаются открытыми.**

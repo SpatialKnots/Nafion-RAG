@@ -221,8 +221,12 @@ def _claim_source_fragment(citation: dict[str, object], source: PresentationSour
                 f"<pre class='source-exact'>{_html(text)}</pre></details>")
     content = ""
     if source.generation_is_derived:
-        note = ("Подготовленные системой цитаты и ограничения ответа; исходный PDF-текст показан отдельно."
-                if source.source_type == "procedure_derived" else "Вычисленная табличная сводка системы; это не цитата из PDF.")
+        if source.source_type == "source_fact_derived":
+            note = "Русская сводка системы по привязанным к источнику фактам. Ниже доступны точные цитаты и полный исходный текст."
+        elif source.source_type in {"procedure_derived", "reference_quote_derived"}:
+            note = "Подготовленные системой цитаты и ограничения ответа; исходный PDF-текст показан отдельно."
+        else:
+            note = "Вычисленная табличная сводка системы; это не цитата из PDF."
         content += (f"<p class='muted'>{note}</p>"
                     f"<pre class='source-exact'>{_html(_prepared_statement_text(source.generation_text, source.source_type))}</pre>")
     elif source.source_text != source.generation_text:
@@ -239,7 +243,7 @@ def _claim_source_fragment(citation: dict[str, object], source: PresentationSour
 
 
 def _prepared_statement_text(text: str, source_type: str) -> str:
-    if source_type not in {"procedure_derived", "comparison_derived"}:
+    if source_type not in {"procedure_derived", "comparison_derived", "reference_quote_derived", "source_fact_derived"}:
         return text
     try:
         payload = json.loads(text)
@@ -248,7 +252,22 @@ def _prepared_statement_text(text: str, source_type: str) -> str:
     records = payload.get("records") if isinstance(payload, dict) else None
     if not isinstance(records, list) or not all(isinstance(r, dict) and isinstance(r.get("allowed_claim"), str) for r in records):
         return "Неизвестный формат подготовленного фрагмента; исходные данные:\n" + text
-    return "\n\n".join(r["allowed_claim"] for r in records)
+    summary = "\n\n".join(r["allowed_claim"] for r in records)
+    if source_type == "source_fact_derived":
+        excerpts = list(dict.fromkeys(f["support"]["text"] for r in records for f in r.get("facts", [])
+                                      if isinstance(f, dict) and isinstance(f.get("support"), dict)
+                                      and isinstance(f["support"].get("text"), str)))
+        assembly = payload.get("assembly")
+        if isinstance(assembly, dict) and isinstance(assembly.get("label"), str) and isinstance(assembly.get("bindings"), list):
+            summary += ("\n\nТекстовая связь разделов по обозначению электролита: " + assembly["label"]
+                        + ". Условия и значения между операциями не переносятся.")
+            citation_ids = {r.get("citation_id") for r in records}
+            excerpts += [b["marker"]["text"] for b in assembly["bindings"]
+                         if isinstance(b, dict) and isinstance(b.get("marker"), dict)
+                         and b["marker"].get("citation_id") in citation_ids and isinstance(b["marker"].get("text"), str)]
+            excerpts = list(dict.fromkeys(excerpts))
+        summary += "\n\nТочные исходные цитаты:\n\n" + "\n\n".join(excerpts)
+    return summary
 
 
 def _highlighted_text(text: str, highlights: object) -> str:

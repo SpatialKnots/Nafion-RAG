@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 
 from app.generation.evidence_adequacy import LIGATURES, distinctive_query_terms, term_matches_text
 from app.generation.required_concepts import assess_required_concepts
+from app.retrieval.requested_context import retain_requested_context
 from app.retrieval.search import SearchResult
 
 
@@ -60,6 +61,7 @@ def select_answer_evidence(question: str, results: list[SearchResult], *, additi
         selected = [result for result in selected if conductivity_plasticizer_scores[result.chunk_id] > 0]
         filtered_to_conductivity_plasticizer_evidence = True
     selected, retention_metadata = _retain_required_concept_evidence(question, selected, ranked)
+    selected, requested_context = retain_requested_context(question, selected, limit=max(1, len(selected)))
     reordered = [result.chunk_id for result in selected] != [result.chunk_id for result in results]
     return EvidenceSelection(
         results=selected,
@@ -81,6 +83,7 @@ def select_answer_evidence(question: str, results: list[SearchResult], *, additi
             "conductivity_plasticizer_result_count": sum(1 for score in conductivity_plasticizer_scores.values() if score > 0),
             "filtered_to_conductivity_plasticizer_evidence": filtered_to_conductivity_plasticizer_evidence,
             "required_concept_retention": retention_metadata,
+            **({"requested_context_retention": requested_context} if requested_context is not None else {}),
         },
     )
 

@@ -1,0 +1,84 @@
+{
+  "bindings": {
+    "D:\\Nafion-RAG\\output\\particle_attachment_20261103\\review_v01\\report.json": "80c209df9cf55a2c502b68a1189ce3b40f046fcafc2d38ab2ae3b9f122ac3783"
+  },
+  "date_local": "2026-11-03",
+  "eligible_distinct_articles": 30,
+  "exclusions": {
+    "6f6fca14-92e8-446d-b1cd-ec08ca811962": "dissertation, not a journal article",
+    "7bc8d131-9060-4484-bf72-9749468b833b": "supplement to Sanginov2021, not a separate article",
+    "850d488f-a137-486e-b088-433ebbc07120": "duplicate Welch2012 work, kept named original article record"
+  },
+  "method": "uniform random.sample without replacement; sorted article IDs; one draw, no content-based reroll",
+  "pool_article_ids": [
+    "0362ff0a-0fd1-4575-b792-ca7e6041c684",
+    "05cbcdea-b784-4bdb-9353-0a806c67fdeb",
+    "05fd4bbe-5134-429b-8906-a2a906786f10",
+    "0743b075-4938-44d9-8dfe-61c6a6bfaf58",
+    "0a3cf9d1-7c1e-4a90-9662-f1fbcceb1b46",
+    "1445f31a-0de7-482b-b335-029ebdd552a5",
+    "16c44255-47a4-43c7-afa0-a4e1c8c36ef5",
+    "1b9512f3-cc6d-41f2-a55f-fa94404513aa",
+    "255a2922-3f5c-417d-8bb9-6e2241997b2d",
+    "2f4ffc89-f629-40cd-a22d-25db06d28164",
+    "31f16614-c31a-492b-a85c-7851aaabda5a",
+    "3e970332-cced-4895-b44e-50a48bdc8e17",
+    "516d66d5-413d-469b-9b48-f649c1b17b58",
+    "58254395-e523-498c-96e5-4b9acaf3640d",
+    "5fa65151-6f28-442c-bb1c-7c445002e5d5",
+    "689bb0fb-cb3c-4338-b485-521e00019b6f",
+    "6b637f9e-afd9-43d2-b02f-13949cc4aa6c",
+    "72ff7d17-c817-496d-9587-c6fed75f8b70",
+    "77bbd71b-5ed8-4ac6-871e-0f365e476333",
+    "80e14389-bff9-4733-9f33-3a5b22678a99",
+    "851041ea-8918-4aad-a5ff-b80d30a63497",
+    "a577ced4-9e94-4729-aad5-f16ba9cb0acb",
+    "aec95165-f993-4576-9dba-0ec4bb8ecee1",
+    "b6024911-628a-4bd9-9dd1-085c932afade",
+    "b867282d-52ba-4b92-91a4-664693cdcf0b",
+    "bb6aba55-0f45-432f-bcb7-a34b522b767e",
+    "d11c00ad-dc5c-47fe-be03-2baa84f741ae",
+    "de92ab00-f498-479d-8aff-ad07820c5cc5",
+    "ee341955-77b3-48b9-9304-ee7ab77aba1a",
+    "f016f559-48b1-4421-beda-a155e42a25aa"
+  ],
+  "prior_exposure": "corpus already used for development; no independent scientific accuracy implied",
+  "purpose": "user prepares new questions and reference answers before future outputs; no model/OAuth/live-call authorization",
+  "python": "3.12.7",
+  "seed": "153353823411623069629320795618480146286",
+  "selected": [
+    {
+      "article_id": "31f16614-c31a-492b-a85c-7851aaabda5a",
+      "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\4201577f0242990c_Lin_2020.pdf",
+      "original_pdf_sha256": "4201577f0242990cfa6d9a4abeea9b18f090018a2cd300fa3b354c138660fba6",
+      "title": "Lin 2020"
+    },
+    {
+      "article_id": "16c44255-47a4-43c7-afa0-a4e1c8c36ef5",
+      "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\4175963d3ecdc0b4_Guo_2020.pdf",
+      "original_pdf_sha256": "4175963d3ecdc0b429e64d62c39b4f09a1f81fa8efb04ec5f71a54f5fb7000cb",
+      "title": "Guo 2020"
+    },
+    {
+      "article_id": "f016f559-48b1-4421-beda-a155e42a25aa",
+      "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\de0c55db3994c9a6_Чернюк_2024.pdf",
+      "original_pdf_sha256": "de0c55db3994c9a6c2a2e3f0939d3b28b907fe3ac0c6ca867050be02bc53f182",
+      "title": "Чернюк 2024"
+    },
+    {
+      "article_id": "b6024911-628a-4bd9-9dd1-085c932afade",
+      "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\7519b88c1b0a0bf3_Istomina_2021.pdf",
+      "original_pdf_sha256": "7519b88c1b0a0bf36855c1f881a19965191b72521823bdbafd9736c0c9a32e9f",
+      "title": "Istomina 2021"
+    },
+    {
+      "article_id": "0362ff0a-0fd1-4575-b792-ca7e6041c684",
+      "original_pdf_path": "D:\\Nafion-RAG\\data\\pdf\\cb0dbafe419f7b5b_Laporta_и_др._-_2000_-_Recast_Nafion‐117_thin_film_from_water_solution.pdf",
+      "original_pdf_sha256": "cb0dbafe419f7b5b4ba6284c9a70fc6ca3272fdcf6a441b85f331235ef05826d",
+      "title": "Laporta и др. - 2000 - Recast Nafion‐117 thin film from water solution"
+    }
+  ],
+  "snapshot_pdf_records": 33,
+  "timezone": "Asia/Yekaterinburg",
+  "version": "evaluation_article_draw_v0.1"
+}

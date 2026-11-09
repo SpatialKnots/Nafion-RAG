@@ -119,7 +119,14 @@ def collect_sources(session: Session, settings: Settings, evidence: list[Evidenc
         layers[item.chunk_id] = chunk.text_layer
         chunks[item.chunk_id] = {'article_id': str(chunk.article_id), 'text_layer': chunk.text_layer,
             'page_start': chunk.page_start, 'page_end': chunk.page_end, 'source_type': chunk.source_type, 'text': chunk.text}
-        if chunk.text != item.text:
+        if item.source_type == 'source_fact_derived':
+            from app.generation.answer_facts import verify_raw_binding as verify_fact_binding
+            verify_fact_binding(item.text, chunk.text, article_id=item.article_id, chunk_id=item.chunk_id,
+                                citation_id=item.citation_id, page_start=item.page_start, page_end=item.page_end)
+        elif item.source_type == 'reference_quote_derived':
+            from app.generation.reference_quotes import verify_raw_binding
+            verify_raw_binding(item.text, chunk.text, article_id=item.article_id, chunk_id=item.chunk_id, citation_id=item.citation_id)
+        elif chunk.text != item.text:
             layers.pop(item.chunk_id)
             diagnostics.append({'citation_id': item.citation_id, 'state': 'baseline_text_differs_from_raw_chunk_no_association_binding'})
         for number in range(item.page_start, item.page_end + 1):
