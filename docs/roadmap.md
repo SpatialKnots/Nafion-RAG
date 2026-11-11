@@ -1,5 +1,13 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-11-11, [новый реальный прогон30](answer_series_live_2026-11-11.md):
+ровно30model POST/30OAuth,23HTTP200answered/7HTTP502 из-за дубликатов F1.
+Все лимиты закрыты; retries/fallbacks/continuations0.14из21fact selections точны;
+9свободных ответов доставлены, у части есть source-completeness/epistemic gaps.
+57offline tests и Ruff5passed; два30case saved-native ASGI replay точны.
+App и строгая валидация прежние. План75%, scientific accuracy не установлена.
+Далее — отдельно offline единственность F1 и полнота/оговорки свободного пути.
+
 Обновление 2026-11-11, [сводный офлайн-аудит и freeze](answer_series_freeze_2026-11-11.md):
 18этапов/540fullresults;30/30prepared-unsent,21fact-case/84facts/701rawanchors,
 8каталогов/52glyph operations/3PDFs. Пять объявленных изменений состава top-5
