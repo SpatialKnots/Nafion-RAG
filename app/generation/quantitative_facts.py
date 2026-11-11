@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from app.generation import (
+    answer_completeness,
     cathode_surface,
     concentration_counterexample,
     conductivity_explanation,
@@ -131,6 +132,9 @@ def _decimal(value: str) -> Decimal:
 
 def family(question: str) -> str | None:
     q = _norm(question).casefold()
+    complete = answer_completeness.family(question)
+    if complete is not None:
+        return complete
     if ('концентрации' in q and 'смеси растворителей' in q and 'сравнительных испытаниях' in q
             and re.search(cell_conditions.TAIL, q)):
         return 'cell_solution_conditions'
@@ -186,6 +190,9 @@ def _query(question: str, kind: str) -> dict[str, Any]:
                                     question[cite.start:cite.end]) is None:
         raise FactPatternError('single_surname_year_reference_required')
     q = _norm(question[:cite.start] + ' ' + question[cite.end:])
+    if kind in answer_completeness.KINDS:
+        body = re.sub(r'^\s*(?:По\s+статье\s*)?:\s*', '', q, flags=re.I).strip()
+        return answer_completeness.query(body, kind)
     if kind == 'solubility_limit':
         body = re.sub(r'^\s*(?:По\s+статье\s*)?:\s*', '', q, flags=re.I).strip()
         match = solubility_limit.QUERY.fullmatch(body)
@@ -350,6 +357,8 @@ def _fact(view: SourceView, match: re.Match[str], prop: str, value: str, unit: s
 
 
 def _parse(kind: str, source: Evidence, params: dict[str, Any]) -> list[tuple[list[Fact], str]]:
+    if kind in answer_completeness.KINDS:
+        return answer_completeness.parse(source, kind, params)
     view = (ReviewedGlyphView(source, catalogue_binding=solubility_limit.GLYPHS) if kind == 'solubility_limit' else
             conductivity_explanation.view(source) if kind == 'conductivity_explanation' else
             pure_concentration.view(source) if kind == 'pure_concentration' else
@@ -755,6 +764,8 @@ def prepare(question: str, sources: list[Evidence], metadata: object, *, answer_
             parsed = _parse(kind, source, params)
         except FactPatternError as exc:
             diagnostics.append({'citation_id': source.citation_id, 'reason': str(exc)})
+            if kind in answer_completeness.KINDS:
+                return stop('complete_answer_source_or_reviewed_glyph_binding_unresolved')
             if kind == 'solubility_limit':
                 return stop('solubility_limit_or_existing_reviewed_glyph_binding_unresolved')
             if kind == 'conductivity_explanation':
@@ -883,6 +894,8 @@ def prepare(question: str, sources: list[Evidence], metadata: object, *, answer_
                     density_calculation='not_performed', unit_conversion='not_performed',
                     claim_kind='reported_quantities_and_author_possible_contraction_not_structural_measurement',
                     glyph_decoding=pure_concentration.view(source).provenance())
+            if kind in answer_completeness.KINDS:
+                record['source_grammar'].update(answer_completeness.metadata(source, kind))
             candidates.append((source, record))
     if not candidates:
         if any(d['reason'] == 'raw_quantity_encoding_marker' for d in diagnostics):

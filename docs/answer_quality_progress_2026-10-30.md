@@ -1,5 +1,16 @@
 # ARIADNE: выполнение плана качества ответов
 
+11 ноября: [выполнены офлайн-приоритеты после прогона](answer_priorities_2026-11-11.md).
+Ограничения native F-ID schema и три полных source contracts Kondo04/Nambu10/
+Peng01 реализованы; исходные источники и строгий отказ сохранены.6085full tests,
+88focused/mypyapp227/scopedRuffpass;81historical results точны,30preparations
+и installed wheel246appresources сверены.6UI checks/5positioned glyphs/91newraw
+anchors/10HTML links прошли. Два прежних repository RuffE501 не исправлялись.
+Новых realmodel/OAuth/slots0; семь прежних duplicate-F1 outputs всё ещё отклоняются.
+Реальный эффект новых schema keywords не измерен. Для независимой проверки
+пользователь предоставит отдельные вопросы/эталоны; протокол и freeze кандидата
+подготовлены, независимых результатов0. **План75% прежний**, научная точность неизвестна.
+
 11 ноября: [новый реальный прогон после freeze](answer_series_live_2026-11-11.md).
 30model/30OAuth, без повторов;23ответа доставлены,7HTTP502 из-за повторного F1.
 Все allowances закрыты.57offline tests/Ruff5 и два30case saved-native ASGI replay

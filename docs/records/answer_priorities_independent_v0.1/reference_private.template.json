@@ -1,0 +1,11 @@
+{
+  "version": "separate_answer_acceptance_v0.1",
+  "status": "awaiting_user_set",
+  "authorship_declared": null,
+  "annotation_method_declared": null,
+  "llm_assistance_declared": null,
+  "expert_verification_declared": null,
+  "prepared_before_predictions_declared": null,
+  "cases": [],
+  "scientific_acceptance_thresholds": null
+}

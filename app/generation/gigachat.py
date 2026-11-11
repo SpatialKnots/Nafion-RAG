@@ -207,6 +207,11 @@ class GigaChatAnswerProvider:
         if quotes:
             reply_schema["$defs"]["_Claim"]["properties"]["text"]["enum"] = list(
                 dict.fromkeys(text for values in quotes.values() for text in values))
+        if facts:
+            # A record can contain several facts but is selected once as a whole.
+            # Keep empty claims available for abstention and local full-set validation.
+            reply_schema["properties"]["claims"].update(maxItems=sum(len(ids) for ids in facts.values()), uniqueItems=True)
+            reply_schema["$defs"]["_Claim"]["properties"]["citation_ids"].update(minItems=1, maxItems=1)
         reply_schema["$defs"]["_Claim"]["properties"]["citation_ids"]["items"]["enum"] = list(
             dict.fromkeys(item.citation_id for item in evidence))
         # Obtain a fresh token per generation. No persisted token, retry or alternate provider.

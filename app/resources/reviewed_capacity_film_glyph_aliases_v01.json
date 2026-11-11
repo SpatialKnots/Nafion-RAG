@@ -1,0 +1,36 @@
+{
+  "automatic_font_name_semantics": false,
+  "entries": [
+    {
+      "article_id": "0743b075-4938-44d9-8dfe-61c6a6bfaf58",
+      "chunk_id": "92a680ec-758a-44d0-91ae-6e009ee0df74",
+      "operations": [
+        {
+          "bbox": [
+            141.84559631347656,
+            615.766357421875,
+            146.55274963378906,
+            622.0425415039062
+          ],
+          "decoded": "−",
+          "font": "AdvOT3e3a1c22",
+          "font_program_sha256": "cd3690777caac98f33bd601b58030b8150970b821354352619002f55a7cf7b09",
+          "font_xref": 152,
+          "pdf_page": 3,
+          "pdf_text_offset": 925,
+          "raw_character": "¹",
+          "raw_end": 8078,
+          "raw_start": 8077
+        }
+      ],
+      "page_end": 3,
+      "page_start": 2,
+      "raw_sha256": "d25e2cb19db950ee91c0582ae62eff8469e0880ce6d6bb7efa96fdd3c4ecd952",
+      "source_type": "figure_caption"
+    }
+  ],
+  "pdf_sha256": "5cafe6e931ef4dc7922f7625027f4ed4cec510da87259f7d1e0e6483b05d0147",
+  "policy": "reviewed_pdf_glyph_aliases_v0.1",
+  "review_basis": "fresh full Poppler page visually reviewed; finite raw glyph operations only",
+  "reviewer": "agent_source_visual_review"
+}

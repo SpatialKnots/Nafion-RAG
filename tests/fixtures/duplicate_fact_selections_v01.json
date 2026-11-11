@@ -1,0 +1,180 @@
+{
+  "cases": [
+    {
+      "id": "Kondo_10",
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "{\n    \"answerable\": true,\n    \"claims\": [\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        }\n    ]\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1794418501,
+        "model": "GigaChat-2-Max:2.0.30.01",
+        "object": "chat.completions",
+        "usage": {
+          "completion_tokens": 261,
+          "precached_prompt_tokens": 390,
+          "prompt_tokens": 2479,
+          "total_tokens": 2740
+        }
+      },
+      "response_sha256": "554e2a5cd33ce4e359352fd7ea0bdbf06fb9900b2b37b0941694f8df0fe08d92"
+    },
+    {
+      "id": "Nambu_01",
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "{\n    \"answerable\": true,\n    \"claims\": [\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E1\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E1\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E1\"\n            ]\n        }\n    ]\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1794418515,
+        "model": "GigaChat-2-Max:2.0.30.01",
+        "object": "chat.completions",
+        "usage": {
+          "completion_tokens": 141,
+          "precached_prompt_tokens": 382,
+          "prompt_tokens": 1300,
+          "total_tokens": 1441
+        }
+      },
+      "response_sha256": "ee2cee3aba66870d33faeb3a6febe8c3ab4d54f353546369701bba0b7d60d82a"
+    },
+    {
+      "id": "Nambu_07",
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "{\n    \"answerable\": true,\n    \"claims\": [\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        }\n    ]\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1794418595,
+        "model": "GigaChat-2-Max:2.0.30.01",
+        "object": "chat.completions",
+        "usage": {
+          "completion_tokens": 95,
+          "precached_prompt_tokens": 392,
+          "prompt_tokens": 2135,
+          "total_tokens": 2230
+        }
+      },
+      "response_sha256": "0a4f5a14b6fda027b531fea954a0d405d39aa243097e605dfe0b4ecf3ab57ef8"
+    },
+    {
+      "id": "Nambu_09",
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "{\n    \"answerable\": true,\n    \"claims\": [\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E4\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E4\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E4\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E4\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E4\"\n            ]\n        }\n    ]\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1794418621,
+        "model": "GigaChat-2-Max:2.0.30.01",
+        "object": "chat.completions",
+        "usage": {
+          "completion_tokens": 221,
+          "precached_prompt_tokens": 391,
+          "prompt_tokens": 1865,
+          "total_tokens": 2086
+        }
+      },
+      "response_sha256": "a857a94afd21076941f723b3b0ca7f2c217f3fc9f4a8bd0518d37a81580873d8"
+    },
+    {
+      "id": "Peng_02",
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "{\n    \"answerable\": true,\n    \"claims\": [\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E3\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E3\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E3\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E3\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E3\"\n            ]\n        }\n    ]\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1794418671,
+        "model": "GigaChat-2-Max:2.0.30.01",
+        "object": "chat.completions",
+        "usage": {
+          "completion_tokens": 193,
+          "precached_prompt_tokens": 3,
+          "prompt_tokens": 2647,
+          "total_tokens": 2840
+        }
+      },
+      "response_sha256": "604633f4999d5fb8d07461bc67921a9030b0afadedba61225564d9126e419665"
+    },
+    {
+      "id": "Peng_06",
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "{\n    \"answerable\": true,\n    \"claims\": [\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E2\"\n            ]\n        }\n    ]\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1794418738,
+        "model": "GigaChat-2-Max:2.0.30.01",
+        "object": "chat.completions",
+        "usage": {
+          "completion_tokens": 366,
+          "precached_prompt_tokens": 390,
+          "prompt_tokens": 4304,
+          "total_tokens": 4670
+        }
+      },
+      "response_sha256": "b7375ae60109da3da47c5520ad7b97cd3ea1b94d628ae8d9047370425cb77e32"
+    },
+    {
+      "id": "Peng_10",
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "{\n    \"answerable\": true,\n    \"claims\": [\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E1\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E1\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E1\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E1\"\n            ]\n        },\n        {\n            \"text\": \"F1\",\n            \"citation_ids\": [\n                \"E1\"\n            ]\n        }\n    ]\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1794418792,
+        "model": "GigaChat-2-Max:2.0.30.01",
+        "object": "chat.completions",
+        "usage": {
+          "completion_tokens": 221,
+          "precached_prompt_tokens": 390,
+          "prompt_tokens": 2974,
+          "total_tokens": 3195
+        }
+      },
+      "response_sha256": "2d55d9d0f258c4648773f48c5231c30af13bf7f7a614b82b3d045310e5000898"
+    }
+  ],
+  "provenance": "actual closed thirty-case trial, development regression only"
+}

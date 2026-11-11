@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.documents.service import build_pdf_url
+from app.generation.answer_completeness import family as complete_answer_family
 from app.generation.answer_facts import prepare as prepare_answer_facts
 from app.generation.answer_facts import resolve_selections as resolve_fact_selections
 from app.generation.answer_fidelity import prepare as prepare_answer_fidelity
@@ -369,13 +370,24 @@ def answer_question(
             evidence, display_evidence, preservation_metadata = preservation
             base_metadata["retrieved_raw_preservation"] = preservation_metadata
             base_metadata["citation_language_coverage"] = _citation_language_coverage(display_evidence)
-    if (not actual_adequate and adequacy_metadata["reason"] == "insufficient_distinctive_term_coverage"
+    complete_answer_required = complete_answer_family(normalized_question) is not None
+    if complete_answer_required and not facts_provider_supported:
+        actual_adequate = False
+        adequacy_metadata["complete_answer_baseline"] = deepcopy(adequacy_metadata)
+        adequacy_metadata.update(adequate=False, reason="complete_answer_requires_fact_selection_provider")
+    if (((not actual_adequate and adequacy_metadata["reason"] == "insufficient_distinctive_term_coverage")
+            or complete_answer_required)
             and facts_provider_supported and all(c is None for c in
                 (reference_quotes, overview, optimum_scope, transition_metadata, fidelity, facts))):
         quantitative = prepare_quantitative_facts(normalized_question, evidence,
             retrieval.metadata.get("explicit_source_reference"), answer_language=active_answer_language)
         if quantitative is not None:
             base_metadata["quantitative_source_binding"] = {"policy": QUANTITATIVE_POLICY, **quantitative.metadata()}
+            if complete_answer_required:
+                actual_adequate = False
+                adequacy_metadata["complete_answer_baseline"] = deepcopy(adequacy_metadata)
+                adequacy_metadata.update(adequate=False, reason=(quantitative.reason if not quantitative.eligible
+                    else "complete_answer_required_fields_or_relations_unresolved"))
             if quantitative.eligible and not adequacy.required_concepts.missing and not adequacy.relation_requirements["missing"]:
                 facts, facts_active, actual_adequate = quantitative, True, True
                 evidence, display_evidence = quantitative.evidence, quantitative.display

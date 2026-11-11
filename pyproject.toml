@@ -26,6 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx",
+  "jsonschema>=4.23",
   "mypy>=1.11",
   "packaging",
   "pytest>=8.3",
@@ -45,6 +46,8 @@ app = ["static/brand/*.png", "static/terms_review.js", "retrieval/cross_lingual_
        "resources/reviewed_surface_glyph_aliases_v02.json",
        "resources/reviewed_pure_concentration_glyph_aliases_v01.json",
        "resources/reviewed_conductivity_explanation_glyph_aliases_v01.json",
+       "resources/reviewed_capacity_film_glyph_aliases_v01.json",
+       "resources/reviewed_formulation_identity_glyph_aliases_v01.json",
        "terms/taxonomy_v01.json", "terms/taxonomy_v02.json", "terms/taxonomy_v03.json", "terms/taxonomy_v04.json"]
 
 [tool.ruff]

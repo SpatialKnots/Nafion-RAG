@@ -1,5 +1,16 @@
 # ARIADNE: дорожная карта
 
+Обновление 2026-11-11, [приоритеты после прогона](answer_priorities_2026-11-11.md):
+F-ID native schema ограничивает число/уникальность выборов; строгая локальная
+проверка сохранена. Kondo04/Nambu10/Peng01 переведены на полные source-bound
+контракты либо отказ; модальность и mass/volume basis явные. Полный pytest6085pass,
+88focused, mypyapp227 и scopedRuffpass; два прежних repositoryE501 сохранены.
+30offline preparations/81historical results/wheel246appresources проверены.
+Старые семь502 сохранены: нового реального успеха/поддержки schema keywords
+не измеряли. Model/OAuth/slots0. Кандидат фиксируется до отдельного набора,
+который предоставит пользователь; протокол готов, независимых случаев0.
+План75% и научная accuracy прежние; третья приоритетная проверка остаётся открытой.
+
 Обновление 2026-11-11, [новый реальный прогон30](answer_series_live_2026-11-11.md):
 ровно30model POST/30OAuth,23HTTP200answered/7HTTP502 из-за дубликатов F1.
 Все лимиты закрыты; retries/fallbacks/continuations0.14из21fact selections точны;
