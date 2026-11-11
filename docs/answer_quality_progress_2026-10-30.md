@@ -1,5 +1,235 @@
 # ARIADNE: выполнение плана качества ответов
 
+11 ноября: [сводный офлайн-аудит и фиксация серии](answer_series_freeze_2026-11-11.md).
+18 этапов/540 full results проверены;9→30/30prepared-unsent,21fact-case/84facts/
+701rawanchors. Пять объявленных изменений состава top-5 воспроизведены из
+исходных пулов. Полный pytest5979passed, mypyapp226passed, scoped Ruff passed;
+два прежних repository E501 сохранены.81historical/fivenativeexact; wheel243
+app/resources exact и installed-app30exact. Model/OAuth/slots0 в аудите.
+Это воспроизводимость exposed серии, не научная точность. **План75% прежний**;
+следующий реальный прогон и независимая оценка требуют отдельных scopes.
+
+11 ноября, [устранена причина отказов Peng05/08](peng_glyph_binding_2026-11-11.md).
+Source-specific расшифровка трёх glyph видов,15 exact operations/two raw chunks;
+исходные данные сохранены, приблизительность явная. Готовность12→14/30,
+осталось16 отказов/три количественных.444tests(33new)/Ruff10/mypy212,12prior
+ready inputs/81old results точны;2fresh API readonly/rollback точны, model/OAuth0.
+Не общий decoder и не независимая scientific accuracy. **План75%**.
+
+11 ноября, [начато исправление количественных отказов](quantitative_binding_2026-11-11.md).
+Три source-bound пакета Kondo05/06/08 допускаются к F-ID выбору с серверным
+текстом: готовность9→12/30. Осталось18 отказов, пять количественных.
+411tests(70new)/Ruff8/mypy211,81прежний result/five native и9готовых inputs
+сохранены; три fresh readonly API подготовки точны, model/OAuth/slots0.
+Научная точность и поведение реальной модели не измерены. Далее Peng raw
+единицы/приближение, затем таблица/порядок/контекст. **План75%**.
+
+10 ноября, [карта21 отказа и исправление потери raw evidence](refusal_groups_2026-11-10.md).
+Четыре группы/33source spans:13полных selected contexts,8неполных. Scoped
+recovery на lexical refusals возвращает новую информацию из уже найденного pool:
+13→16 annotated runtime coverage, readiness9/30 прежняя.5отдельных offline
+добавлений дают21 diagnostic packets со всеми отмеченными span; не scientific
+accuracy/не автоматический добор.341tests(17new)/Ruff9/mypy210,81old cases/
+9ready native exact,2fresh API refusal/source exact, model/OAuth0. Остаётся
+source-bound numeric/causal/status admission и independent evaluation. **План75%**.
+
+10 ноября, [сняты два подтверждённых lexical false refusals](bilingual_lexical_admission_2026-11-10.md).
+Общее конечное RU/EN правило полей, без author/QA-value special cases:
+Nambu02/04; готовность7→9/30,21 остаются неразобранными научно. Все30 raw
+selections и7 прежних ready native inputs точны;81 старый service case сохранён.
+324affected tests(46new)/Ruff6/mypy209, два fresh readonly API preflight совпали.
+Реальные model/OAuth0; readiness не accuracy, общего semantic admission нет.
+Независимая оценка/остальные семейства открыты. **План75%**.
+
+10 ноября, [исправлена библиографическая причина Kondo scope stop](kondo_metadata_repair_2026-11-10.md).
+Одна запись: полный title/eight authors/2026/journal вместо filename-like label
+и пустых полей; оригинальный PDF/DOI/span bindings и полный before/after сохранены.
+30 readonly preparations, все правильной статьи; Kondo1ready-unsent/9lexical
+refusals.20 Nambu/Peng inputs/sources/native-or-refusal прежние;19 full traces
+exact, Peng04 только две source-bound title substitutions в candidate diagnostics.
+63existing tests/Ruff2 passed; app/model/OAuth changes0. Lexical admission и
+независимая научная оценка остаются открыты. **План75%**.
+
+10 ноября, [фиксированная версия на30 новых вопросах](kondo_nambu_peng_transfer_2026-11-10.md).
+6actual model/OAuth/answers,17исходных lexical refusals,7harness-only scope stops;
+все30закрыты/24unusedexpired. Guardnot_evaluated на6/6, no new app changes.
+Заявленные human/noLLM refs открыты только послеclosure, hash/spans intact.
+На двух refusals нужные данные уже вselectedcontext; Nambu10confirmed error и
+Peng01missing salt пропущены. Приоритет — source metadata binding/RU-EN lexical
+admission; не новые grammar patches на этом hidden set (он теперь раскрыт).
+51tests/Ruff3/PDF/native/references verified; scientificaccuracy не дана. **План75%**.
+
+10 ноября, [required-fields guard подключён к экспериментальному API/UI](required_fields_guard_2026-11-10.md).
+Insufficient confirmation удерживает весь ответ, original native доступен отдельно;
+unknown wording/source ambiguity не scientific error. Normal /answer неизменён.
+555tests(33new)/Ruff6/mypy208, saved replay4retained/1held, no real calls. Code freeze
+27def498…; пользователь заранее готовит частные эталоны, новых public cases ещё0.
+Transfer guide фиксирует denominator/false holds/unknown scopes, no tuning after
+outputs. Новая научная accuracy не измерена. **План75%**.
+
+10 ноября, [карта обязательных полей и пять новых попыток](required_answer_fields_2026-11-10.md).
+Satoh03 оба числа/25°C и Fan10 mass basis теперь приведены; Satoh07 статус и
+Satoh06 EC сохраняются. Fan05 LiF добавлен, механизм unresolved; native всё равно
+answered, gap фиксирует отдельный checker. Не4/5scientific accuracy; детализация
+Satoh06 сократилась, direct formation wording Satoh03 не подтверждена картой.
+522distinct tests/Ruff5/mypy206;5model/5OAuth/newscopeclosed,oldslots unchanged,
+DB/retrieval0/default/API unchanged. Guard enforcement остаётся отдельной
+интеграцией, не фактическим отказом в текущем pilot. **План75%**.
+
+10 ноября, [пять реальных ответов с общей инструкцией](answer_instruction_pilot_2026-11-10.md).
+Пять model POST/OAuth, без повторов, весь лимит закрыт. Два известных дефекта
+исправлены (Satoh07/status, Satoh06/EC), три вопроса не закрыты (Fan05 роли/полнота,
+Fan10 mass basis, Satoh03 density+new terminology change). Все5provider_answered
+не равны5correct. Historical baseline/exposed posthoc; independent score не дан.
+37tests/Ruff3; actual requests/native/source/hash checks passed, default/app/DB/
+retrieval unchanged. Одних инструкций недостаточно. **План75%**.
+
+10 ноября, [общая инструкция генерации в экспериментальном provider](answer_instruction_experiment_2026-11-10.md).
+Первый пункт выполнен offline: epistemic status, object/role ownership, mixture,
+normalization/conditions/requested completeness; вопросы и переводы прежние.
+403tests(30new)/Ruff5/mypy205, 52 unsent пары/8empty из60; 30actual native exact,
+171raw prompt occurrences checked. Первоначальный reader prefix mismatch и
+неуспешные test setup/hang сохранены отдельно; финальная проверка успешна.
+Новых model/OAuth/DB/retrieval0; default отключён. Улучшение ответов ещё не
+измерялось, новые независимые вопросы остаются нужны. **План75%**.
+
+10 ноября, [добавлены finite status/role/completeness checks](answer_support_audit_2026-11-10.md).
+Explicit opt-in, без default изменения: оба известных status/SEI–CEI conflicts
+и EC/mass-basis gaps найдены на30 saved answered/60 case records. V2 cohort:
+15 → offline projection12unverified+2conflict+1incomplete, не scientific score.
+251tests/Ruff6/full mypy204; all old model/API/PDF outputs preserved, source
+v01↔v02 drifts explicitly bound/replayed. Network/model/OAuth/DB/retrieval0.
+Unsupported names/density/causal/other completeness не подтверждены. **План75%**.
+
+10 ноября, [query rewriting v0.2: шаги1–2](query_rewriting_v02_2026-11-10.md).
+Optional fields/title context: schema17→20/20, agent meaning acceptance13→19/20.
+Effective answers4→11→15/20, включая3exact-input old samples; новых12answered/
+2abstain/2provider502.36newPOST+36OAuth, все scopes закрыты.65tests/Ruff6 passed,
+prior outputs/app/PDF/index unchanged. Satoh04 mechanism restored, но Satoh07
+identified-vs-suggested и Fan05 SEI/CEI содержат существенные ошибки. Steps3–4
+role/status/completeness/source coverage нужны до scientific acceptance/rollout.
+Это exposed/manual-filter experiment, не measured independent accuracy. **План75%**.
+
+10 ноября, [проверена гипотеза query rewriting](query_rewriting_experiment_2026-11-10.md).
+Выданных ответов4→11/20, при13 принятых переводах;7rewrite rejects остаются в
+знаменателе.33model POST+33OAuth/no repeats, все allowances закрыты.36tests/Ruff7,
+raw-to-prompt46chunks/8anchors/exact frozen inputs verified. Product default unchanged.
+Главный диагностический gain — English adequacy; ranking также нужен. Это
+exposed development с manual meaning review, не11 correct/независимая accuracy.
+Schema/chemical drift и пропуски условий/массового знаменателя остаются. **План75%**.
+
+10 ноября, [проверены20 Satoh/Fan вопросов](satoh_fan_qa_run_2026-11-10.md).
+15 actual production-service pre-model refusals;5 actual ASGI/model calls дают
+4 ответа и1 отказ модели.5 POST+5 OAuth/no repeats, все лимиты закрыты.24 focused
+tests/Ruff4 passed; code/PDF/index unchanged. Предварительно: Satoh04 неверное
+основное объяснение, Satoh09 partial+ошибка диэфир/триэфир, Fan06 неполное
+сравнение, Fan09 основные значения совпали.15/20 reference-page ranges пропущены
+частично; это диагностика отбора, не семантическое доказательство. Exposed agent
+comparison, scientific validity/independent accuracy/score не установлены.
+Следующий отдельный scope — выбор страниц и crosslingual adequacy. **План75%**.
+
+10 ноября, [принят user Satoh/Fan development QA](satoh_fan_qa_intake_2026-11-10.md).
+20 supplied cases10+10, original references/units/rubric сохранены; question-only
+входы отделены. User: «Я составил ответы. Видел ответы сам»; LLM/timing/case scope
+не указаны, независимость не установлена, gold exposed агенту.18 focused tests/
+Ruff2,2 PDF hashes/26 fresh pages/24 page mappings/20 main pointers/7 viewed renders
+проверены; font warnings/Fan07 caption-versus-main-text panel discrepancy сохранены.
+Fan02/07/08 supplementary evidence unprovided; full semantic validation не выполнена.
+0/20 finite-map matches — applicability, не отказ продукта; все20 cases сохранены.
+Scores/outputs null, model/OAuth/slots/DB0, runtime не менялся. **План остаётся75%**;
+dataset не включён в24 новых pilot tasks/hidden evaluation, live scopes закрыты.
+
+10 ноября, [протокол измеряемого evidence-workflow пилота](evidence_workflow_pilot_protocol_2026-11-10.md).
+Planning only:24 natural tasks/8 новых групп как design target, development6/2
+и evaluation18/6. Raw machine quality отделена от diagnostics и human A/B на
+неизменных answers/sources.4 пустых templates/annotation guide/private gold boundary,
+denominators/unknowns/exposure/split/stop rules и snapshot212 app assets/203py готовы.
+33 exposed PDF hashes проверены, runtime-код не менялся/tests не перезапускались.
+Cases/references/participants/outputs/timing0. Независимый куратор/cohort/private store/
+split/seed и frozen replay/projection/scoring contract ещё не готовы; viewer сам
+не привязывает сохранённый model answer. **Пилот не зарегистрирован/не запущен**.
+**План остаётся75%**; независимая оценка открыта, все live scopes закрыты.
+
+10 ноября, [явный UI утверждений рядом с evidence](claim_review_ui_2026-11-10.md).
+Bounded часть архитектурного этапа5: отдельные API/UI над fresh pinned packet,
+structured assertions, readable values/quotes/diffs/unknowns/four statuses;
+stale409/no rebase, canonical capsule и code replay, original/OCR/page-range guards.
+Старый checker и inference не менялись.1306 affected tests(39 new)/Ruff9/mypy203,
+324 service executions,81 full results/5 native каждого unchanged;27 capsules/
+284 cards/311 events/33 PDF hashes/58 prior bindings/static TAC проверены.
+Desktop CUA: один constructed wrong-cell HTTP case с synthetic preparation,
+видны quote/blocker/mismatch; scoped CSS исправлена после первой visual-проверки,
+тесты повторены. Новый HTTP viewer не является обходом старого file:// archive block.
+Human decisions/persistent revisions/free-prose extraction/independent scientific
+evaluation остаются открытыми. Далее отдельный pilot protocol/input scope.
+**План остаётся75%**; model/OAuth/slots/real DB preparation0, live scopes закрыты.
+Финальный replay исправил insertion-order drift HTML; все27 diagnostic reports
+byte-identical, canonical render проверен отдельно; browser после этого не повторялся.
+
+10 ноября, [offline-проверки утверждений v0.1](claim_checks_2026-11-10.md).
+Bounded часть архитектурного этапа4: отдельный CLI/модуль над pinned packet,
+trusted parent и явными assertions; exact quotes, full fact tuples и exact sums.
+Literal/finite semantic/scientific статусы разделены; scientific validity всегда
+not_evaluated. Нет prose extraction, product integration или admission changes.
+1267 affected tests(57 new)/Ruff6/mypy201 passed;162 service executions,
+81 full results/5 native каждого unchanged.27 preparations/284 assertions/311 events
+проверены; positive/negative diagnostic controls не являются scientific evaluation.
+33 PDF hashes/58 prior raw-PDF bindings/HTML33 TAC+57 links/27 new cases checked;
+новой PDF extraction/визуального или browser просмотра нет. Первые3 test failures
+сохранены; conditions-key order defect и2 fixture предпосылки исправлены до финала.
+Следующий отдельный scope — review UI/declared contracts. **План остаётся75%**;
+independent evaluation открыта; model/OAuth/slots0, все live scopes закрыты.
+
+10 ноября, [один ограниченный контекстный шаг v0.2](bounded_context_action_2026-11-10.md).
+Третий bounded architecture scope: explicit API/UI, missing-CE/одинаковый явный
+label, один lookup/один raw, строгие filters/две страницы/12+sentinel/char+byte
+budgets. Исходный packet и все blockers/admission сохранены; отдельные diagnostic
+map/журнал, без автоматического продолжения.1210 affected tests(62 new)/Ruff10/
+mypy200;243 frozen service executions,81 full results/5 native каждого unchanged.
+15 controls2constructed additions/13stop,27 prior no-lookup, actual synthetic
+pipeline lookup1/model0;108 independently checked action events. v0.1 integration
+stop сохранён; v0.2 точно воспроизводит наследованный пустой qualifier отказ,
+не снимая его.33 PDFs/3 fresh+viewed pages/58 anchors/HTML33 TAC+57 links/16 UI cases.
+Real DB/new natural answer gain не проверены. Далее отдельные per-claim checks;
+independent evaluation/прежний75% открыты; model/OAuth/slots0.
+
+10 ноября (начат9 ноября), [evidence packet/journal v0.1](answer_evidence_packet_2026-11-10.md).
+Второй bounded architecture scope: explicit API/UI canonical JSON, source/fact/
+anchor/arithmetic indices, unchanged parent/blockers,18 code bindings, deterministic
+system-observation hash chain. Локальный export write-once, серверная история/
+human review/автоматический сбор не добавлены.1148 affected tests(71 new)/Ruff8/
+full mypy app198 passed;162 frozen service runs,81 full cases/5 native unchanged.
+27 canonical snapshots/181 independently hash-checked events; real raw packet
+167833 bytes/58 anchors/6 observations/7 events retains missing page-registry
+blocker.33 PDFs/3 fresh+visually viewed pages/58 addresses/HTML33 TAC+57 links
+checked. Browser layout remains unverified; real model/OAuth/slots/DB prep0.
+Далее отдельный ограниченный context action;75%/independent evaluation открыты.
+
+9 ноября, [read-only карта требований v0.1](answer_requirements_2026-11-09.md).
+Первый ограниченный этап отдельного architecture plan: composition/cycling,
+четыре требования, явный /answer/prepare/requirements и UI; старый parent и
+admission неизменны. Derived parents восстановлены по registry, различены
+неподдержанная грамматика/непросмотренные источники/конфликт/identity; scientific
+support всегда not_evaluated, действия только предложены.1077 affected tests
+(64 новых)/Ruff9/full mypy app196 passed;162 frozen-channel runs,81 full results
+и5 native unchanged.27 synthetic preparations(one exposed real raw work),100 rows;
+33 PDFs/3 fresh+visually viewed pages/67 anchors/58 addresses/HTML33 TAC+57 links
+checked. Browser layout не проверен из-за прежней file:// policy block. Model/
+OAuth/slots/DB preparation0. Следующий scope — packet/decision log;75% и
+независимая оценка остаются открытыми, автоматический retrieval не реализован.
+
+9 ноября, [opt-in Methods graph v0.2](methods_identity_runtime_2026-11-09.md).
+Полный real Lin packet собирается с exact definitions и сохранённым Methods
+source_type; default disabled. Важно: этот пакет уже допускается legacy facts
+через Abstract, поэтому нового answer/refusal gain нет. 883 affected tests
+(87 новых)/Ruff10/mypy app194 passed; final disabled+enabled162 service runs,
+81 full results/5 native каждого unchanged, activation0. Active branch отдельно
+проверена synthetic service/ASGI200/200/502; unsent native22688 bytes.33 PDF hashes,
+3 fresh+visually viewed pages/53 anchors/51 addresses/HTML33 TAC+57 links checked.
+Browser file:// review blocked; initial3false admissions→v0.2, fixture DNS2 denied
+before connection preserved, final denials0. Real model/OAuth exchanges/slots0.
+Независимая оценка и общий пункт4 открыты; прежний75% не меняется.
+
 9 ноября, read-only проверка: [Methods identity bridge](methods_identity_bridge_2026-11-09.md).
 Один real Lin candidate связан через explicit aliases и Methods lists с literal
 code в Conclusion; ordered pairing явно объявлен как допущение диагностики.

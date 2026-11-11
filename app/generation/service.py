@@ -17,14 +17,19 @@ from app.generation.answer_facts import prepare as prepare_answer_facts
 from app.generation.answer_facts import resolve_selections as resolve_fact_selections
 from app.generation.answer_fidelity import prepare as prepare_answer_fidelity
 from app.generation.answer_fidelity import validate as validate_answer_fidelity
+from app.generation.bilingual_lexical import assess as assess_bilingual_lexical
 from app.generation.comparison_scope import conductivity_superlative, swelling_transition, transition_constraints
 from app.generation.context_completion import complete_context
 from app.generation.evidence_adequacy import LIGATURES, assess_evidence_adequacy
+from app.generation.evidence_preservation import recover as recover_deduplicated_evidence
 from app.generation.evidence_selection import select_answer_evidence
 from app.generation.gigachat import GigaChatAnswerProvider
 from app.generation.lithiation_overview import allowed_claims
 from app.generation.lithiation_overview import prepare as prepare_lithiation_overview
 from app.generation.lithiation_overview import validate_claims as validate_lithiation_claims
+from app.generation.methods_identity import POLICY as METHODS_IDENTITY_POLICY
+from app.generation.methods_identity import matches_packet as matches_methods_identity_packet
+from app.generation.methods_identity import prepare as prepare_methods_identity
 from app.generation.providers import (
     AnswerLanguage,
     AnswerProvider,
@@ -34,6 +39,8 @@ from app.generation.providers import (
     GeneratedClaim,
     GenerationOutputError,
 )
+from app.generation.quantitative_facts import POLICY as QUANTITATIVE_POLICY
+from app.generation.quantitative_facts import prepare as prepare_quantitative_facts
 from app.generation.query_assist import query_assistance_to_dict, suggest_query_corrections
 from app.generation.reference_quotes import prepare as prepare_reference_quotes
 from app.generation.reference_quotes import resolve_selections
@@ -214,6 +221,7 @@ def answer_question(
         evidence,
         display_evidence,
     )
+    pre_dedup_evidence, pre_dedup_display = evidence, display_evidence
     evidence, display_evidence, deduplication_metadata = _deduplicate_parallel_evidence(evidence, display_evidence)
     raw_fact_sources = evidence
     adequacy_evidence = evidence
@@ -242,6 +250,16 @@ def answer_question(
     }
     overview = prepare_lithiation_overview(normalized_question, evidence, answer_language=active_answer_language)
     actual_adequate = adequacy.adequate
+    if adequacy.reason == "insufficient_distinctive_term_coverage":
+        bilingual = assess_bilingual_lexical(normalized_question, adequacy_evidence,
+                                            retrieval.metadata.get("explicit_source_reference"))
+        if bilingual is not None:
+            adequacy_metadata["bilingual_lexical_coverage"] = bilingual
+            if bilingual["eligible"] and not adequacy.required_concepts.missing and not adequacy.relation_requirements["missing"]:
+                adequacy_metadata["lexical_baseline"] = deepcopy({k: v for k, v in adequacy_metadata.items()
+                                                                 if k != "bilingual_lexical_coverage"})
+                actual_adequate = True
+                adequacy_metadata.update(adequate=True, reason="sufficient_bilingual_field_mentions")
     reference_quotes = prepare_reference_quotes(normalized_question, evidence, retrieval.metadata.get("explicit_source_reference"),
                                                answer_language=active_answer_language)
     if reference_quotes is not None:
@@ -296,6 +314,20 @@ def answer_question(
             adequacy_metadata["assembly_baseline"] = deepcopy(adequacy_metadata)
             adequacy_metadata["adequate"] = actual_adequate
             adequacy_metadata["reason"] = assembled.reason if actual_adequate else adequacy.reason
+    if (getattr(settings, "rag_methods_identity_policy", "disabled") == METHODS_IDENTITY_POLICY and facts_provider_supported
+            and matches_methods_identity_packet(raw_fact_sources) and reference_quotes is not None
+            and reference_quotes.diagnostics.get("family") == "composition_cycling"
+            and active_answer_language != "en"
+            and (active_answer_language == "ru" or re.search(r"[а-яё]", normalized_question, re.I))):
+        facts = prepare_methods_identity(normalized_question, raw_fact_sources,
+            retrieval.metadata.get("explicit_source_reference"), {r.chunk_id: r.text_layer for r in context_results},
+            policy=settings.rag_methods_identity_policy, answer_language=active_answer_language)
+        actual_adequate = False
+        adequacy_metadata["methods_identity_baseline"] = deepcopy(adequacy_metadata)
+        if facts.eligible:
+            actual_adequate = not adequacy.required_concepts.missing and not adequacy.relation_requirements["missing"]
+        adequacy_metadata["adequate"] = actual_adequate
+        adequacy_metadata["reason"] = (facts.reason if actual_adequate or not facts.eligible else adequacy.reason)
     facts_active = facts is not None and facts.eligible and actual_adequate and facts_provider_supported
     if facts_active and facts is not None:
         evidence, display_evidence = facts.evidence, facts.display
@@ -329,6 +361,28 @@ def answer_question(
         base_metadata["swelling_transition"] = transition_metadata
     if query_assistance is not None:
         base_metadata["query_assistance"] = query_assistance_to_dict(query_assistance)
+    if not actual_adequate and adequacy_metadata["reason"] == "insufficient_distinctive_term_coverage":
+        preservation = recover_deduplicated_evidence(normalized_question, pre_dedup_evidence, pre_dedup_display,
+            evidence, display_evidence, layers={r.chunk_id: r.text_layer for r in context_results},
+            reference_metadata=retrieval.metadata.get("explicit_source_reference"))
+        if preservation is not None:
+            evidence, display_evidence, preservation_metadata = preservation
+            base_metadata["retrieved_raw_preservation"] = preservation_metadata
+            base_metadata["citation_language_coverage"] = _citation_language_coverage(display_evidence)
+    if (not actual_adequate and adequacy_metadata["reason"] == "insufficient_distinctive_term_coverage"
+            and facts_provider_supported and all(c is None for c in
+                (reference_quotes, overview, optimum_scope, transition_metadata, fidelity, facts))):
+        quantitative = prepare_quantitative_facts(normalized_question, evidence,
+            retrieval.metadata.get("explicit_source_reference"), answer_language=active_answer_language)
+        if quantitative is not None:
+            base_metadata["quantitative_source_binding"] = {"policy": QUANTITATIVE_POLICY, **quantitative.metadata()}
+            if quantitative.eligible and not adequacy.required_concepts.missing and not adequacy.relation_requirements["missing"]:
+                facts, facts_active, actual_adequate = quantitative, True, True
+                evidence, display_evidence = quantitative.evidence, quantitative.display
+                adequacy_metadata["lexical_baseline"] = deepcopy(adequacy_metadata)
+                adequacy_metadata.update(adequate=True, reason="complete_source_bound_quantitative_facts")
+                base_metadata["source_facts"] = {**quantitative.metadata(), "active": True, "provider_selection_supported": True}
+                base_metadata["citation_language_coverage"] = _citation_language_coverage(display_evidence)
     if trace_observer is not None:
         trace_observer(deepcopy(retrieval), deepcopy(evidence), deepcopy(base_metadata))
     if not actual_adequate:
@@ -370,7 +424,12 @@ def answer_question(
         validate_answer_fidelity(generated.claims, fidelity)
     if reference_quotes is not None and not facts_active:
         generated = replace(generated, claims=resolve_selections(generated.claims, generation_evidence))
-    quote_contract = allowed_claims(generation_evidence)
+    # The Methods graph includes a definition-only parent and verified multi-source
+    # citations. Its complete F-ID contract was recomputed above; the older
+    # one-quotation/one-citation validator cannot represent that contract.
+    methods_graph_active = (facts_active and facts is not None and facts.assembly is not None
+                            and facts.assembly.get("version") == METHODS_IDENTITY_POLICY)
+    quote_contract = {} if methods_graph_active else allowed_claims(generation_evidence)
     validate_lithiation_claims(generated.claims, quote_contract)
     if reference_quotes is not None and not facts_active:
         validate_reference_quotes(generated.claims, reference_quotes)

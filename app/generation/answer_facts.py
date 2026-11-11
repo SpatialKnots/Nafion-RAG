@@ -132,7 +132,23 @@ def selection_records(evidence: list[Evidence]) -> dict[str, dict[str, Any]]:
         return {}
     if len(selected) != len(evidence) or len({e.article_id for e in selected}) != 1:
         raise GenerationOutputError("Fact selections must contain one work without unrestricted/mixed evidence")
+    for source in selected:
+        try:
+            extension = json.loads(source.text)
+        except (ValueError, UnicodeError) as exc:
+            raise GenerationOutputError("Invalid fact selection JSON") from exc
+        if isinstance(extension, dict) and "quantitative_policy" in extension:
+            from app.generation.quantitative_facts import selection_records as quantitative_records
+            return quantitative_records(selected)
     if any('"source_assembly"' in e.text or '"assembly"' in e.text for e in selected):
+        from app.generation.methods_identity import POLICY
+        from app.generation.methods_identity import selection_records as methods_records
+        try:
+            payload = json.loads(selected[0].text)
+        except ValueError as exc:
+            raise GenerationOutputError("Invalid assembly payload JSON") from exc
+        if isinstance(payload, dict) and isinstance(payload.get("assembly"), dict) and payload["assembly"].get("version") == POLICY:
+            return methods_records(selected)
         from app.generation.source_role_assembly import selection_records as assembled_records
         return assembled_records(selected)
     result: dict[str, dict[str, Any]] = {}
@@ -203,8 +219,12 @@ def prompt_records(evidence: list[Evidence]) -> list[dict[str, Any]]:
                        "server_russian_summary": record["allowed_claim"], "arithmetic": record["arithmetic"]}
         if "source_assembly" in record:
             context = json.loads(parent.text)["assembly"]
-            link = next(b for b in context["bindings"] if b["selection_id"] == key)
-            supplied["source_role_assembly"] = {"version": context["version"], "label": context["label"],
+            from app.generation.methods_identity import POLICY, prompt_graph
+            if context["version"] == POLICY:
+                supplied["source_role_assembly"] = prompt_graph(context)
+            else:
+                link = next(b for b in context["bindings"] if b["selection_id"] == key)
+                supplied["source_role_assembly"] = {"version": context["version"], "label": context["label"],
                                                 "source_marker_quote": link["marker"]["text"]}
         result.append(supplied)
     return result
@@ -222,14 +242,36 @@ def resolve_selections(claims: list[GeneratedClaim], evidence: list[Evidence]) -
         seen.add(claim.text)
     if seen != set(records):
         raise GenerationOutputError("Fact answer must select every required ID")
-    return [GeneratedClaim(r["allowed_claim"], [r["citation_id"]]) for r in records.values()]
+    resolved = []
+    for record in records.values():
+        ids = [record["citation_id"]]
+        from app.generation.methods_identity import POLICY
+        if record.get("source_assembly") == POLICY:
+            context = json.loads(next(e.text for e in evidence if e.citation_id == record["citation_id"]))["assembly"]
+            ids = list(dict.fromkeys([*ids, *(p["citation_id"] for p in context["parents"])]))
+        resolved.append(GeneratedClaim(record["allowed_claim"], ids))
+    return resolved
 
 
 def verify_raw_binding(text: str, raw: str, *, article_id: str, chunk_id: str, citation_id: str,
-                       page_start: int, page_end: int) -> None:
+                       page_start: int, page_end: int, source_type: str | None = None) -> None:
     payload = json.loads(text)
     if not isinstance(payload, dict) or payload.get("raw_source") != raw:
         raise ValueError("Fact payload raw source differs from registered chunk")
+    if "quantitative_policy" in payload:
+        from app.generation.quantitative_facts import verify_raw_binding as verify_quantitative
+        verify_quantitative(text, raw, article_id=article_id, chunk_id=chunk_id, citation_id=citation_id,
+                            page_start=page_start, page_end=page_end, source_type=source_type)
+        return
+    from app.generation.methods_identity import ASSUMPTION_TEXT, POLICY
+    context = payload.get("assembly")
+    methods_policy = isinstance(context, dict) and context.get("version") == POLICY
+    if isinstance(context, dict) and methods_policy:
+        parents = context.get("parents")
+        if not isinstance(parents, list) or {"citation_id": citation_id, "article_id": article_id,
+                "chunk_id": chunk_id, "page_start": page_start, "page_end": page_end,
+                "source_type": payload.get("raw_source_type")} not in parents:
+            raise ValueError("Methods parent identity differs from registered chunk")
     # Source identity/page bounds are recomputed by selection_records in the runtime;
     # DB capture independently checks the registered chunk identity above this call.
     for record in payload.get("records", []):
@@ -240,9 +282,12 @@ def verify_raw_binding(text: str, raw: str, *, article_id: str, chunk_id: str, c
         if "assembly" in payload:
             from app.generation.source_role_assembly import VERSION as ASSEMBLY_VERSION
             context = payload["assembly"]
-            if (not isinstance(context, dict) or context.get("version") != ASSEMBLY_VERSION
-                    or record.get("source_assembly") != ASSEMBLY_VERSION):
+            version = POLICY if methods_policy else ASSEMBLY_VERSION
+            if (not isinstance(context, dict) or context.get("version") != version
+                    or record.get("source_assembly") != version):
                 raise ValueError("Invalid assembly parent version")
-            expected["source_assembly"] = ASSEMBLY_VERSION
+            expected["source_assembly"] = version
+            if methods_policy:
+                expected["allowed_claim"] += " " + ASSUMPTION_TEXT
         if record != expected:
             raise ValueError("Registered raw source does not reproduce fact fields/rendering")

@@ -1,0 +1,87 @@
+{
+  "origin": "Assistant-authored post-hoc source diagnosis of exposed questions; not independent gold. No reference answers consumed by this evaluator.",
+  "scientific_validity": "not_independently_evaluated",
+  "groups": {
+    "quantitative": "Числа, порядок и сравнение режимов",
+    "context": "Определения, методы, составы и характеристика",
+    "explanation": "Объяснение наблюдаемого эффекта",
+    "limits": "Достаточность и границы вывода"
+  },
+  "cases": [
+    {"id":"Kondo_01","group":"context","requirements":[
+      {"label":"Дескриптор и его термодинамический смысл","page":1,"start":"Herein, we report","end":"solvation environment"}
+    ],"action":"Проверять эквиваленты chemical potential/partial molar Gibbs energy и сохранять знак зависимости, не считать имя автора содержательным совпадением."},
+    {"id":"Kondo_02","group":"context","requirements":[
+      {"label":"Опорная электрохимическая величина, формула и относительный ноль","page":2,"start":"lithium electrode potential","end":"1/10 by mol"},
+      {"label":"Конкретная процедура CV и опорная пара","page":5,"start":"Cyclic voltammetry was conducted","end":"oxidation/reduction peaks"},
+      {"label":"Явное задание нулевого состава","page":5,"start":"was defined to be zero","end":"relative values"}
+    ],"action":"Поднять Methods-определение измерения и опорного состояния; подробности CV сейчас вне выбранного контекста."},
+    {"id":"Kondo_03","group":"explanation","requirements":[
+      {"label":"Два направления изменения химического потенциала","page":2,"start":"Overall","end":"as demonstrated in Figure 2"},
+      {"label":"Связь с ионными парами и анионом","page":2,"start":"To corroborate","end":"important factors to control"}
+    ],"action":"Строить проверку направлений и условий причинного утверждения; noun coverage не устанавливает механизм."},
+    {"id":"Kondo_05","group":"quantitative","requirements":[
+      {"label":"Пороговый интервал и связанное поведение графита","page":2,"start":"We found a threshold","end":"occurred"}
+    ],"action":"Проверять interval/value/unit/property binding без переноса интервала на другие соли."},
+    {"id":"Kondo_06","group":"quantitative","requirements":[
+      {"label":"Три отношения соль/растворитель и три режима реакции","page":2,"start":"in dilute LiFSI/DEE","end":"over 350 mAh"}
+    ],"action":"Представить сравнение по строкам с неизменными отношениями и отдельными видами интеркаляции."},
+    {"id":"Kondo_07","group":"explanation","requirements":[
+      {"label":"Контрпример универсальности концентрации","page":3,"start":"It should be noted that","end":"This result indicates"}
+    ],"action":"Восстановить удалённый участок страницы3; затем проверять сравнение концентрации и chemical potential раздельно."},
+    {"id":"Kondo_08","group":"quantitative","requirements":[
+      {"label":"Размер набора и операционный критерий интеркаляции","page":3,"start":"To generalize","end":"fully attributed to Li+ intercalation"}
+    ],"action":"Сохранить исходную страницу3 при дедупликации и связать count с указанным авторами критерием."},
+    {"id":"Kondo_09","group":"limits","requirements":[
+      {"label":"Одинаковая SEI при разных реакциях и перенос электролита","page":3,"start":"However, we found that the SEI","end":"Figure S24"},
+      {"label":"Ограничение достаточности SEI","page":4,"start":"Hence, although the SEI is essential","end":"On the other hand"}
+    ],"action":"Восстановить страницы3–4 и проверять отрицание достаточности; отсутствие доказательства нельзя превращать в доказательство отсутствия вклада SEI."},
+    {"id":"Kondo_10","group":"limits","requirements":[
+      {"label":"Явная оговорка о сдвиге порога","page":5,"start":"threshold may be","end":"functional surface coatings"}
+    ],"action":"Поднять caveat из Conclusion; сохранить may и область применимости LiFSI, не разрешать универсальный вывод по одному keyword."},
+    {"id":"Nambu_01","group":"context","requirements":[
+      {"label":"Три химических идентификатора и степени фторирования","page":1,"start":"In the present paper","end":"tetrafluorinated DEEs"}
+    ],"action":"Проверять идентичность обозначений и mono/tri/tetrafluorination, сохраняя ether/ester различие."},
+    {"id":"Nambu_05","group":"explanation","requirements":[
+      {"label":"Концентрация, молярная масса, температура и объяснение сокращением объёма","page":2,"start":"The molar concentration of FETFEE (6.50 mol","end":"molar concentration of FETFEE increased"}
+    ],"action":"Сохранить данные сравнения и модальность may contract; не выдавать авторское объяснение за прямое структурное измерение."},
+    {"id":"Nambu_06","group":"quantitative","requirements":[
+      {"label":"Соль и концентрация опыта проводимости","page":2,"start":"We used LiPF6","end":"as the electrolyte"},
+      {"label":"Порядок проводимостей","page":2,"start":"Interestingly","end":"EFEE > FETFEE > ETFEE"}
+    ],"action":"Отдельный direct ordering contract: проводимость, концентрация и три растворителя; не переносить условия coin cells."},
+    {"id":"Nambu_07","group":"explanation","requirements":[
+      {"label":"Объяснение через водородные связи и сольватацию аниона","page":2,"start":"The partial fluorination can","end":"higher degree of ionic dissociation"},
+      {"label":"Предположительная роль фторметильной группы","page":2,"start":"The fluoromethyl group","end":"anion-attracting group"}
+    ],"action":"Сохранять can/may и связь именно с анионом; научная правильность механизма отдельно не установлена."},
+    {"id":"Nambu_08","group":"explanation","requirements":[
+      {"label":"Ограничение растворимости LiPF6 в DEE","page":2,"start":"The solubility of LiPF6 in DEE","end":"The conductivities increased"}
+    ],"action":"Отличать явное ограничение растворимости от общего вывода об отсутствии экспериментов; связь с невозможностью1M — ограниченный вывод из этой величины."},
+    {"id":"Nambu_09","group":"context","requirements":[
+      {"label":"Отдельные концентрации и эквимолярные смеси в coin cells","page":3,"start":"Electrolyte solutions:","end":"equimolar binary mixture"},
+      {"label":"Отдельная концентрация измерения проводимости","page":2,"start":"We used LiPF6","end":"as the electrolyte"}
+    ],"action":"Восстановить caption страницы3; разнести conductivity и cycling в разные строки условий, не переносить одинаковую концентрацию на все смеси."},
+    {"id":"Peng_02","group":"context","requirements":[
+      {"label":"Условия float test","page":2,"start":"test was applied in a LCO/Li cell","end":"20 h"},
+      {"label":"LSV метод и параметры","page":2,"start":"linear sweep voltammetry","end":"reference electrode"},
+      {"label":"Утечки и расширение окна устойчивости","page":3,"start":"Appreciable","end":"stable potential window"}
+    ],"action":"Проверять два независимых измерения и их режимы; не смешивать предел LSV с рабочим пределом full cell."},
+    {"id":"Peng_05","group":"quantitative","requirements":[
+      {"label":"Явный контекст LCO/Li half cell","page":4,"start":"electrochemical behavior of LCO/Li half cell","end":"CV curves"},
+      {"label":"Начальная ёмкость и CE FFT","page":4,"start":"a initial discharge","end":"FFT cell"}
+    ],"action":"Прямой source-bound pair capacity+initial CE с обязательным half-cell и electrolyte binding."},
+    {"id":"Peng_06","group":"quantitative","requirements":[
+      {"label":"Таблица сопротивлений до и после циклов","page":4,"start":"Table 1 Fitted resistance data","end":"24.71"},
+      {"label":"Контекст CEI на катоде и направление изменения","page":5,"start":"It can been seen","end":"their initial resistances"}
+    ],"action":"Восстановить табличные строки EE/FFT и before/after. Единица не напечатана явно в извлечённой Table1; не подставлять Ω без отдельного подтверждения."},
+    {"id":"Peng_07","group":"quantitative","requirements":[
+      {"label":"Лучший электролит MCMB и начальная CE","page":5,"start":"The EET","end":"favorable SEI on the MCMB"}
+    ],"action":"Восстановить исходный текст страницы5 и сохранять MCMB/anode scope при сравнении; cathode ranking здесь не подходит."},
+    {"id":"Peng_08","group":"quantitative","requirements":[
+      {"label":"Full cell, верхнее напряжение, ёмкость и сохранность","page":5,"start":"Finally","end":"100 cycles"}
+    ],"action":"Отдельно связать full-cell capacity/retention/cycle count/voltage; не брать значения LCO/Li half cell."},
+    {"id":"Peng_10","group":"context","requirements":[
+      {"label":"Наблюдение морфологии LCO","page":6,"start":"The fresh LCO","end":"case of FFT"},
+      {"label":"XPS состав и границы интерпретации CEI","page":7,"start":"XPS spectra measured","end":"interfacial constitution"}
+    ],"action":"Поднять SEM/XPS абзацы страниц6–7. Сохранять отдельность наблюдаемой морфологии, спектральных назначений и авторской интерпретации CEI."}
+  ]
+}

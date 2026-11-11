@@ -37,6 +37,14 @@ include = ["app*", "scripts*"]
 
 [tool.setuptools.package-data]
 app = ["static/brand/*.png", "static/terms_review.js", "retrieval/cross_lingual_glossary.yaml",
+       "resources/reviewed_pdf_glyph_aliases_v01.json",
+       "resources/reviewed_conductivity_glyph_aliases_v01.json",
+       "resources/reviewed_best_ce_glyph_aliases_v01.json",
+       "resources/reviewed_cell_conditions_glyph_aliases_v01.json",
+       "resources/reviewed_oxidation_glyph_aliases_v01.json",
+       "resources/reviewed_surface_glyph_aliases_v02.json",
+       "resources/reviewed_pure_concentration_glyph_aliases_v01.json",
+       "resources/reviewed_conductivity_explanation_glyph_aliases_v01.json",
        "terms/taxonomy_v01.json", "terms/taxonomy_v02.json", "terms/taxonomy_v03.json", "terms/taxonomy_v04.json"]
 
 [tool.ruff]

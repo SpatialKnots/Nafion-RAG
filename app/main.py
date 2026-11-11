@@ -34,8 +34,13 @@ from app.facts.review_ui import router as numeric_review_router
 from app.facts.schemas import StructuredFactResponse, StructuredFactsResponse
 from app.facts.service import list_structured_facts, structured_fact_summary, structured_fact_to_response
 from app.generation.block_routes import router as block_preparation_router
+from app.generation.claim_review_routes import router as claim_review_router
+from app.generation.context_action_routes import router as context_action_router
+from app.generation.evidence_packet_routes import router as evidence_packet_router
 from app.generation.preparation_routes import router as preparation_router
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
+from app.generation.required_fields_guard_routes import router as required_fields_guard_router
+from app.generation.requirements_routes import router as requirements_preparation_router
 from app.generation.risk_routes import router as risk_preparation_router
 from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import enqueue_upload, job_to_response
@@ -80,6 +85,11 @@ app.include_router(ui_router)
 app.include_router(numeric_review_router)
 app.include_router(terms_review_router)
 app.include_router(preparation_router)
+app.include_router(requirements_preparation_router)
+app.include_router(required_fields_guard_router)
+app.include_router(evidence_packet_router)
+app.include_router(context_action_router)
+app.include_router(claim_review_router)
 app.include_router(block_preparation_router)
 app.include_router(risk_preparation_router)
 app.include_router(metadata_router)

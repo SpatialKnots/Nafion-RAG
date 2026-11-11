@@ -1,0 +1,62 @@
+{
+  "automatic_font_name_semantics": false,
+  "entries": [
+    {
+      "article_id": "0a3cf9d1-7c1e-4a90-9662-f1fbcceb1b46",
+      "chunk_id": "4f6fea3a-4a99-4d20-bcd1-9f45c429548a",
+      "operations": [
+        {
+          "bbox": [
+            409.43707275390625,
+            375.8995056152344,
+            416.34112548828125,
+            384.8658142089844
+          ],
+          "decoded": "~",
+          "font": "AdvP4C4E74",
+          "font_program_sha256": "dc2b1eb201d45befeafed6390f5e6c304e481c510c9c42b6afb0fc3404e0601a",
+          "font_xref": 279,
+          "pdf_page": 5,
+          "pdf_text_offset": 1973,
+          "raw_character": "\u0003",
+          "raw_end": 5531,
+          "raw_start": 5530
+        }
+      ],
+      "page_end": 5,
+      "page_start": 4,
+      "raw_sha256": "070beeb9c48978b4b7ef1a29f3aba8f0fc01c293bd0f6c5863e3d586a7fd2a6f",
+      "source_type": "table_caption"
+    },
+    {
+      "article_id": "0a3cf9d1-7c1e-4a90-9662-f1fbcceb1b46",
+      "chunk_id": "aa747d92-a538-4989-8cce-8280f8ee93a1",
+      "operations": [
+        {
+          "bbox": [
+            409.43707275390625,
+            375.8995056152344,
+            416.34112548828125,
+            384.8658142089844
+          ],
+          "decoded": "~",
+          "font": "AdvP4C4E74",
+          "font_program_sha256": "dc2b1eb201d45befeafed6390f5e6c304e481c510c9c42b6afb0fc3404e0601a",
+          "font_xref": 279,
+          "pdf_page": 5,
+          "pdf_text_offset": 1973,
+          "raw_character": "\u0003",
+          "raw_end": 1974,
+          "raw_start": 1973
+        }
+      ],
+      "page_end": 6,
+      "page_start": 5,
+      "raw_sha256": "aea3da70d790218cba543da08376a2eccb0d9c1560ca1ba6715264de36446b4f",
+      "source_type": "figure_caption"
+    }
+  ],
+  "pdf_sha256": "6ab4542d9156e3777972b59f12f16dbb32770d00b8e258d1b1bb3390b55a4a88",
+  "policy": "reviewed_pdf_glyph_aliases_v0.1",
+  "reviewer": "agent_source_visual_review"
+}

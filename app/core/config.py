@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     rag_retrieval_method: str = "hybrid_cross_lingual"
     rag_top_k: int = Field(default=5, ge=1)
     rag_max_claims: int = Field(default=5, ge=1)
+    rag_methods_identity_policy: Literal["disabled", "ordered_methods_identity_v0.2"] = "disabled"
     gigachat_credentials: str = Field(default="", repr=False)
     gigachat_scope: str = "GIGACHAT_API_PERS"
     gigachat_ca_bundle_file: str = ""

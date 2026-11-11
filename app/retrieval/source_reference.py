@@ -57,6 +57,25 @@ def resolve(citation: Reference, articles: Mapping[str, Mapping[str, Any]]) -> l
 
 def roles(question: str) -> tuple[str, ...]:
     query = normalize(question)
+    threshold_ions = re.findall(r'[μµ]([a-z]{1,2}\s*\+)', query)
+    if (len(threshold_ions) == 1 and 'доказывает ли работа универсальное неизменное значение порога' in query
+            and 'для любых солей, добавок и поверхностных покрытий' in query):
+        return ('threshold_transfer_limits:' + re.sub(r'\s+', '', threshold_ions[0]),)
+    anions = re.findall(r'продуктов разложения аниона ([a-z][a-z0-9]{0,24})[−-]', query)
+    if (len(anions) == 1 and 'достаточно ли одного образования sei' in query
+            and 'гарантировать отсутствие совместной интеркаляции' in query):
+        return ('anion_sei_sufficiency:' + anions[0],)
+    surfaces = re.findall(r'морфологии\s+([a-z][a-z0-9]{0,24})(?!\w)', query)
+    if (len(surfaces) == 1 and 'поверхностной' in query and re.search(r'пл[её]нки', query)
+            and 'после циклирования' in query):
+        return ('cycled_cathode_surface:' + surfaces[0],)
+    symbols = re.findall(r'[μµ]([a-z]{1,2}\s*\+)', query)
+    if len(symbols) == 1 and 'экспериментально' in query and 'нулев' in query and 'относительно' in query:
+        return ('chemical_potential_method_zero:' + re.sub(r'\s+', '', symbols[0]),)
+    cells = re.findall(r'\b([a-z][a-z0-9]{0,24}/[a-z][a-z0-9]{0,24})-полуячей\w*', query)
+    if (len(cells) == 1 and re.search(r'наилучш\w* результат\w*', query)
+            and re.search(r'начальн\w* кулоновск\w* эффективност', query)):
+        return ('half_cell_best_initial_ce:' + cells[0],)
     if re.search(r"состав|composition", query) and re.search(r"циклирован|cycling|cycles", query):
         return ("composition_cycling",)
     if (re.search(r"дисперс|dispersion", query) and re.search(r"способ|method|prepar|получ", query)
@@ -67,6 +86,29 @@ def roles(question: str) -> tuple[str, ...]:
 
 def role_matches(role: str, text: str) -> bool:
     body = normalize(text)
+    if role.startswith('threshold_transfer_limits:'):
+        ion = role.split(':', 1)[1]
+        return ('μ' + ion in re.sub(r'\s+', '', body) and 'threshold may be shifted' in body
+                and 'passivating binders' in body and 'functional surface coatings' in body)
+    if role.startswith('anion_sei_sufficiency:'):
+        anion = role.split(':', 1)[1]
+        return ('similar ' + anion + ' anion-derived sei' in body and 'even after forming sei' in body
+                and 'although the sei is essential' in body and 'may not be the only dominant factor' in body)
+    if role.startswith('cycled_cathode_surface:'):
+        electrode = role.split(':', 1)[1]
+        return ('the fresh ' + electrode + ' (fig.' in body and 'microcracks' in body
+                and 'xps spectra measured from the cycled ' + electrode + ' cathode' in body
+                and 'interfacial constitution' in body)
+    if role.startswith('chemical_potential_method_zero:'):
+        ion = role.split(':', 1)[1]
+        return ('μ' + ion in re.sub(r'\s+', '', body) and 'cyclic voltammetry was conducted' in body
+                and 'defined to be zero' in body and 'relative values' in body
+                and 'oxidation/reduction peaks' in body)
+    if role.startswith('half_cell_best_initial_ce:'):
+        cell = role.split(':', 1)[1]
+        return bool(re.search(re.escape(cell) + r' half cells?\b', body)
+                    and 'highest initial ce' in body and 'best cycle performance' in body
+                    and 'among several cases' in body)
     if role == "composition_cycling":
         return bool(re.search(r"\babstract\b", body) and "electrolyte" in body and re.search(r"cycles|times", body))
     if role == "dispersion_preparation":

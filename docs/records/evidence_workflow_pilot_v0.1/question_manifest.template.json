@@ -1,0 +1,25 @@
+{
+  "version": "evidence_workflow_pilot_question_v0.1",
+  "artifact_status": "template_only_not_a_registered_case",
+  "case_id": null,
+  "work_group_id": null,
+  "split": "unassigned",
+  "question": null,
+  "question_language": "ru",
+  "family": "composition_cycling",
+  "inference_scope": {
+    "collection": null,
+    "library_source_id": null,
+    "top_k": null,
+    "method": null,
+    "answer_style": null,
+    "answer_language": null,
+    "all_other_filters": null
+  },
+  "source_manifest_sha256": null,
+  "permitted_source_ids": [],
+  "question_author_declaration": null,
+  "question_frozen_before_outputs": null,
+  "question_sha256": null,
+  "private_reference_included": false
+}

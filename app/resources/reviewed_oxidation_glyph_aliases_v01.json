@@ -1,0 +1,188 @@
+{
+  "automatic_font_name_semantics": false,
+  "entries": [
+    {
+      "article_id": "0a3cf9d1-7c1e-4a90-9662-f1fbcceb1b46",
+      "chunk_id": "d8e447cc-3a51-4a6c-9249-361ed2fe26f9",
+      "operations": [
+        {
+          "bbox": [
+            355.1246643066406,
+            164.03704833984375,
+            360.5403137207031,
+            173.0033416748047
+          ],
+          "decoded": "fl",
+          "font": "AdvOT999035f4+e1",
+          "font_program_sha256": "4e0922f4e96a68f0e164eb246fc76516034bbe9eeb45f62d99e8decf3d462eb0",
+          "font_xref": 278,
+          "pdf_page": 2,
+          "pdf_text_offset": 2414,
+          "raw_character": "",
+          "raw_end": 2415,
+          "raw_start": 2414
+        },
+        {
+          "bbox": [
+            407.6785888671875,
+            210.25537109375,
+            412.8565368652344,
+            216.23216247558594
+          ],
+          "decoded": "−",
+          "font": "AdvP4C4E74",
+          "font_program_sha256": "dc2b1eb201d45befeafed6390f5e6c304e481c510c9c42b6afb0fc3404e0601a",
+          "font_xref": 279,
+          "pdf_page": 2,
+          "pdf_text_offset": 2672,
+          "raw_character": "\u0001",
+          "raw_end": 2673,
+          "raw_start": 2672
+        },
+        {
+          "bbox": [
+            320.42816162109375,
+            525.1737060546875,
+            325.84381103515625,
+            534.1400146484375
+          ],
+          "decoded": "fl",
+          "font": "AdvOT999035f4+e1",
+          "font_program_sha256": "4e0922f4e96a68f0e164eb246fc76516034bbe9eeb45f62d99e8decf3d462eb0",
+          "font_xref": 278,
+          "pdf_page": 2,
+          "pdf_text_offset": 3927,
+          "raw_character": "",
+          "raw_end": 3928,
+          "raw_start": 3927
+        },
+        {
+          "bbox": [
+            118.60088348388672,
+            412.69464111328125,
+            124.01652526855469,
+            421.66094970703125
+          ],
+          "decoded": "fl",
+          "font": "AdvOT999035f4+e1",
+          "font_program_sha256": "4e0922f4e96a68f0e164eb246fc76516034bbe9eeb45f62d99e8decf3d462eb0",
+          "font_xref": 278,
+          "pdf_page": 3,
+          "pdf_text_offset": 209,
+          "raw_character": "",
+          "raw_end": 4560,
+          "raw_start": 4559
+        },
+        {
+          "bbox": [
+            227.56475830078125,
+            424.6565856933594,
+            232.98040771484375,
+            433.6228942871094
+          ],
+          "decoded": "fi",
+          "font": "AdvOT999035f4+e1",
+          "font_program_sha256": "4e0922f4e96a68f0e164eb246fc76516034bbe9eeb45f62d99e8decf3d462eb0",
+          "font_xref": 278,
+          "pdf_page": 3,
+          "pdf_text_offset": 301,
+          "raw_character": "",
+          "raw_end": 4652,
+          "raw_start": 4651
+        },
+        {
+          "bbox": [
+            271.21807861328125,
+            436.6185302734375,
+            276.63372802734375,
+            445.5848388671875
+          ],
+          "decoded": "fl",
+          "font": "AdvOT999035f4+e1",
+          "font_program_sha256": "4e0922f4e96a68f0e164eb246fc76516034bbe9eeb45f62d99e8decf3d462eb0",
+          "font_xref": 278,
+          "pdf_page": 3,
+          "pdf_text_offset": 372,
+          "raw_character": "",
+          "raw_end": 4723,
+          "raw_start": 4722
+        },
+        {
+          "bbox": [
+            211.97415161132812,
+            460.54241943359375,
+            218.87820434570312,
+            469.50872802734375
+          ],
+          "decoded": "~",
+          "font": "AdvP4C4E74",
+          "font_program_sha256": "dc2b1eb201d45befeafed6390f5e6c304e481c510c9c42b6afb0fc3404e0601a",
+          "font_xref": 279,
+          "pdf_page": 3,
+          "pdf_text_offset": 478,
+          "raw_character": "\u0003",
+          "raw_end": 4829,
+          "raw_start": 4828
+        },
+        {
+          "bbox": [
+            316.1759948730469,
+            376.863525390625,
+            321.5916442871094,
+            385.829833984375
+          ],
+          "decoded": "fl",
+          "font": "AdvOT999035f4+e1",
+          "font_program_sha256": "4e0922f4e96a68f0e164eb246fc76516034bbe9eeb45f62d99e8decf3d462eb0",
+          "font_xref": 278,
+          "pdf_page": 3,
+          "pdf_text_offset": 499,
+          "raw_character": "",
+          "raw_end": 4850,
+          "raw_start": 4849
+        },
+        {
+          "bbox": [
+            512.3909301757812,
+            376.863525390625,
+            519.2949829101562,
+            385.829833984375
+          ],
+          "decoded": "~",
+          "font": "AdvP4C4E74",
+          "font_program_sha256": "dc2b1eb201d45befeafed6390f5e6c304e481c510c9c42b6afb0fc3404e0601a",
+          "font_xref": 279,
+          "pdf_page": 3,
+          "pdf_text_offset": 548,
+          "raw_character": "\u0003",
+          "raw_end": 4899,
+          "raw_start": 4898
+        },
+        {
+          "bbox": [
+            469.5311279296875,
+            400.7309265136719,
+            474.94677734375,
+            409.6972351074219
+          ],
+          "decoded": "fl",
+          "font": "AdvOT999035f4+e1",
+          "font_program_sha256": "4e0922f4e96a68f0e164eb246fc76516034bbe9eeb45f62d99e8decf3d462eb0",
+          "font_xref": 278,
+          "pdf_page": 3,
+          "pdf_text_offset": 663,
+          "raw_character": "",
+          "raw_end": 5014,
+          "raw_start": 5013
+        }
+      ],
+      "page_end": 3,
+      "page_start": 2,
+      "raw_sha256": "edf4b48ab3a3859e5bfab49755c380d78deb3ab249c2383c60f5a4d93ac16cb8",
+      "source_type": "figure_caption"
+    }
+  ],
+  "pdf_sha256": "6ab4542d9156e3777972b59f12f16dbb32770d00b8e258d1b1bb3390b55a4a88",
+  "policy": "reviewed_pdf_glyph_aliases_v0.1",
+  "reviewer": "agent_source_visual_review"
+}

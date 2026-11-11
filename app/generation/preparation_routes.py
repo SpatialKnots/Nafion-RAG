@@ -84,12 +84,24 @@ def render_preparation(payload: dict[str, Any]) -> str:
 def _form(question: str = '', library_source_id: UUID | None = None, result: str = '', *,
           collection: str = 'literature', top_k: int = 5, method: str = 'hybrid_cross_lingual') -> str:
     risk_url = '/ui/answer/prepare/blocks/risks'
+    requirements_url = '/ui/answer/prepare/requirements'
+    packet_url = '/ui/answer/prepare/requirements/packet'
+    action_url = '/ui/answer/prepare/requirements/packet/context'
+    review_url = '/ui/answer/prepare/requirements/packet/checks'
     if library_source_id is not None:
         risk_url += '?library_source_id=' + str(library_source_id)
+        requirements_url += '?library_source_id=' + str(library_source_id)
+        packet_url += '?library_source_id=' + str(library_source_id)
+        action_url += '?library_source_id=' + str(library_source_id)
+        review_url += '?library_source_id=' + str(library_source_id)
     options = ''.join('<option' + (' selected' if method == m else '') + '>' + m + '</option>'
                       for m in ('hybrid_cross_lingual', 'hybrid', 'semantic', 'exact'))
     return ('<h1>Подготовка ответа</h1><p>Поиск источников и проверка обязательных уточнений без генерации ответа.</p>'
         '<p><a href="/ui/answer/prepare/blocks">Контекст из исходных PDF-блоков</a></p>'
+        '<p><a href="' + escape(requirements_url, quote=True) + '">Требования и пробелы ответа</a></p>'
+        '<p><a href="' + escape(packet_url, quote=True) + '">Пакет доказательств и журнал</a></p>'
+        '<p><a href="' + escape(action_url, quote=True) + '">Один ограниченный шаг дополнения CE-контекста</a></p>'
+        '<p><a href="' + escape(review_url, quote=True) + '">Утверждения, цитаты и диагностика</a></p>'
         '<p><a href="' + escape(risk_url, quote=True) + '">Риски выбранного окружения</a></p>'
         '<form method="post" action="/ui/answer/prepare"><label>Вопрос<br><textarea name="question" required>'
         + escape(question) + '</textarea></label><input type="hidden" name="library_source_id" value="'

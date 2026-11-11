@@ -1,0 +1,69 @@
+{
+  "automatic_font_name_semantics": false,
+  "entries": [
+    {
+      "article_id": "0743b075-4938-44d9-8dfe-61c6a6bfaf58",
+      "chunk_id": "92a680ec-758a-44d0-91ae-6e009ee0df74",
+      "operations": [
+        {
+          "bbox": [
+            435.9117126464844,
+            418.47503662109375,
+            440.6188659667969,
+            424.7512512207031
+          ],
+          "decoded": "−",
+          "font": "AdvOT3e3a1c22",
+          "font_program_sha256": "cd3690777caac98f33bd601b58030b8150970b821354352619002f55a7cf7b09",
+          "font_xref": 152,
+          "pdf_page": 2,
+          "pdf_text_offset": 4825,
+          "raw_character": "¹",
+          "raw_end": 4826,
+          "raw_start": 4825
+        },
+        {
+          "bbox": [
+            539.8297729492188,
+            429.4734191894531,
+            544.5369262695312,
+            435.7496337890625
+          ],
+          "decoded": "−",
+          "font": "AdvOT3e3a1c22",
+          "font_program_sha256": "cd3690777caac98f33bd601b58030b8150970b821354352619002f55a7cf7b09",
+          "font_xref": 152,
+          "pdf_page": 2,
+          "pdf_text_offset": 4915,
+          "raw_character": "¹",
+          "raw_end": 4916,
+          "raw_start": 4915
+        },
+        {
+          "bbox": [
+            454.393310546875,
+            539.0606689453125,
+            459.1004638671875,
+            545.3368530273438
+          ],
+          "decoded": "−",
+          "font": "AdvOT3e3a1c22",
+          "font_program_sha256": "cd3690777caac98f33bd601b58030b8150970b821354352619002f55a7cf7b09",
+          "font_xref": 152,
+          "pdf_page": 2,
+          "pdf_text_offset": 5512,
+          "raw_character": "¹",
+          "raw_end": 5513,
+          "raw_start": 5512
+        }
+      ],
+      "page_end": 3,
+      "page_start": 2,
+      "raw_sha256": "d25e2cb19db950ee91c0582ae62eff8469e0880ce6d6bb7efa96fdd3c4ecd952",
+      "source_type": "figure_caption"
+    }
+  ],
+  "pdf_sha256": "5cafe6e931ef4dc7922f7625027f4ed4cec510da87259f7d1e0e6483b05d0147",
+  "policy": "reviewed_pdf_glyph_aliases_v0.1",
+  "reviewer": "agent_source_visual_review"
+}

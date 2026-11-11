@@ -122,7 +122,8 @@ def collect_sources(session: Session, settings: Settings, evidence: list[Evidenc
         if item.source_type == 'source_fact_derived':
             from app.generation.answer_facts import verify_raw_binding as verify_fact_binding
             verify_fact_binding(item.text, chunk.text, article_id=item.article_id, chunk_id=item.chunk_id,
-                                citation_id=item.citation_id, page_start=item.page_start, page_end=item.page_end)
+                                citation_id=item.citation_id, page_start=item.page_start, page_end=item.page_end,
+                                source_type=chunk.source_type)
         elif item.source_type == 'reference_quote_derived':
             from app.generation.reference_quotes import verify_raw_binding
             verify_raw_binding(item.text, chunk.text, article_id=item.article_id, chunk_id=item.chunk_id, citation_id=item.citation_id)

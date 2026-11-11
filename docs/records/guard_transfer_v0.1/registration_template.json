@@ -1,0 +1,18 @@
+{
+  "version": "guard_transfer_registration_v0.1",
+  "status": "awaiting_public_questions_and_private_reference_commitment",
+  "code_freeze_id": null,
+  "questions": [],
+  "reference_commitment": {
+    "sha256": null,
+    "author": null,
+    "prepared_before_new_system_outputs": null,
+    "LLM_used": null,
+    "expert_review": null,
+    "seen_new_system_outputs": null
+  },
+  "maximum_model_attempts": 0,
+  "maximum_oauth_attempts": 0,
+  "registered_case_count": 0,
+  "scientific_accuracy": null
+}

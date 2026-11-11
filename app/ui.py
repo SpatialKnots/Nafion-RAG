@@ -257,7 +257,17 @@ def _prepared_statement_text(text: str, source_type: str) -> str:
         excerpts = list(dict.fromkeys(f["support"]["text"] for r in records for f in r.get("facts", [])
                                       if isinstance(f, dict) and isinstance(f.get("support"), dict)
                                       and isinstance(f["support"].get("text"), str)))
+        if any(isinstance(r.get("source_grammar"), dict) and isinstance(r["source_grammar"].get("glyph_decoding"), dict)
+               for r in records):
+            summary += ("\n\nЕдиницы и знаки расшифрованы по проверенным символам исходного PDF. "
+                        "Ниже сохранён точный извлечённый текст с исходной кодировкой.")
         assembly = payload.get("assembly")
+        if isinstance(assembly, dict) and assembly.get("version") == "ordered_methods_identity_v0.2":
+            summary += "\n\n" + str(assembly.get("assumption_text", "Неизвестное правило связи источников"))
+            excerpts += [a["text"] for a in assembly.get("witnesses", [])
+                         if isinstance(a, dict) and a.get("chunk_id") == payload.get("raw_chunk_id")
+                         and isinstance(a.get("text"), str)]
+            excerpts = list(dict.fromkeys(excerpts))
         if isinstance(assembly, dict) and isinstance(assembly.get("label"), str) and isinstance(assembly.get("bindings"), list):
             summary += ("\n\nТекстовая связь разделов по обозначению электролита: " + assembly["label"]
                         + ". Условия и значения между операциями не переносятся.")
