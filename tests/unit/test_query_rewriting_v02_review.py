@@ -9,9 +9,16 @@ from scripts import gigachat_answer_smoke as f
 from scripts.review_query_rewriting_v02_20261110 import reuse_result
 
 
+@pytest.fixture(autouse=True)
+def isolated_workspace(tmp_path, monkeypatch):
+    # The reader correctly restricts reuse to ROOT/output. Model that boundary
+    # inside the test workspace instead of placing positive fixtures outside it.
+    monkeypatch.setattr(f, "ROOT", tmp_path)
+
+
 def fixture(tmp_path):
-    original, prepared, ledger = tmp_path / "original", tmp_path / "prepared", tmp_path / "ledger"
-    original.mkdir()
+    original, prepared, ledger = tmp_path / "output/original", tmp_path / "prepared", tmp_path / "ledger"
+    original.mkdir(parents=True)
     prepared.mkdir()
     raw = b'{"model":"test","question":"same"}'
     digest = f.sha(raw)

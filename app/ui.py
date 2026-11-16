@@ -33,7 +33,9 @@ from app.documents.context import ContextNotFoundError, get_chunk_context, get_p
 from app.documents.service import PageEvidenceNotFoundError, build_pdf_url
 from app.facts.service import list_structured_facts, structured_fact_summary, structured_fact_to_response
 from app.generation.presentation import PresentationSource, capture_sources
+from app.generation.presentation_context import display_excerpt, mixture_scope_notes
 from app.generation.providers import Evidence, GenerationOutputError, GenerationUnavailableError
+from app.generation.scientific_display import scientific_text
 from app.generation.service import answer_question, answer_response_to_dict
 from app.ingestion.queue import job_to_response
 from app.library.service import (
@@ -185,7 +187,7 @@ def _linked_answer_text(answer: str, citations: list[dict[str, object]]) -> str:
         if citation_id and href:
             by_id[str(citation_id)] = (href, _citation_label(citation))
     if not by_id:
-        return _html(answer)
+        return scientific_text(answer)
 
     parts: list[str] = []
     cursor = 0
@@ -194,12 +196,12 @@ def _linked_answer_text(answer: str, citations: list[dict[str, object]]) -> str:
         link = by_id.get(citation_id)
         if link is None:
             continue
-        parts.append(_html(answer[cursor : match.start()]))
+        parts.append(scientific_text(answer[cursor : match.start()]))
         href, label = link
         parts.append(f"<a href='{_html(href)}' data-citation-id='{_html(citation_id)}' "
                      f"target='_blank' rel='noopener'>{_html(label)}</a>")
         cursor = match.end()
-    parts.append(_html(answer[cursor:]))
+    parts.append(scientific_text(answer[cursor:]))
     return "".join(parts)
 
 
@@ -424,6 +426,13 @@ def _layout(title: str, body: str) -> HTMLResponse:
       border-left:6px solid var(--aqua); padding:14px 0 14px 18px; margin:14px 0;
       color:#24313A; background:#fff; border-radius:8px;
     }
+    .source-fragment { white-space:pre-wrap; overflow-wrap:anywhere; max-height:34rem; overflow:auto; }
+    .scientific-math { font-variant-numeric:tabular-nums; }
+    .scientific-math sup, .scientific-math sub { font-size:.75em; line-height:0; }
+    .math-fraction { display:inline-flex; flex-direction:column; vertical-align:middle; text-align:center; line-height:1.15; }
+    .math-fraction > span:first-child { border-bottom:1px solid currentColor; padding:0 3px; }
+    .math-unparsed { white-space:pre-wrap; background:#FFF4DC; }
+    .answer-scope-notice { border-left:4px solid #AD6A10; padding:10px 14px; background:#FFF8EB; margin:12px 0; }
     .empty-state { border:1px dashed var(--line); border-radius:var(--radius); padding:12px; background:#FBFCFD; }
     .muted { color: var(--muted); }
     .path { font-family: Consolas, monospace; font-size: 12px; word-break: break-all; }
@@ -573,6 +582,15 @@ def _layout(title: str, body: str) -> HTMLResponse:
     }
     .dashboard-section { width:min(1180px, 100%); margin:0 auto; }
     .dashboard-section > h2 { color:var(--graphite); }
+    .home-summary {
+      width:min(820px, 100%); margin:0 auto; display:flex; flex-wrap:wrap; gap:12px;
+      padding:14px 18px; border:1px solid var(--line); border-radius:12px; background:var(--paper);
+    }
+    .home-summary a { flex:1 1 140px; min-width:0; text-decoration:none; color:var(--graphite); }
+    .home-summary a:hover { text-decoration:underline; }
+    .home-summary strong { display:block; font-size:22px; font-variant-numeric:tabular-nums; }
+    .home-summary span { display:block; margin-top:3px; font-size:13px; color:var(--muted); }
+    .home-summary a.warn strong { color:var(--warn); }
     a { color: var(--accent); }
     @media (max-width: 900px) {
       .app-shell { grid-template-columns:1fr; padding:8px; }
@@ -735,61 +753,19 @@ def brand_asset(asset_name: str) -> FileResponse:
 @router.get("/ui/", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 def dashboard(session: SessionDep) -> HTMLResponse:
-    settings = get_settings()
-    retrieval_report = _latest_standard_retrieval_report(settings.data_root)
-    extended_retrieval_report = _latest_extended_retrieval_report(settings.data_root)
-    text_quality_report = _latest_report(settings.data_root, "text_quality_report_*.json")
-    retrieval_report_link = (
-        f"<a href='/ui/reports/retrieval'>Latest retrieval evaluation</a><div class='path'>{_html(retrieval_report)}</div>"
-        if retrieval_report is not None
-        else "<span class='warn'>No retrieval evaluation report generated yet.</span>"
-    )
-    text_quality_report_link = (
-        f"<a href='/ui/reports/text-quality'>Latest text quality audit</a><div class='path'>{_html(text_quality_report)}</div>"
-        if text_quality_report is not None
-        else "<span class='warn'>No text quality report generated yet.</span>"
-    )
-    extended_retrieval_report_link = (
-        f"<a href='/ui/reports/retrieval-extended'>Latest extended retrieval evaluation</a>"
-        f"<div class='path'>{_html(extended_retrieval_report)}</div>"
-        if extended_retrieval_report is not None
-        else "<span class='warn'>No extended retrieval evaluation report generated yet.</span>"
-    )
     article_count = session.scalar(select(func.count()).select_from(Article)) or 0
-    page_count = session.scalar(select(func.count()).select_from(Page)) or 0
-    chunk_count = session.scalar(select(func.count()).select_from(Chunk)) or 0
-    layer_count = session.scalar(select(func.count()).select_from(PageTextLayer)) or 0
-    selected_layers = _counter_from_rows(
-        session.execute(select(Page.selected_text_layer, func.count()).group_by(Page.selected_text_layer)).all()
-    )
-    source_types = _counter_from_rows(session.execute(select(Chunk.source_type, func.count()).group_by(Chunk.source_type)).all())
-    text_layers = _counter_from_rows(session.execute(select(Chunk.text_layer, func.count()).group_by(Chunk.text_layer)).all())
-    corpus_rows = (
-        f'<tr><td>Articles</td><td class="num">{article_count}</td></tr>'
-        f'<tr><td>Pages</td><td class="num">{page_count}</td></tr>'
-        f'<tr><td>Chunks</td><td class="num">{chunk_count}</td></tr>'
-        f'<tr><td>Text layers</td><td class="num">{layer_count}</td></tr>'
-    )
-    selected_rows = _dashboard_counter_rows(selected_layers)
-    source_rows = _dashboard_counter_rows(source_types)
-    text_layer_rows = _dashboard_counter_rows(text_layers)
-    eval_command = "python -m app.evaluation.cli retrieval docs/evaluation_questions.yaml --top-k 10"
-    extended_eval_command = (
-        "python -m app.evaluation.cli retrieval-extended docs/evaluation_questions_extended.yaml --top-k 10 --method exact"
-    )
-    text_quality_command = "python -m app.ingestion.cli text-quality-report"
-    selected_panel = (
-        '<section class="panel"><h2>Selected Page Layers</h2>'
-        f'<table><tr><th>Layer</th><th class="num">Pages</th></tr>{selected_rows}</table></section>'
-    )
-    source_panel = (
-        '<section class="panel"><h2>Chunk Source Types</h2>'
-        f'<table><tr><th>Type</th><th class="num">Chunks</th></tr>{source_rows}</table></section>'
-    )
-    text_layer_panel = (
-        '<section class="panel"><h2>Chunk Text Layers</h2>'
-        f'<table><tr><th>Layer</th><th class="num">Chunks</th></tr>{text_layer_rows}</table></section>'
-    )
+    library_files = list(session.scalars(select(LibrarySourceFile)))
+    if library_files:
+        counts = Counter(row.status for row in library_files)
+        active = sum(counts.get(status, 0) for status in ("queued", "ingesting", "embedding"))
+        attention = counts.get("failed", 0) + counts.get("missing", 0)
+        active_label, attention_label, status_url = "Файлов в обработке", "Проблемных файлов", "/ui/libraries"
+    else:
+        counts = Counter(job.status for job in session.scalars(select(IngestionJob)))
+        active = counts.get("queued", 0) + counts.get("processing", 0)
+        attention = counts.get("failed", 0)
+        active_label, attention_label, status_url = "Задач в обработке", "Проблемных задач", "/ui/ingestion"
+    attention_class = "warn" if attention else ""
     body = f"""
     <div class="start-page">
       <section class="start-hero" aria-labelledby="start-title">
@@ -797,7 +773,10 @@ def dashboard(session: SessionDep) -> HTMLResponse:
         <h1 id="start-title">ARIADNE Research Workbench</h1>
         <p class="page-kicker">Ask a literature question and trace the answer to source fragments and the original PDF.</p>
         <p><a href="/ui/answer/prepare">Проверить источники без генерации ответа</a></p>
-        <form class="start-search" method="post" action="/ui/answer" data-async-result="/ui/answer/result" data-library-scoped>
+        <p><a href="/ui/answer/current">Текущий путь: rewriting → источники → GigaChat → проверка выдачи</a>.
+        До двух запросов к модели при отправке. Научная корректность не установлена.</p>
+        <form class="start-search" method="post" action="/ui/answer/current"
+              data-async-result="/ui/answer/current/result" data-library-scoped>
           <div class="start-search-row">
             <input name="question" value="" placeholder="Ask for a literature review" aria-label="Question" autofocus>
             <input class="advanced-toggle" id="start-answer-options" type="checkbox" aria-label="Show answer parameters">
@@ -808,20 +787,17 @@ def dashboard(session: SessionDep) -> HTMLResponse:
                 <label>Collection<input name="collection" value="literature"></label>
                 <label>Method<select name="method">
                   <option value="hybrid_cross_lingual">hybrid_cross_lingual</option>
-                  <option value="hybrid">hybrid</option>
-                  <option value="semantic">semantic</option>
-                  <option value="exact">exact</option>
                 </select></label>
                 <label>Answer style<select name="answer_style">
-                  <option value="mini_review">mini_review</option>
                   <option value="claims">claims</option>
+                  <option value="mini_review">mini_review</option>
                 </select></label>
                 <label>Answer language<select name="answer_language">
-                  <option value="auto">auto</option>
                   <option value="ru">ru</option>
+                  <option value="auto">auto</option>
                   <option value="en">en</option>
                 </select></label>
-                <label>Top K<input name="top_k" type="number" value="10" min="1"></label>
+                <label>Top K<input name="top_k" type="number" value="5" min="1"></label>
               </div>
             </div>
           </div>
@@ -832,20 +808,10 @@ def dashboard(session: SessionDep) -> HTMLResponse:
         </div>
         {_answer_progress_script("home-answer-result")}
       </section>
-      <section class="dashboard-section" aria-labelledby="corpus-dashboard">
-        <h2 id="corpus-dashboard">Corpus Dashboard</h2>
-        <div class="grid">
-          {_project_analysis_progress_panel(session)}
-          <section class="panel"><h2>Corpus</h2><table>{corpus_rows}</table></section>
-          {selected_panel}
-          {source_panel}
-          {text_layer_panel}
-          <section class="panel"><h2>Retrieval Evaluation</h2>{retrieval_report_link}{_command_hint(eval_command)}</section>
-          <section class="panel"><h2>Extended Retrieval Evaluation</h2>
-          {extended_retrieval_report_link}{_command_hint(extended_eval_command)}</section>
-          <section class="panel"><h2>Tables / Facts diagnostics</h2>
-          {text_quality_report_link}{_command_hint(text_quality_command)}</section>
-        </div>
+      <section class="home-summary" aria-label="Состояние библиотеки">
+        <a href="/ui/articles"><strong>{article_count}</strong><span>Статей в корпусе</span></a>
+        <a href="{status_url}"><strong>{active}</strong><span>{active_label}</span></a>
+        <a href="{status_url}" class="{attention_class}"><strong>{attention}</strong><span>{attention_label}</span></a>
       </section>
     </div>
     """
@@ -967,12 +933,12 @@ def _answer_payload_panel(payload: dict[str, Any], question: str,
                 else:
                     chips.append(f"<span class='citation-chip'>{_html(citation_id)}</span>")
                 if citation is not None:
-                    source_fragments.append(_claim_source_fragment(citation, (presentation_sources or {}).get(citation_id)))
+                    source_fragments.append(f"<p><a href='#source-context-{_html(citation_id)}'>Полный контекст источника</a></p>")
             citation_chips_html = "".join(chips) or "<span class='muted'>No citation links</span>"
             claim_cards.append(
                 "<article class='claim-card'>"
                 f"<p class='section-kicker'>Claim {index:02d}</p>"
-                f"<p class='claim-text'>{_html(claim.get('text'))}</p>"
+                f"<p class='claim-text'>{scientific_text(claim.get('text'))}</p>"
                 f"<div class='actions'>{citation_chips_html}</div>"
                 + "".join(source_fragments) +
                 "</article>"
@@ -980,6 +946,7 @@ def _answer_payload_panel(payload: dict[str, Any], question: str,
 
     source_cards = []
     citation_rows = []
+    scope_notes: list[str] = []
     for citation in citation_dicts:
         article_id = citation.get("article_id")
         chunk_id = citation.get("chunk_id")
@@ -988,6 +955,21 @@ def _answer_payload_panel(payload: dict[str, Any], question: str,
         page_start = raw_page_start if isinstance(raw_page_start, int) else None
         page_end = raw_page_end if isinstance(raw_page_end, int) else None
         evidence_text = _prepared_statement_text(str(citation.get("text") or ""), str(citation.get("source_type") or ""))
+        source = (presentation_sources or {}).get(str(citation.get("citation_id")))
+        bound_source = source if source is not None and source.matches(citation) else None
+        cited_texts = [str(claim.get("text") or "") for claim in claims if isinstance(claim, dict)
+            and citation.get("citation_id") in claim.get("citation_ids", [])] if isinstance(claims, list) else []
+        cited_claim_text = "\n".join(cited_texts)
+        preview_text = (bound_source.generation_text if bound_source is not None and not bound_source.generation_is_derived
+                        else evidence_text)
+        excerpt = display_excerpt(preview_text, cited_texts[0] if cited_texts else "", question)
+        if bound_source is not None and not bound_source.generation_is_derived:
+            scope_notes.extend(mixture_scope_notes(question, cited_claim_text, bound_source.generation_text))
+        preview_note = ("Фрагмент по совпадению чисел и терминов; соответствие утверждению не подтверждено."
+                        if excerpt.matched_numbers or excerpt.matched_terms else
+                        "Начало выбранного контекста; соответствие утверждению не подтверждено.")
+        if len(cited_texts) > 1:
+            preview_note += " Показан контекст к первому цитируемому утверждению."
         links = []
         if article_id and chunk_id:
             links.append(_context_link(str(article_id), str(chunk_id), evidence_text, "Evidence", "phrase"))
@@ -999,6 +981,8 @@ def _answer_payload_panel(payload: dict[str, Any], question: str,
         page_range = _page_range(page_start, page_end)
         source_type = str(citation.get("source_type") or "")
         source_class = "source-card table-derived" if source_type == "table_derived" else "source-card"
+        full_context = _claim_source_fragment(citation, bound_source).replace(
+            "</summary>", "</summary><span id='source-context-" + _html(citation.get("citation_id")) + "'></span>", 1)
         source_cards.append(
             f"<article class='{source_class}'>"
             "<div class='source-head'>"
@@ -1006,11 +990,14 @@ def _answer_payload_panel(payload: dict[str, Any], question: str,
             f"<span class='source-title'>{article_cell}</span><div class='muted'>{_html(citation.get('doi'))}</div></div>"
             f"<div class='num muted'>p. {_html(page_range or 'unknown')}</div>"
             "</div>"
-            f"<div class='source-fragment'>{_html(_truncate(evidence_text, 520))}</div>"
+            f"<p class='muted'>{preview_note}</p>"
+            f"<div class='source-fragment' data-source-start='{excerpt.start}' data-source-end='{excerpt.end}'>"
+            f"{_html(excerpt.text)}</div>"
             f"<div class='status-strip'><span class='status-pill'>{_html(source_type or 'source')}</span>"
             f"<span class='status-pill'>language={_html(citation.get('original_language') or 'unknown')}</span>"
             f"<span class='status-pill'>translation={_html(citation.get('translation_status') or 'not_requested')}</span></div>"
             f"<p class='actions'>{' '.join(links)}</p>"
+            f"{full_context}"
             "</article>"
         )
         citation_rows.append(
@@ -1037,6 +1024,10 @@ def _answer_payload_panel(payload: dict[str, Any], question: str,
     citation_rows_html = "".join(citation_rows) or "<tr><td colspan='7'>No citations</td></tr>"
     source_cards_html = "".join(source_cards) or "<div class='empty-state warn'>No source fragments selected.</div>"
     retrieved_count = metadata.get("retrieved_count") if isinstance(metadata, dict) else ""
+    scope_notice = "".join("<p>" + _html(note) + "</p>" for note in dict.fromkeys(scope_notes))
+    if scope_notice:
+        scope_notice = ("<aside class='answer-scope-notice'><strong>Границы ответа</strong>" + scope_notice
+                        + "<p>Это предупреждение о составе, а не автоматическая научная проверка.</p></aside>")
     return (
         "<section class='workspace-band'>"
         f"<p><strong>Query:</strong> {_html(payload.get('query') or question)}</p>"
@@ -1053,7 +1044,11 @@ def _answer_payload_panel(payload: dict[str, Any], question: str,
         "<div class='answer-surface'>"
         "<section class='answer-card'>"
         "<p class='section-kicker'>Evidence-based answer</p>"
+        "<p class='muted'>Ответ получен. Научная корректность и полнота не установлены.</p>"
+        f"{scope_notice}"
         f"{answer_block}"
+        "<details><summary>Текст ответа до оформления</summary>"
+        f"<pre class='source-exact'>{_html(answer)}</pre></details>"
         f"<details><summary>Проверить утверждения и исходные фрагменты</summary>"
         f"<div class='claims-thread'>{claim_cards_html}</div></details></section>"
         "<section class='evidence-card'>"

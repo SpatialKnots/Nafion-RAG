@@ -62,6 +62,16 @@ flowchart TB
 
 ## Текущий экспериментальный статус
 
+**Текущий веб-путь ответа, 16 ноября.** Главная форма теперь использует
+[/ui/answer/current](http://127.0.0.1:8000/ui/answer/current): GigaChat rewriting,
+существующий поиск/отбор источников, requirement-guided ответ и проверка выдачи.
+Отправка делает до одного rewriting и одного answer запроса, без автоматических
+повторов. Исходный вопрос сохраняется для генерации; PDF-ссылки, native-ответ и
+диагностика доступны в результате. Это автоматический веб-профиль: ручная проверка
+смысла rewriting из эксперимента не выполняется, научная корректность не установлена.
+Исходные `/answer`, `/ui/answer` и экспериментальные маршруты сохранены.
+[Отчёт и ограничения](docs/current_answer_web_integration_2026-11-16.md).
+
 **Records stage49, frozen DSC experiment contract, 27 октября.** [Отчёт](docs/records_stage49_dsc_experiment_2026-10-27.md), [протокол](docs/records/dsc_experiment_protocol_v0.1.md). Выполнен пункт 3: точные question/source/prompt/request/schema/settings/budget/criteria/result format зафиксированы offline. Полный Responses envelope — 8712 bytes; будущий бюджет — один вызов `gpt-6-astra`, medium, до 4096 output tokens, 180 s, без retries/fallback. Настройки исторические, live compatibility/pricing не проверены; monetary estimate отсутствует. Ответ учтёт шесть fields с exact M1 quotes или явной abstention; научная entailment/accuracy не объявлена. Result template not_executed, usage/model/cost unknown, реальных responses нет. Offline supplied-response inspector сохраняет raw bytes/metadata/errors и проверяет source integrity, без отправки. 57 affected tests, Ruff/mypy, HTML/PDF-link QA и 20 byte-identical export files прошли. Review: `output/records_stage49_20261027/review_v01/review.html`. API/model/retrieval/embedding/DB calls нет, network_ready=false. Далее — пункт 4 после снятия API prohibition, с durable attempt/result recording.
 
 **Records stage48, допуск DSC-пакета, 27 октября.** [Отчёт](docs/records_stage48_dsc_admission_2026-10-27.md), [протокол](docs/records/dsc_admission_protocol_v0.1.md). Выполнен пункт 2 pre-API плана: новый source packet прошёл 14/14 checks и пригоден для подготовки frozen-эксперимента. Проверены exact source, article/year/DSC mentions, method/condition/programme wording, границы, сохранение unknown и прежние byte/full-page guards. Все 12 historical blockers и семь файлов stage47 сохранены отдельно без изменений. Положительный source admission не является научной приёмкой или разрешением отправки: network_ready=false, API prohibition действует. 85 affected tests, Ruff/mypy, HTML/PDF-link QA и 11 byte-identical export files прошли. Review: `output/records_stage48_20261027/review_v01/review.html`; TAC остаётся в копии `packet/metadata_review.html`. Далее — пункт 3, frozen experiment contract; API/model/retrieval/embedding/DB calls нет.

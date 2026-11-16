@@ -43,6 +43,8 @@ from app.generation.providers import (
 from app.generation.quantitative_facts import POLICY as QUANTITATIVE_POLICY
 from app.generation.quantitative_facts import prepare as prepare_quantitative_facts
 from app.generation.query_assist import query_assistance_to_dict, suggest_query_corrections
+from app.generation.query_rewriting import question_body, topical
+from app.generation.query_rewriting import validate as validate_rewrite
 from app.generation.reference_quotes import prepare as prepare_reference_quotes
 from app.generation.reference_quotes import resolve_selections
 from app.generation.reference_quotes import validate_complete as validate_reference_quotes
@@ -185,6 +187,7 @@ def answer_question(
     library_source_id: UUID | str | None = None,
     provider: AnswerProvider | None = None,
     trace_observer: Callable[[SearchResponse, list[Evidence], dict[str, object]], None] | None = None,
+    rewrite_plan: dict[str, Any] | None = None,
 ) -> AnswerResponse:
     normalized_question = question.strip()
     if not normalized_question:
@@ -196,6 +199,10 @@ def answer_question(
     active_method = method or settings.rag_retrieval_method
     active_answer_style = normalize_answer_style(answer_style)
     active_answer_language = normalize_answer_language(answer_language)
+    rewrite_options: dict[str, Any] = {}
+    if rewrite_plan is not None:
+        validate_rewrite(rewrite_plan, question_body(normalized_question))
+        rewrite_options["ranking_question"] = topical(rewrite_plan)
     retrieval = search_chunks(
         session,
         normalized_question,
@@ -204,11 +211,13 @@ def answer_question(
         method=active_method,
         filters=SearchFilters.normalize(library_source_id=library_source_id),
         settings=settings,
+        **rewrite_options,
     )
     evidence_selection = select_answer_evidence(
         normalized_question,
         retrieval.results,
-        additional_queries=_cross_lingual_selection_queries(retrieval.metadata),
+        additional_queries=[*_cross_lingual_selection_queries(retrieval.metadata),
+                            *([topical(rewrite_plan)] if rewrite_plan is not None else [])],
     )
     context_results, context_metadata = complete_context(
         session, normalized_question, active_collection,
@@ -237,6 +246,16 @@ def answer_question(
         adequacy_evidence,
         concept_terms=glossary_terms_for_concepts(cross_lingual_concepts),
     )
+    if rewrite_plan is not None:
+        baseline = adequacy
+        translated = assess_evidence_adequacy(rewrite_plan["english_question"], adequacy_evidence)
+        allowed = translated.adequate and not baseline.required_concepts.missing and not baseline.relation_requirements["missing"]
+        reason = ("missing_required_concepts" if baseline.required_concepts.missing else
+                  "missing_relation_context" if baseline.relation_requirements["missing"] else translated.reason)
+        adequacy = replace(translated, adequate=allowed, reason=reason, required_concepts=baseline.required_concepts,
+            relation_requirements=baseline.relation_requirements, concept_coverage={**translated.concept_coverage,
+                "rewriting_experiment": {"version": "question_rewriting_experiment_v0.2",
+                    "original_assessment": asdict(baseline), "requirements_diagnostic_only": rewrite_plan["requirements"]}})
     adequacy_metadata = {
         "adequate": adequacy.adequate,
         "reason": adequacy.reason,

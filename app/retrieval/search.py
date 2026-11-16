@@ -677,6 +677,7 @@ def hybrid_cross_lingual_search(
     chunks_per_article: int | None = None,
     *,
     settings: Settings | None = None,
+    ranking_question: str | None = None,
 ) -> SearchResponse:
     if top_k <= 0:
         raise ValueError("top_k must be positive")
@@ -759,7 +760,9 @@ def hybrid_cross_lingual_search(
     )
     language_diverse_results, context_retention = retain_requested_context(query, language_diverse_results, limit=top_k)
     limited_results = language_diverse_results[:top_k]
-    scoped_results, reference_metadata = _source_reference_search(session, query, collection_name, normalized_filters, top_k)
+    reference_options = {"ranking_question": ranking_question} if ranking_question is not None else {}
+    scoped_results, reference_metadata = _source_reference_search(
+        session, query, collection_name, normalized_filters, top_k, **reference_options)
     if scoped_results is not None:
         limited_results = scoped_results
     metadata = _metadata(
@@ -808,7 +811,8 @@ def _source_reference_chunks(session: Session, query: str, collection: str, filt
 
 
 def _source_reference_search(session: Session, query: str, collection: str, filters: SearchFilters,
-                             top_k: int) -> tuple[list[SearchResult] | None, dict[str, Any] | None]:
+                             top_k: int, *, ranking_question: str | None = None
+                             ) -> tuple[list[SearchResult] | None, dict[str, Any] | None]:
     citation = reference(query)
     if citation is None:
         return None, None
@@ -822,7 +826,12 @@ def _source_reference_search(session: Session, query: str, collection: str, filt
     if not rows:
         metadata["reason"] = "no_usable_chunks"
         return None, metadata
-    selected, role_metadata = rank_context(query, rows, top_k=top_k)
+    selected, role_metadata = rank_context(ranking_question if ranking_question is not None else query, rows, top_k=top_k)
+    if ranking_question is not None:
+        from app.retrieval.source_reference import roles
+
+        role_metadata.update(query_rewritten=True, rewriting_version="question_rewriting_experiment_v0.2",
+                             original_requested_roles=list(roles(query)))
     metadata.update(role_metadata, resolved=True, reason="unique_registered_metadata_candidate", article_id=candidates[0])
     return selected, metadata
 
@@ -1080,6 +1089,7 @@ def search_chunks(
     group_by: str = "none",
     chunks_per_article: int | None = None,
     settings: Settings | None = None,
+    ranking_question: str | None = None,
 ) -> SearchResponse:
     normalized_method = normalize_retrieval_method(method)
     normalized_filters = filters or SearchFilters.normalize(source_type=source_type)
@@ -1128,6 +1138,7 @@ def search_chunks(
             settings=settings,
         )
     if normalized_method == "hybrid_cross_lingual":
+        rewrite_options = {"ranking_question": ranking_question} if ranking_question is not None else {}
         return hybrid_cross_lingual_search(
             session,
             query,
@@ -1137,6 +1148,7 @@ def search_chunks(
             group_by=group_by,
             chunks_per_article=chunks_per_article,
             settings=settings,
+            **rewrite_options,
         )
     raise AssertionError(f"unhandled retrieval method: {normalized_method}")
 

@@ -257,14 +257,14 @@ def test_dashboard_returns_html(monkeypatch) -> None:
 
     assert response.status_code == 200
     body = response.body.decode()
-    assert "Corpus Dashboard" in body
+    assert 'aria-label="Состояние библиотеки"' in body
     assert "ARIADNE Research Workbench" in body
     assert "Nafion profile" not in body
     assert "Evidence library" in body
     assert "data-library-toggle" in body
     assert "ariadne:selectedLibraries" in body
-    assert 'method="post" action="/ui/answer"' in body
-    assert 'data-async-result="/ui/answer/result"' in body
+    assert 'method="post" action="/ui/answer/current"' in body
+    assert 'data-async-result="/ui/answer/current/result"' in body
     assert 'name="question"' in body
     assert 'value="mini_review"' in body
     assert 'id="home-answer-result"' in body
@@ -273,13 +273,12 @@ def test_dashboard_returns_html(monkeypatch) -> None:
     assert ">Home</a>" in body
     assert ">Search</a>" not in body
     assert "main_text" not in body
-    assert "Main text" in body
-    assert "Tables / Facts diagnostics" in body
-    assert "Articles" in body
-    assert "Analysis Progress" in body
-    assert "Text/OCR ready" in body
-    assert "Retrieval Evaluation" in body
-    assert "Extended Retrieval Evaluation" in body
+    assert "Статей в корпусе" in body
+    assert "Файлов в обработке" in body
+    assert "Проблемных файлов" in body
+    for removed in ("Corpus Dashboard", "Selected Page Layers", "Chunk Source Types", "Chunk Text Layers",
+                    "Tables / Facts diagnostics", "Analysis Progress", "Retrieval Evaluation", "python -m app.evaluation"):
+        assert removed not in body
 
 
 def test_ui_root_route_returns_dashboard(monkeypatch) -> None:

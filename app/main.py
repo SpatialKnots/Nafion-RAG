@@ -36,6 +36,7 @@ from app.facts.service import list_structured_facts, structured_fact_summary, st
 from app.generation.block_routes import router as block_preparation_router
 from app.generation.claim_review_routes import router as claim_review_router
 from app.generation.context_action_routes import router as context_action_router
+from app.generation.current_answer_routes import router as current_answer_router
 from app.generation.evidence_packet_routes import router as evidence_packet_router
 from app.generation.preparation_routes import router as preparation_router
 from app.generation.providers import GenerationOutputError, GenerationUnavailableError
@@ -82,6 +83,7 @@ from app.ui import router as ui_router
 
 app = FastAPI(title="ARIADNE", version="0.1.0")
 app.include_router(ui_router)
+app.include_router(current_answer_router)
 app.include_router(numeric_review_router)
 app.include_router(terms_review_router)
 app.include_router(preparation_router)
