@@ -1,2 +1,5 @@
 # Preserve original bytes of historical handoff documents referenced by manifests.
 /handoffs/** -text
+# Runtime verifies these catalogues against pinned SHA-256 digests.
+# Preserve their exact bytes in archives and checkouts on every platform.
+/app/resources/reviewed*_glyph_aliases_*.json -text

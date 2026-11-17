@@ -25,6 +25,7 @@ output/baselines/
 /output/
 /tmp/
 /data/reviews/
+/data/terms_pipeline_config.json
 node_modules/
 
 # Local runtime logs and presentation build intermediates.
